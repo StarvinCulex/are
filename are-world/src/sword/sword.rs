@@ -44,7 +44,7 @@ use serde::{Deserialize, Serialize};
 /// assert!(SWord::new("aa") > SWord::new("a_"));
 /// assert!(SWord::new("a_") > SWord::new("a0"));
 /// ```
-#[derive(Clone, Copy, Eq, Hash, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Serialize, Deserialize, Default)]
 pub struct SWord {
     bits: u64,
 }
@@ -88,17 +88,10 @@ impl From<&str> for SWord {
 
 impl std::fmt::Display for SWord {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        for c in self.clone() {
+        for c in *self {
             f.write_char(c)?;
         }
-        return Ok(());
-    }
-}
-
-impl PartialEq for SWord {
-    #[inline]
-    fn eq(&self, other: &Self) -> bool {
-        self.bits == other.bits
+        Ok(())
     }
 }
 
@@ -123,7 +116,7 @@ impl std::iter::Iterator for SWord {
         if len == 0 {
             None
         } else {
-            let c = SWord::word2char((self.bits >> 59) & 0x1F);
+            let c = SWord::word2char((self.bits >> (5 * 11 + 4)) & 0x1F);
             let new_len = (len - 1) as u64;
             let new_data = (self.bits & 0xFFFF_FFFF_FFFF_FFF0) << 5;
             self.bits = new_data | new_len;
@@ -136,13 +129,6 @@ impl std::iter::ExactSizeIterator for SWord {
     #[inline]
     fn len(&self) -> usize {
         (self.bits & 0xF) as usize
-    }
-}
-
-impl Default for SWord {
-    #[inline]
-    fn default() -> Self {
-        SWord { bits: 0 }
     }
 }
 
@@ -172,7 +158,7 @@ impl SWord {
             3 => '2',
             4 => '3',
             5 => '_',
-            6..32 => ('a' as u8 - 6 + s) as char,
+            6..32 => (b'a' - 6 + s) as char,
             _ => '!',
         }
     }
@@ -188,9 +174,7 @@ impl SWord {
     }
     #[inline]
     const fn new_sub_unchecked(&mut self, chars: &[u8], index: usize) {
-        unsafe {
-            self.bits |= SWord::char2word(chars[index]).unchecked_shl(4 + 5 * (11 - index as u64));
-        }
+        self.bits |= SWord::char2word(chars[index]) << (4 + 5 * (11 - index as u64));
     }
 }
 
