@@ -1,119 +1,125 @@
+// by *StarvinCulex @2021/11/13*
+
+/// 固定宽度和高度的矩阵。  
+/// 通过[`Coord<isize>`]作为索引获得其中的值。  
 pub struct Matrix<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> {
     elements: Vec<Element>,
-    size: Coord<usize>,
+    size: Coord<isize>,
 }
 
 #[allow(dead_code)]
 impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
     Matrix<Element, CHUNK_WIDTH, CHUNK_HEIGHT>
 {
+    /// 构造大小为参数`size`的矩阵。
+    /// 矩阵中的元素由参数函数`constructor`决定：  
+    /// - `constructor(Some(Coord(x, y)))`的值填充`(x, y)`对映的位置
+    /// - 不使用的区域用`constructor(None)`的值填充
+    ///  
+    /// *`size.0`或`size.1`超过[`isize::MAX`]引发未定义行为。*
     #[inline]
     pub fn with_ctor(
         size: &Coord<usize>,
-        constructor: impl Fn(Option<Coord<usize>>) -> Element,
+        mut constructor: impl FnMut(Option<Coord<isize>>) -> Element,
     ) -> Self {
+        let alloc_size = Self::calc_alloc_size(*size);
         let mut instance = Self {
-            elements: Vec::with_capacity(Self::get_alloc_size(*size)),
-            size: *size,
+            elements: Vec::with_capacity(alloc_size),
+            size: Coord(size.0 as isize, size.1 as isize),
         };
-        for (pos, addr) in
-            Shape::<CHUNK_WIDTH, CHUNK_HEIGHT>::rect(*size, Coord(0, 0) | *size - Coord(1, 1))
-        {
-            if addr != instance.elements.len() {
-                for _ in instance.elements.len()..addr {
-                    instance.elements.push(constructor(None));
-                }
-            }
-            instance.elements.push(constructor(Some(pos)));
+        for i in 0..alloc_size {
+            let pos = unsafe { Self::pos_at_unchecked(instance.size, i) };
+            let contains = (Coord(0, 0) | (instance.size - Coord(1, 1))).contains_point(&pos);
+            let verified_pos = if contains { Some(pos) } else { None };
+            let new_element = constructor(verified_pos);
+            instance.elements.push(new_element);
         }
         instance
     }
+
     #[inline]
-    pub fn size(&self) -> &Coord<usize> {
+    pub fn with<const X: usize, const Y: usize>(
+        mut elements: [[Element; X]; Y],
+        none: impl Fn() -> Element,
+    ) -> Self {
+        Self::with_ctor(&Coord(X, Y), |opt_pos| {
+            if let Some(pos) = opt_pos {
+                if pos >= Coord(0, 0) && pos < Coord(X as isize, Y as isize) {
+                    return std::mem::replace(
+                        &mut elements[pos.1 as usize][pos.0 as usize],
+                        none(),
+                    );
+                }
+            }
+            none()
+        })
+    }
+
+    /// 返回矩阵的大小  
+    /// 返回值`size`满足`size.0 > 0`且`size.1 > 0`
+    #[inline]
+    pub const fn size(&self) -> &Coord<isize> {
         &self.size
     }
+
     #[inline]
-    pub fn area<'m>(
-        &'m self,
-        shape: Shape<CHUNK_WIDTH, CHUNK_HEIGHT>,
-    ) -> MatrixArea<'m, Element, CHUNK_WIDTH, CHUNK_HEIGHT> {
-        MatrixArea::new(self, shape)
+    pub fn normalize(&self, pos: Coord<isize>) -> Coord<isize> {
+        Self::normalize_pos(self.size, pos)
     }
+
     #[inline]
-    pub fn area_mut<'m>(
-        &'m mut self,
-        shape: Shape<CHUNK_WIDTH, CHUNK_HEIGHT>,
-    ) -> MatrixAreaMut<'m, Element, CHUNK_WIDTH, CHUNK_HEIGHT> {
-        MatrixAreaMut::new(self, shape)
+    pub fn normalize_area(&self, area: Coord<Interval<isize>>) -> Coord<Interval<isize>> {
+        self.normalize(area.from()) | self.normalize(area.to())
     }
+
     #[inline]
-    fn normalize_pos<I>(size: Coord<usize>, pos: Coord<I>) -> Coord<usize>
-    where
-        I: std::convert::TryInto<isize>,
-        <I as std::convert::TryInto<isize>>::Error: std::fmt::Debug,
+    pub fn scan(
+        &self,
+        area: Coord<Interval<isize>>,
+    ) -> Iterator<Element, Scan<CHUNK_WIDTH, CHUNK_HEIGHT>, CHUNK_WIDTH, CHUNK_HEIGHT> {
+        Iterator::new(self, Scan::new(self.size, self.normalize_area(area)))
+    }
+
+    #[inline]
+    pub fn area(
+        &self,
+        area: Coord<Interval<isize>>,
+    ) -> Iterator<Element, impl Accessor<CHUNK_WIDTH, CHUNK_HEIGHT>, CHUNK_WIDTH, CHUNK_HEIGHT>
     {
-        pos.try_into()
-            .unwrap()
-            .reduce(size.try_into().unwrap(), isize::rem_euclid)
-            .try_into()
-            .unwrap()
+        self.scan(area)
     }
+
     #[inline]
-    fn get_alloc_size(size: Coord<usize>) -> usize {
-        (size / Coord(CHUNK_WIDTH, CHUNK_HEIGHT) * Coord(CHUNK_WIDTH, CHUNK_HEIGHT))
-            .merge(|x, y| x * y)
-    }
-    #[inline]
-    unsafe fn pos_at_unchecked(size: Coord<usize>, addr: usize) -> Coord<usize> {
-        let chunk_address = addr / (CHUNK_WIDTH * CHUNK_HEIGHT);
-        let grid_address = addr % (CHUNK_WIDTH * CHUNK_HEIGHT);
-        let q = Coord(chunk_address % size.0, chunk_address / size.0);
-        let r = Coord(grid_address % CHUNK_WIDTH, grid_address / CHUNK_WIDTH);
-        q * Coord(CHUNK_WIDTH, CHUNK_HEIGHT) + r
-    }
-    #[inline]
-    unsafe fn get_address_unchecked(size: Coord<usize>, at: Coord<usize>) -> usize {
-        let q = at / Coord(CHUNK_WIDTH, CHUNK_HEIGHT);
-        let r = at % Coord(CHUNK_WIDTH, CHUNK_HEIGHT);
-        let chunk_address = q.0 + q.1 * size.0;
-        let grid_address = r.0 + r.1 * CHUNK_WIDTH;
-        chunk_address * CHUNK_WIDTH * CHUNK_HEIGHT + grid_address
-    }
-    #[inline]
-    unsafe fn get_by_addr(&self, addr: usize) -> &Element {
-        self.elements.get_unchecked(addr)
-    }
-    #[inline]
-    unsafe fn get_by_addr_mut<'m>(&'m mut self, addr: usize) -> &'m mut Element {
-        self.elements.get_unchecked_mut(addr)
+    pub fn iter(
+        &self,
+    ) -> Iterator<Element, impl Accessor<CHUNK_WIDTH, CHUNK_HEIGHT>, CHUNK_WIDTH, CHUNK_HEIGHT>
+    {
+        self.area(Coord(0, 0) | (*self.size() - Coord(1, 1)))
     }
 }
 
-impl<I, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> std::ops::Index<Coord<I>>
+impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> std::ops::Index<Coord<isize>>
     for Matrix<Element, CHUNK_WIDTH, CHUNK_HEIGHT>
-where
-    I: std::convert::TryInto<isize>,
-    <I as std::convert::TryInto<isize>>::Error: std::fmt::Debug,
 {
     type Output = Element;
-    fn index(&self, index: Coord<I>) -> &Element {
+    fn index(&self, index: Coord<isize>) -> &Element {
         unsafe {
-            self.get_by_addr(Self::get_address_unchecked(
+            self.get_by_addr(Self::calc_address_unchecked(
                 self.size,
-                Self::normalize_pos(self.size, index),
+                self.normalize(index),
             ))
         }
     }
 }
 
-impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> std::ops::IndexMut<Coord<usize>>
+impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> std::ops::IndexMut<Coord<isize>>
     for Matrix<Element, CHUNK_WIDTH, CHUNK_HEIGHT>
 {
-    fn index_mut(&mut self, index: Coord<usize>) -> &mut Element {
+    fn index_mut(&mut self, index: Coord<isize>) -> &mut Element {
         unsafe {
-            self.get_by_addr_mut(Self::get_address_unchecked(
+            self.get_by_addr_mut(Self::calc_address_unchecked(
                 self.size,
-                Self::normalize_pos(self.size, index),
+                self.normalize(index),
             ))
         }
     }
@@ -125,6 +131,10 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
 where
     Element: Clone,
 {
+    /// 构造大小为参数`size`的矩阵。  
+    /// 矩阵中所有的元素由`element.clone()`的结果填充  
+    ///   
+    /// *`size.0`或`size.1`超过[`isize::MAX`]引发未定义行为。*
     #[inline]
     pub fn with_fill(size: &Coord<usize>, element: &Element) -> Self {
         Self::with_ctor(size, |_| element.clone())
@@ -150,8 +160,79 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
 where
     Element: Default,
 {
+    /// 构造大小为参数`size`的矩阵。  
+    /// 矩阵的所有元素由`Element::default()`的结果填充。  
     #[inline]
     pub fn new(size: &Coord<usize>) -> Self {
         Self::with_ctor(size, |_| Element::default())
+    }
+}
+
+// private
+
+impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
+    Matrix<Element, CHUNK_WIDTH, CHUNK_HEIGHT>
+{
+    #[inline]
+    const fn calc_chunk_size(size: Coord<usize>) -> Coord<usize> {
+        let chunk_row_count = (size.0 - 1) / CHUNK_WIDTH + 1;
+        let chunk_col_count = (size.1 - 1) / CHUNK_HEIGHT + 1;
+        Coord(chunk_row_count, chunk_col_count)
+    }
+
+    /// 计算`size`大小的矩阵需要分配多长的数组才能存下
+    #[inline]
+    const fn calc_alloc_size(size: Coord<usize>) -> usize {
+        let chunk_size = Self::calc_chunk_size(size);
+        let chunk_count = chunk_size.0 * chunk_size.1;
+        CHUNK_WIDTH * CHUNK_HEIGHT * chunk_count
+    }
+
+    /// 计算在`size`大小的矩阵中，偏移量`addr`对应的位置  
+    /// 结果可能不在`size`大小矩阵所表示的区域里  
+    /// `size`任何一个维度必须非负  
+    #[inline]
+    const unsafe fn pos_at_unchecked(size: Coord<isize>, addr: usize) -> Coord<isize> {
+        let Coord(chunk_row_count, _) =
+            Self::calc_chunk_size(Coord(size.0 as usize, size.1 as usize));
+        let chunk_address = addr / (CHUNK_WIDTH * CHUNK_HEIGHT);
+        let grid_address = addr % (CHUNK_WIDTH * CHUNK_HEIGHT);
+        let q = Coord(
+            chunk_address % chunk_row_count,
+            chunk_address / chunk_row_count,
+        );
+        let r = Coord(grid_address % CHUNK_WIDTH, grid_address / CHUNK_HEIGHT);
+        Coord(
+            (q.0 * CHUNK_WIDTH + r.0) as isize,
+            (q.1 * CHUNK_HEIGHT + r.1) as isize,
+        )
+    }
+
+    /// 计算在`size`大小矩阵中，位置`at`对应的偏移量  
+    /// `size`、`at`任何一个维度必须非负  
+    #[inline]
+    const unsafe fn calc_address_unchecked(size: Coord<isize>, at: Coord<isize>) -> usize {
+        let at0 = at.0 as usize;
+        let at1 = at.1 as usize;
+        let q = Coord(at0 / CHUNK_WIDTH, at1 / CHUNK_HEIGHT);
+        let r = Coord(at0 % CHUNK_WIDTH, at1 % CHUNK_HEIGHT);
+        let chunk_address = q.0 + q.1 * (size.0 as usize);
+        let grid_address = r.0 + r.1 * CHUNK_WIDTH;
+        chunk_address * CHUNK_WIDTH * CHUNK_HEIGHT + grid_address
+    }
+
+    #[inline]
+    unsafe fn get_by_addr(&self, addr: usize) -> &Element {
+        self.elements.get_unchecked(addr)
+    }
+
+    #[inline]
+    unsafe fn get_by_addr_mut(&mut self, addr: usize) -> &mut Element {
+        self.elements.get_unchecked_mut(addr)
+    }
+
+    #[inline]
+    fn normalize_pos(size: Coord<isize>, pos: Coord<isize>) -> Coord<isize> {
+        pos.reduce(size, isize::rem_euclid)
     }
 }
