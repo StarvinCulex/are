@@ -29,7 +29,7 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
         };
         for i in 0..alloc_size {
             let pos = unsafe { Self::pos_at_unchecked(instance.size, i) };
-            let contains = (Coord(0, 0) | (instance.size - Coord(1, 1))).contains_point(&pos);
+            let contains = (Coord(0, 0) | (instance.size - Coord(1, 1))).contains(&pos);
             let verified_pos = if contains { Some(pos) } else { None };
             let new_element = constructor(verified_pos);
             instance.elements.push(new_element);
@@ -71,30 +71,19 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
     pub fn normalize_area(&self, area: Coord<Interval<isize>>) -> Coord<Interval<isize>> {
         self.normalize(area.from()) | self.normalize(area.to())
     }
+}
 
+#[allow(dead_code)]
+impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
+    Matrix<Element, CHUNK_WIDTH, CHUNK_HEIGHT>
+where
+    Element: Default,
+{
+    /// 构造大小为参数`size`的矩阵。  
+    /// 矩阵的所有元素由`Element::default()`的结果填充。  
     #[inline]
-    pub fn scan(
-        &self,
-        area: Coord<Interval<isize>>,
-    ) -> Iterator<Element, Scan<CHUNK_WIDTH, CHUNK_HEIGHT>, CHUNK_WIDTH, CHUNK_HEIGHT> {
-        Iterator::new(self, Scan::new(self.size, self.normalize_area(area)))
-    }
-
-    #[inline]
-    pub fn area(
-        &self,
-        area: Coord<Interval<isize>>,
-    ) -> Iterator<Element, impl Accessor<CHUNK_WIDTH, CHUNK_HEIGHT>, CHUNK_WIDTH, CHUNK_HEIGHT>
-    {
-        self.scan(area)
-    }
-
-    #[inline]
-    pub fn iter(
-        &self,
-    ) -> Iterator<Element, impl Accessor<CHUNK_WIDTH, CHUNK_HEIGHT>, CHUNK_WIDTH, CHUNK_HEIGHT>
-    {
-        self.area(Coord(0, 0) | (*self.size() - Coord(1, 1)))
+    pub fn new(size: &Coord<usize>) -> Self {
+        Self::with_ctor(size, |_| Element::default())
     }
 }
 
@@ -151,20 +140,6 @@ where
             elements: self.elements.clone(),
             size: self.size,
         }
-    }
-}
-
-#[allow(dead_code)]
-impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
-    Matrix<Element, CHUNK_WIDTH, CHUNK_HEIGHT>
-where
-    Element: Default,
-{
-    /// 构造大小为参数`size`的矩阵。  
-    /// 矩阵的所有元素由`Element::default()`的结果填充。  
-    #[inline]
-    pub fn new(size: &Coord<usize>) -> Self {
-        Self::with_ctor(size, |_| Element::default())
     }
 }
 

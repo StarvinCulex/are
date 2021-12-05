@@ -95,7 +95,7 @@ impl<const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> Accessor<CHUNK_WIDTH, 
     }
 
     fn contains(&self, pos: Coord<isize>) -> bool {
-        self.area.contains_point(&pos)
+        self.area.contains(&pos)
     }
 
     fn r#type(&self) -> &'static str {

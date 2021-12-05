@@ -18,7 +18,7 @@ use std::fmt::Formatter;
 #[derive(Hash, Debug)]
 pub struct Interval<T>
 where
-    T: PartialOrd,
+    T: Ord,
 {
     pub from: T,
     pub to: T,
@@ -27,7 +27,7 @@ where
 #[allow(dead_code)]
 impl<T> Interval<T>
 where
-    T: PartialOrd,
+    T: Ord,
 {
     /// ```rust
     /// return Interval{from, to};
@@ -36,18 +36,17 @@ where
         Interval { from, to }
     }
 
-    /// 判断`other`表示的范围是否是`self`的子集
-    #[inline]
-    pub fn contains(&self, other: &Interval<T>) -> bool {
-        Interval::raw_contains(&self.from, &self.to, &other.from, &other.to)
-    }
-
     /// 判断`point`是否属于`self`表示的范围
-    pub fn contains_point(&self, point: &T) -> bool {
-        if self.from <= self.to {
-            &self.from <= point && point <= &self.to
+    pub fn contains(&self, point: &T) -> bool {
+        let greater_than_from = point >= &self.from;
+        let less_than_to = point <= &self.to;
+        let closed_interval = self.from <= self.to;
+
+        // closed_interval ^ greater_than_from ^ less_than_to
+        if closed_interval {
+            greater_than_from && less_than_to
         } else {
-            point <= &self.from || &self.to <= point
+            greater_than_from || less_than_to
         }
     }
 
@@ -61,8 +60,8 @@ where
 #[allow(dead_code)]
 impl<T> Interval<T>
 where
-    T: PartialOrd + std::ops::Add + Clone,
-    <T as std::ops::Add>::Output: PartialOrd,
+    T: Ord + std::ops::Add + Clone,
+    <T as std::ops::Add>::Output: Ord,
 {
     /// 将`self.from`和`self.to`都加上`rhs`得到的值
     #[inline]
@@ -74,9 +73,9 @@ where
 #[allow(dead_code)]
 impl<T> Interval<T>
 where
-    T: PartialOrd + std::ops::Add<T> + std::ops::Sub<T> + Clone,
+    T: Ord + std::ops::Add<T> + std::ops::Sub<T> + Clone,
     <T as std::ops::Sub<T>>::Output: Into<<T as std::ops::Add<T>>::Output>,
-    <T as std::ops::Add>::Output: std::cmp::PartialOrd,
+    <T as std::ops::Add>::Output: std::cmp::Ord,
 {
     #[inline]
     pub fn expand(self, rhs: T) -> Interval<<T as std::ops::Add<T>>::Output> {
@@ -86,8 +85,8 @@ where
 
 impl<T, U> PartialEq<Interval<U>> for Interval<T>
 where
-    T: PartialEq<U> + PartialOrd,
-    U: PartialOrd,
+    T: PartialEq<U> + Ord,
+    U: Ord,
 {
     #[inline]
     fn eq(&self, rhs: &Interval<U>) -> bool {
@@ -95,11 +94,9 @@ where
     }
 }
 
-impl<T> Eq for Interval<T> where T: Eq + PartialOrd {}
-
 impl<T> Clone for Interval<T>
 where
-    T: Clone + PartialOrd,
+    T: Clone + Ord,
 {
     #[inline]
     fn clone(&self) -> Self {
@@ -107,30 +104,29 @@ where
     }
 }
 
-impl<T> Copy for Interval<T> where T: Copy + PartialOrd {}
+impl<T> Copy for Interval<T> where T: Copy + Ord {}
 
 impl<T> std::fmt::Display for Interval<T>
 where
-    T: std::fmt::Display + PartialOrd,
+    T: std::fmt::Display + Ord,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "[{from}->{to}]", from = self.from, to = self.to)
     }
 }
 
-// private
-impl<T> Interval<T>
-where
-    T: PartialOrd,
-{
-    #[inline]
-    fn raw_contains(parent_from: &T, parent_to: &T, child_from: &T, child_to: &T) -> bool {
-        if parent_from <= parent_to {
-            parent_from <= child_from && child_from <= child_to && child_to <= parent_to
-        } else if child_from <= child_to {
-            child_to <= parent_to || parent_from <= child_from
-        } else {
-            parent_from <= child_from && child_to <= parent_to
-        }
-    }
+#[cfg(test)]
+#[test]
+fn test_contains() {
+    assert!(Interval::new(0, 10).contains(&5));
+    assert!(Interval::new(0, 10).contains(&0));
+    assert!(Interval::new(0, 10).contains(&10));
+    assert!(!Interval::new(0, 10).contains(&-1));
+    assert!(!Interval::new(0, 10).contains(&11));
+
+    assert!(Interval::new(10, 0).contains(&10));
+    assert!(Interval::new(10, 0).contains(&0));
+    assert!(Interval::new(10, 0).contains(&11));
+    assert!(Interval::new(10, 0).contains(&-1));
+    assert!(!Interval::new(10, 0).contains(&5));
 }
