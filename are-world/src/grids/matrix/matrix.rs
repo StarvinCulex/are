@@ -176,7 +176,7 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
             chunk_address % chunk_row_count,
             chunk_address / chunk_row_count,
         );
-        let r = Coord(grid_address % CHUNK_WIDTH, grid_address / CHUNK_HEIGHT);
+        let r = Coord(grid_address % CHUNK_WIDTH, grid_address / CHUNK_WIDTH);
         Coord(
             (q.0 * CHUNK_WIDTH + r.0) as isize,
             (q.1 * CHUNK_HEIGHT + r.1) as isize,
@@ -187,11 +187,13 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
     /// `size`、`at`任何一个维度必须非负  
     #[inline]
     const unsafe fn calc_address_unchecked(size: Coord<isize>, at: Coord<isize>) -> usize {
+        let Coord(chunk_row_count, _) =
+            Self::calc_chunk_size(Coord(size.0 as usize, size.1 as usize));
         let at0 = at.0 as usize;
         let at1 = at.1 as usize;
         let q = Coord(at0 / CHUNK_WIDTH, at1 / CHUNK_HEIGHT);
         let r = Coord(at0 % CHUNK_WIDTH, at1 % CHUNK_HEIGHT);
-        let chunk_address = q.0 + q.1 * (size.0 as usize);
+        let chunk_address = q.0 + q.1 * chunk_row_count;
         let grid_address = r.0 + r.1 * CHUNK_WIDTH;
         chunk_address * CHUNK_WIDTH * CHUNK_HEIGHT + grid_address
     }

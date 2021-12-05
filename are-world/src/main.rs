@@ -6,7 +6,7 @@ use crate::grids::*;
 use crate::sword::SWord;
 
 mod grids;
-mod pipes;
+// mod pipes;
 mod sword;
 
 fn main() {
