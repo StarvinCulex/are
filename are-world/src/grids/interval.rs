@@ -32,7 +32,7 @@ where
     /// ```rust
     /// return Interval{from, to};
     #[inline]
-    pub fn new(from: T, to: T) -> Interval<T> {
+    pub const fn new(from: T, to: T) -> Interval<T> {
         Interval { from, to }
     }
 
@@ -71,6 +71,19 @@ where
     }
 }
 
+#[allow(dead_code)]
+impl<T> Interval<T>
+where
+    T: PartialOrd + std::ops::Add<T> + std::ops::Sub<T> + Clone,
+    <T as std::ops::Sub<T>>::Output: Into<<T as std::ops::Add<T>>::Output>,
+    <T as std::ops::Add>::Output: std::cmp::PartialOrd,
+{
+    #[inline]
+    pub fn expand(self, rhs: T) -> Interval<<T as std::ops::Add<T>>::Output> {
+        Interval::new(self.from + rhs.clone(), (self.to - rhs).into())
+    }
+}
+
 impl<T, U> PartialEq<Interval<U>> for Interval<T>
 where
     T: PartialEq<U> + PartialOrd,
@@ -101,7 +114,7 @@ where
     T: std::fmt::Display + PartialOrd,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[{}->{}]", self.from, self.to)
+        write!(f, "[{from}->{to}]", from = self.from, to = self.to)
     }
 }
 

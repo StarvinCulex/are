@@ -64,31 +64,6 @@ impl<T> Coord<T> {
     }
 }
 
-// 未实现`Into`和`TryInto`是因为：
-// - `from`方法有其他意义
-// - 无法用泛型实现`Into`和`TryInto` (与`Into<Self>`/`TryInto<Self>`冲突）
-#[allow(dead_code)]
-impl<T> Coord<T> {
-    /// ```rust
-    /// return Coord(self.0.into(), self.1.into());
-    #[inline]
-    pub fn into<U>(self) -> Coord<U>
-    where
-        T: Into<U>,
-    {
-        Coord(self.0.into(), self.1.into())
-    }
-    /// ```rust
-    /// return Coord(self.0.try_into()?, self.1.try_into()?));
-    #[inline]
-    pub fn try_into<U>(self) -> Result<Coord<U>, <T as std::convert::TryInto<U>>::Error>
-    where
-        T: std::convert::TryInto<U>,
-    {
-        Ok(Coord(self.0.try_into()?, self.1.try_into()?))
-    }
-}
-
 impl<T, R> std::ops::Add<Coord<R>> for Coord<T>
 where
     T: std::ops::Add<R>,
@@ -213,6 +188,12 @@ where
     }
 }
 
+impl<T: Copy> From<T> for Coord<T> {
+    fn from(t: T) -> Self {
+        Coord(t, t)
+    }
+}
+
 impl<T: Default> Default for Coord<T> {
     fn default() -> Self {
         Coord(T::default(), T::default())
@@ -221,6 +202,6 @@ impl<T: Default> Default for Coord<T> {
 
 impl<T: std::fmt::Display> std::fmt::Display for Coord<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({}, {})", self.0, self.1)
+        write!(f, "({0}, {1})", self.0, self.1)
     }
 }

@@ -57,5 +57,15 @@ where
     }
 }
 
-#[cfg(test)]
-mod tests {}
+#[allow(dead_code)]
+impl<T> Coord<Interval<T>>
+where
+    T: PartialOrd + std::ops::Add<T> + std::ops::Sub<T> + Clone,
+    <T as std::ops::Sub<T>>::Output: Into<<T as std::ops::Add<T>>::Output>,
+    <T as std::ops::Add>::Output: std::cmp::PartialOrd,
+{
+    #[inline]
+    pub fn expand(self, rhs: Coord<T>) -> Coord<Interval<<T as std::ops::Add>::Output>> {
+        self.reduce(rhs, Interval::offset)
+    }
+}
