@@ -38,7 +38,7 @@ use serde::{Deserialize, Serialize};
 ///     SWord::new("0123456789ABCDEF")
 /// ); // true
 ///
-/// assert!(SWord::new("a") > SWord::new(""));\
+/// assert!(SWord::new("a") > SWord::new(""));
 /// assert!(SWord::new("ab") > SWord::new("aa"));
 /// assert!(SWord::new("abc") > SWord::new("ab"));
 /// assert!(SWord::new("aa") > SWord::new("a_"));
@@ -49,6 +49,17 @@ pub struct SWord {
     bits: u64,
 }
 
+macro_rules! sword_bits_set {
+    ($bits: expr, $chars: expr, $index: expr) => {
+        if $index < $chars.len() {
+            $bits |= SWord::char2word($chars[$index]) << (4 + 5 * (11 - $index as u64));
+            true
+        } else {
+            false
+        }
+    };
+}
+
 #[allow(dead_code)]
 impl SWord {
     pub const fn new(string: &'static str) -> SWord {
@@ -56,18 +67,18 @@ impl SWord {
         let len = if chars.len() > 15 { 15 } else { chars.len() };
         let mut instance = SWord { bits: len as u64 };
 
-        let _ = instance.new_sub(chars, 0)
-            && instance.new_sub(chars, 1)
-            && instance.new_sub(chars, 2)
-            && instance.new_sub(chars, 3)
-            && instance.new_sub(chars, 4)
-            && instance.new_sub(chars, 5)
-            && instance.new_sub(chars, 6)
-            && instance.new_sub(chars, 7)
-            && instance.new_sub(chars, 8)
-            && instance.new_sub(chars, 9)
-            && instance.new_sub(chars, 10)
-            && instance.new_sub(chars, 11);
+        let _ = sword_bits_set!(instance.bits, chars, 0)
+            && sword_bits_set!(instance.bits, chars, 1)
+            && sword_bits_set!(instance.bits, chars, 2)
+            && sword_bits_set!(instance.bits, chars, 3)
+            && sword_bits_set!(instance.bits, chars, 4)
+            && sword_bits_set!(instance.bits, chars, 5)
+            && sword_bits_set!(instance.bits, chars, 6)
+            && sword_bits_set!(instance.bits, chars, 7)
+            && sword_bits_set!(instance.bits, chars, 8)
+            && sword_bits_set!(instance.bits, chars, 9)
+            && sword_bits_set!(instance.bits, chars, 10)
+            && sword_bits_set!(instance.bits, chars, 11);
         instance
     }
 }
@@ -80,7 +91,7 @@ impl From<&str> for SWord {
 
         let len_content = if chars.len() > 12 { 12 } else { chars.len() };
         for i in 0..len_content {
-            instance.new_sub_unchecked(chars, i);
+            sword_bits_set!(instance.bits, chars, i);
         }
         instance
     }
@@ -161,20 +172,6 @@ impl SWord {
             6..32 => (b'a' - 6 + s) as char,
             _ => '!',
         }
-    }
-
-    #[inline]
-    const fn new_sub(&mut self, chars: &[u8], index: usize) -> bool {
-        if index < chars.len() {
-            self.new_sub_unchecked(chars, index);
-            true
-        } else {
-            false
-        }
-    }
-    #[inline]
-    const fn new_sub_unchecked(&mut self, chars: &[u8], index: usize) {
-        self.bits |= SWord::char2word(chars[index]) << (4 + 5 * (11 - index as u64));
     }
 }
 

@@ -2,8 +2,6 @@ use std::ops::Index;
 
 use super::{coord::Coord, interval::Interval};
 
-mod test;
-
 include!("matrix.rs");
 
 include!("access.rs");

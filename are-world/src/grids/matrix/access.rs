@@ -7,7 +7,7 @@ pub trait Accessor<const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> {
 
     fn super_area(&self) -> Coord<Interval<isize>>;
 
-    fn contains<'b>(&self, pos: Coord<isize>) -> bool;
+    fn contains(&self, pos: Coord<isize>) -> bool;
 
     fn r#type(&self) -> &'static str;
 }
