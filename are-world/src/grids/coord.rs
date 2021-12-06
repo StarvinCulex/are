@@ -33,7 +33,9 @@
 /// * [`contains`]
 /// * [`contains_point`]
 /// * [`offset`]
-#[derive(Hash, Debug)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Hash, Debug, Serialize, Deserialize)]
 pub struct Coord<T>(pub T, pub T);
 
 #[allow(dead_code)]

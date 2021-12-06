@@ -1,7 +1,10 @@
 // by *StarvinCulex @2021/11/13*
 
+use serde::{Deserialize, Serialize};
+
 /// 固定宽度和高度的矩阵。  
 /// 通过[`Coord<isize>`]作为索引获得其中的值。  
+#[derive(Serialize, Deserialize)]
 pub struct Matrix<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> {
     elements: Vec<Element>,
     size: Coord<isize>,

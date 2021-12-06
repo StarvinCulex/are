@@ -15,7 +15,9 @@ use std::fmt::Formatter;
 /// 当`from > to`时：
 /// - 表示小于等于`from`或大于等于`to`的范围
 /// - 区间表示：**(-∞, from] ∪ [to, +∞)**
-#[derive(Hash, Debug)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Hash, Debug, Serialize, Deserialize)]
 pub struct Interval<T>
 where
     T: Ord,
