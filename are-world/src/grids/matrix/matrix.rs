@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 /// 固定宽度和高度的矩阵。  
 /// 通过[`Coord<isize>`]作为索引获得其中的值。  
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Matrix<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> {
     elements: Vec<Element>,
     size: Coord<isize>,
@@ -21,9 +21,10 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
     ///  
     /// *`size.0`或`size.1`超过[`isize::MAX`]引发未定义行为。*
     #[inline]
-    pub fn with_ctor(
+    pub fn with_ctor_default(
         size: &Coord<usize>,
-        mut constructor: impl FnMut(Option<Coord<isize>>) -> Element,
+        mut constructor: impl FnMut(Coord<isize>) -> Element,
+        mut default_generator: impl FnMut() -> Element,
     ) -> Self {
         let alloc_size = Self::calc_alloc_size(*size);
         let mut instance = Self {
@@ -33,29 +34,35 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
         for i in 0..alloc_size {
             let pos = unsafe { Self::pos_at_unchecked(instance.size, i) };
             let contains = (Coord(0, 0) | (instance.size - Coord(1, 1))).contains(&pos);
-            let verified_pos = if contains { Some(pos) } else { None };
-            let new_element = constructor(verified_pos);
+            let new_element = if contains {
+                constructor(pos)
+            } else {
+                default_generator()
+            };
             instance.elements.push(new_element);
         }
         instance
     }
 
     #[inline]
-    pub fn with<const X: usize, const Y: usize>(
+    pub fn with_array2_default<const X: usize, const Y: usize>(
         mut elements: [[Element; X]; Y],
-        none: impl Fn() -> Element,
+        default_generator: impl Fn() -> Element,
     ) -> Self {
-        Self::with_ctor(&Coord(X, Y), |opt_pos| {
-            if let Some(pos) = opt_pos {
+        Self::with_ctor_default(
+            &Coord(X, Y),
+            |pos| {
                 if pos >= Coord(0, 0) && pos < Coord(X as isize, Y as isize) {
-                    return std::mem::replace(
+                    std::mem::replace(
                         &mut elements[pos.1 as usize][pos.0 as usize],
-                        none(),
-                    );
+                        default_generator(),
+                    )
+                } else {
+                    default_generator()
                 }
-            }
-            none()
-        })
+            },
+            || default_generator(),
+        )
     }
 
     /// 返回矩阵的大小  
@@ -76,6 +83,73 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
     }
 }
 
+impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
+    Matrix<Element, CHUNK_WIDTH, CHUNK_HEIGHT>
+{
+    #[inline]
+    pub fn area(&self, area: Coord<Interval<isize>>) -> Area<Element, CHUNK_WIDTH, CHUNK_HEIGHT> {
+        Area { matrix: self, area }
+    }
+
+    #[inline]
+    pub fn iter(
+        &self,
+    ) -> <Area<Element, CHUNK_WIDTH, CHUNK_HEIGHT> as std::iter::IntoIterator>::IntoIter {
+        self.area(Coord(0, 0) | (*self.size() - Coord(1, 1)))
+            .into_iter()
+    }
+}
+
+#[allow(dead_code)]
+impl<Element> Matrix<Element, 1, 1> {
+    #[inline]
+    pub fn with_ctor(
+        size: &Coord<usize>,
+        constructor: impl FnMut(Coord<isize>) -> Element,
+    ) -> Self {
+        Self::with_ctor_default(size, constructor, || panic!("never happen"))
+    }
+
+    #[inline]
+    pub fn with_data(size: &Coord<usize>, mut elements: Vec<Element>) -> Result<Self, ()> {
+        if elements.len() != size.0 * size.1 {
+            Err(())
+        } else {
+            elements.shrink_to_fit();
+            Ok(Self {
+                size: (*size).try_into().unwrap(),
+                elements,
+            })
+        }
+    }
+
+    #[inline]
+    pub fn map<U, F: FnMut(Element) -> U>(self, mut mapping: F) -> Matrix<U, 1, 1> {
+        let size = self.size;
+        let mut src_elements = self.elements;
+        let mut dest_elements = Vec::with_capacity(src_elements.len());
+
+        while let Some(element) = src_elements.pop() {
+            dest_elements.push(mapping(element))
+        }
+
+        dest_elements.as_mut_slice().reverse();
+
+        Matrix {
+            size,
+            elements: dest_elements,
+        }
+    }
+}
+
+impl<Element, const SIZE_X: usize, const SIZE_Y: usize> From<[[Element; SIZE_X]; SIZE_Y]>
+    for Matrix<Element, 1, 1>
+{
+    fn from(elements: [[Element; SIZE_X]; SIZE_Y]) -> Self {
+        Matrix::with_array2_default(elements, || panic!())
+    }
+}
+
 #[allow(dead_code)]
 impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
     Matrix<Element, CHUNK_WIDTH, CHUNK_HEIGHT>
@@ -86,7 +160,7 @@ where
     /// 矩阵的所有元素由`Element::default()`的结果填充。  
     #[inline]
     pub fn new(size: &Coord<usize>) -> Self {
-        Self::with_ctor(size, |_| Element::default())
+        Self::with_ctor_default(size, |_| Element::default(), Element::default)
     }
 }
 
@@ -117,6 +191,33 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> std::ops::Ind
     }
 }
 
+impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> std::ops::Index<Coord<usize>>
+    for Matrix<Element, CHUNK_WIDTH, CHUNK_HEIGHT>
+{
+    type Output = Element;
+    fn index(&self, index: Coord<usize>) -> &Element {
+        unsafe {
+            self.get_by_addr(Self::calc_address_unchecked(
+                self.size,
+                Coord(index.0 as isize, index.1 as isize),
+            ))
+        }
+    }
+}
+
+impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> std::ops::IndexMut<Coord<usize>>
+    for Matrix<Element, CHUNK_WIDTH, CHUNK_HEIGHT>
+{
+    fn index_mut(&mut self, index: Coord<usize>) -> &mut Element {
+        unsafe {
+            self.get_by_addr_mut(Self::calc_address_unchecked(
+                self.size,
+                Coord(index.0 as isize, index.1 as isize),
+            ))
+        }
+    }
+}
+
 #[allow(dead_code)]
 impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
     Matrix<Element, CHUNK_WIDTH, CHUNK_HEIGHT>
@@ -129,7 +230,7 @@ where
     /// *`size.0`或`size.1`超过[`isize::MAX`]引发未定义行为。*
     #[inline]
     pub fn with_fill(size: &Coord<usize>, element: &Element) -> Self {
-        Self::with_ctor(size, |_| element.clone())
+        Self::with_ctor_default(size, |_| element.clone(), || element.clone())
     }
 }
 
@@ -144,6 +245,32 @@ where
             size: self.size,
         }
     }
+}
+
+impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> PartialEq
+    for Matrix<Element, CHUNK_WIDTH, CHUNK_HEIGHT>
+where
+    Element: PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        if self.size != other.size {
+            return false;
+        }
+
+        for (pos, element) in self.iter() {
+            if element != &other[pos] {
+                return false;
+            }
+        }
+        true
+    }
+}
+
+impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> Eq
+    for Matrix<Element, CHUNK_WIDTH, CHUNK_HEIGHT>
+where
+    Element: PartialEq + Eq,
+{
 }
 
 // private
@@ -220,21 +347,18 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
 // tests
 #[cfg(test)]
 fn test_sub<const CW: usize, const CH: usize>() {
-    let ctor = |opt_pos: Option<Coord<isize>>| {
-        if let Some(pos) = opt_pos {
-            pos.to_string()
-        } else {
-            "".to_string()
-        }
-    };
     let size = Coord(5, 5);
-    let mut matrix = Matrix::<String, CW, CH>::with_ctor(&size, ctor);
+    let mut matrix = Matrix::<String, CW, CH>::with_ctor_default(
+        &size,
+        |pos| pos.to_string(),
+        || "".to_string(),
+    );
 
     assert_eq!(*matrix.size(), Coord(5isize, 5isize));
 
     for j in 0..5 {
         for i in 0..5 {
-            let expected = ctor(Some(Coord(i, j)));
+            let expected = Coord(i, j).to_string();
             let value = &matrix[Coord(i, j)];
             assert_eq!(&expected, value);
         }
@@ -242,8 +366,22 @@ fn test_sub<const CW: usize, const CH: usize>() {
 
     for (pos, value) in matrix.iter() {
         assert!(Coord(0, 0) <= pos && pos < matrix.size);
-        assert_eq!(*value, ctor(Some(pos)));
+        assert_eq!(*value, pos.to_string());
     }
+}
+
+#[cfg(test)]
+fn test_map() {
+    assert_eq!(
+        Matrix::<i32, 1, 1>::with_array2_default([[-1, -2, -3], [-4, -5, -6]], i32::default),
+        Matrix::<i32, 1, 1>::with_array2_default([[1, 2, 3], [4, 5, 6]], i32::default).map(|i| -i),
+    );
+    // assert_eq!(
+    //     Matrix::<i32, 1, 1>::with_array2([[0, 0, 0, 0], [0, 1, 2, 3], [0, 4, 5, 6]], i32::default)
+    //         .scan(Coord(1, 1) | Coord(3, 2))
+    //         .mapping(|i| -i),
+    //     Matrix::<i32, 1, 1>::with_array2([[-1, -2, -3], [-4, -5, -6]], i32::default),
+    // );
 }
 
 #[cfg(test)]
@@ -251,4 +389,5 @@ fn test_sub<const CW: usize, const CH: usize>() {
 fn test() {
     test_sub::<1, 1>();
     test_sub::<2, 2>();
+    test_map();
 }

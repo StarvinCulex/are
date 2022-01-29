@@ -1,4 +1,5 @@
-// by *StarvinCulex @2021/11/27*
+//! by *StarvinCulex @2021/11/27*
+use super::*;
 
 const DELIM: &str = ",";
 const LINE_DELIM: &str = "\n";
@@ -18,12 +19,24 @@ where
     }
 }
 
+impl<'m, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> std::fmt::Display
+    for Area<'m, Element, CHUNK_WIDTH, CHUNK_HEIGHT>
+where
+    Element: std::string::ToString,
+{
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.scan().fmt_with(f, "Area")
+    }
+}
+
 impl<'m, Element, Access, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> std::fmt::Display
     for Iterator<'m, Element, Access, CHUNK_WIDTH, CHUNK_HEIGHT>
 where
     Access: Accessor<CHUNK_WIDTH, CHUNK_HEIGHT>,
     Element: std::string::ToString,
 {
+    #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.fmt_with(f, self.accessor.r#type())
     }
@@ -40,35 +53,32 @@ where
         let size = measure_area(*self.matrix.size(), self.accessor.super_area());
         let sheet_size = Coord(size.0 as usize + 1, size.1 as usize + 1);
 
-        let constructor = |opt_index: Option<Coord<isize>>| {
-            if let Some(display_offset) = opt_index {
-                if display_offset.0 == 0 {
-                    if display_offset.1 == 0 {
-                        head.to_string()
-                    } else {
-                        let Coord(_, display_index) =
-                            self.matrix.normalize(start + display_offset - Coord(1, 1));
-                        print_index(display_index)
-                    }
-                } else if display_offset.1 == 0 {
-                    let Coord(display_index, _) =
+        let constructor = |display_offset: Coord<isize>| {
+            if display_offset.0 == 0 {
+                if display_offset.1 == 0 {
+                    head.to_string()
+                } else {
+                    let Coord(_, display_index) =
                         self.matrix.normalize(start + display_offset - Coord(1, 1));
                     print_index(display_index)
-                } else {
-                    let index = display_offset - Coord(1, 1);
-                    let pos = start + index;
-                    if self.accessor.contains(pos) {
-                        print_element(&self.matrix[pos])
-                    } else {
-                        NONE.into()
-                    }
                 }
+            } else if display_offset.1 == 0 {
+                let Coord(display_index, _) =
+                    self.matrix.normalize(start + display_offset - Coord(1, 1));
+                print_index(display_index)
             } else {
-                String::new()
+                let index = display_offset - Coord(1, 1);
+                let pos = start + index;
+                if self.accessor.contains(pos) {
+                    print_element(&self.matrix[pos])
+                } else {
+                    NONE.into()
+                }
             }
         };
 
-        let sheet = Matrix::<String, 1, 1>::with_ctor(&sheet_size, constructor);
+        let sheet =
+            Matrix::<String, 1, 1>::with_ctor_default(&sheet_size, constructor, String::new);
         let mut widths = vec![0usize; sheet_size.0];
         for (p, s) in sheet.iter() {
             let col = p.0 as usize;

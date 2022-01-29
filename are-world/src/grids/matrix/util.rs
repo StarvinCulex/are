@@ -1,4 +1,5 @@
-// by *StarvinCulex @2021/11/27*
+/// by *StarvinCulex @2021/11/27*
+use super::{Coord, Interval};
 
 /// 计算区间[`interval`]包含范围0..[`size`]中多少个元素
 #[inline]

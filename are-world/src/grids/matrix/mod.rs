@@ -1,13 +1,17 @@
-use std::ops::Index;
+use access::Accessor;
+pub use area::Area;
+pub use util::{measure_area, measure_length};
 
 use super::{coord::Coord, interval::Interval};
 
 include!("matrix.rs");
 
-include!("access.rs");
-include!("iter.rs");
+pub mod access;
+pub mod area;
+pub mod mapping;
 
+include!("iter.rs");
 include!("scan.rs");
 
-include!("util.rs");
-include!("fmt.rs");
+pub mod fmt;
+pub mod util;
