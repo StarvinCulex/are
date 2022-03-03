@@ -66,6 +66,9 @@ impl ConstCommand {
             ConstCommand::Mode { mode } => {
                 player.mode = mode;
             }
+            ConstCommand::Get {} => {
+                unimplemented!();
+            }
         }
     }
 }

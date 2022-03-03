@@ -33,7 +33,14 @@ fn main() {
     meta.cosmos
         .angelos
         .join(Box::new(Gate::listen("0.0.0.0:8964")));
+    // 滑翔机？
+    meta.cosmos.burn(Coord(1isize, 6isize));
+    meta.cosmos.burn(Coord(2isize, 6isize));
+    meta.cosmos.burn(Coord(3isize, 6isize));
+    meta.cosmos.burn(Coord(3isize, 7isize));
+    meta.cosmos.burn(Coord(2isize, 8isize));
     loop {
+        println!("=====");
         meta.step();
         std::thread::sleep(std::time::Duration::from_millis(
             meta.cosmos.angelos.properties.runtime_conf.period,

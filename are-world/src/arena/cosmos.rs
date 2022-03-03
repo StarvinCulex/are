@@ -1,5 +1,6 @@
 use std::collections::VecDeque;
 
+use crate::arena::body::element::Element;
 use crate::arena::conf::StaticConf;
 
 pub use super::*;
@@ -84,7 +85,6 @@ impl Cosmos {
     pub(crate) fn hear_tick(&mut self) {
         let messages: Vec<(Coord<Interval<isize>>, Message)> =
             std::mem::take(self.angelos.messages.lock().unwrap().as_mut());
-
         for (area, message) in messages {
             let normalized_area = self.plate.normalize_area(area);
             for (pos, block) in self.plate.area(normalized_area) {
@@ -112,6 +112,11 @@ impl Cosmos {
                 self.plate[pos].body.act(pos, &self.angelos);
             }
         }
+    }
+
+    // TODO: move this away
+    pub fn burn(&mut self, at: Coord<isize>) {
+        Element::burn(self, at);
     }
 }
 
