@@ -10,15 +10,30 @@ pub struct Monitor<
     const ELEMENT_DISPLAY_HEIGHT: usize,
 > {
     pub resource: Resource,
+    pub window: Option<Box<Matrix<MonitoredGridElement, 1, 1>>>,
     _p: std::marker::PhantomData<MonitoredGridElement>,
+    phase: usize,
 }
 
 impl<E, Rsc, const EDW: usize, const EDH: usize> Monitor<E, Rsc, EDW, EDH>
 where
     Rsc: Fn(&E, usize) -> [[char; EDH]; EDW],
 {
-    pub fn new(grid_count: Coord<usize>, resources: Rsc) -> Self {
-        todo!()
+    pub fn new(grid_size: Coord<usize>, resource: Rsc) -> Self {
+        Monitor {
+            resource,
+            window: None,
+            phase: 0,
+            _p: std::marker::PhantomData::default(),
+        }
+    }
+
+    pub fn put(&mut self, matrix: Matrix<E, 1, 1>) {
+        self.window = Some(Box::new(matrix));
+    }
+
+    pub fn clear(&mut self) {
+        self.window = None;
     }
 }
 
@@ -31,6 +46,21 @@ where
     }
 
     fn render(&mut self) -> Matrix<char, 1, 1> {
-        todo!()
+        let m = match &self.window {
+            None => Matrix::new(&Coord(0, 0)),
+            Some(w) => {
+                let texts = w.as_area().map(|e| (self.resource)(e, self.phase));
+                Matrix::with_ctor(
+                    &((*texts.size()).try_into().unwrap_or(Coord(0, 0)) * Coord(EDW, EDH)),
+                    |p| {
+                        let grid = Coord(p.0 as usize / EDW, p.1 as usize / EDH);
+                        let offset = Coord(p.0 as usize % EDW, p.1 as usize % EDH);
+                        texts[grid][offset.0][offset.1]
+                    },
+                )
+            }
+        };
+        self.phase += 1;
+        m
     }
 }

@@ -9,7 +9,7 @@ pub struct NVTer {
 impl NVTer {
     pub fn new() -> Self {
         Self {
-            last_graph: Matrix::new(&Coord(0, 0)),
+            last_graph: Matrix::from([[' ']]),
         }
     }
 }

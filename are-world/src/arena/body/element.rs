@@ -37,7 +37,7 @@ impl Element {
         if self.light() {
             "fire".into()
         } else {
-            "air".into()
+            "".into()
         }
     }
 }
@@ -48,7 +48,7 @@ impl Element {
     }
 
     #[inline]
-    fn light(&self) -> bool {
+    pub fn light(&self) -> bool {
         self.data.fetch_add(1, Relaxed) & 0x0F == 1
     }
 
