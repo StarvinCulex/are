@@ -15,13 +15,8 @@ pub struct Element {
 impl Element {
     pub fn hear(&self, cosmos: &Cosmos, at: Coord<isize>, message: &Message) {
         match message {
-            Message::Fire => {
-                if self.light() {
-                    cosmos
-                        .angelos
-                        .wake(at, Self::this_fire_tick(&cosmos.angelos))
-                }
-            }
+            Message::Light => self.light(cosmos, at),
+            Message::Ignite => self.ignite(cosmos, at),
         }
     }
 
@@ -47,11 +42,11 @@ impl Element {
 }
 
 impl Element {
-    pub fn burn(&self, cosmos: &Cosmos, at: Coord<isize>) {
+    pub fn ignite(&self, cosmos: &Cosmos, at: Coord<isize>) {
         if self.data.fetch_or(IS_FIRE, SeqCst) & IS_FIRE == 0 {
             cosmos
                 .angelos
-                .tell_area((at - Coord(1, 1)) | (at + Coord(1, 1)), Message::Fire);
+                .tell_area((at - Coord(1, 1)) | (at + Coord(1, 1)), Message::Light);
         }
     }
 
@@ -60,8 +55,13 @@ impl Element {
     }
 
     #[inline]
-    pub fn light(&self) -> bool {
-        self.data.fetch_add(1, SeqCst) & FIRE_COUNT == 0
+    pub fn light(&self, cosmos: &Cosmos, at: Coord<isize>) {
+        let not_lit = self.data.fetch_add(1, SeqCst) & FIRE_COUNT == 0;
+        if not_lit {
+            cosmos
+                .angelos
+                .wake(at, Self::next_fire_tick(&cosmos.angelos))
+        }
     }
 
     #[inline]
@@ -91,23 +91,14 @@ impl Element {
             }
         };
         if burning {
-            angelos.tell_area((pos - Coord(1, 1)) | (pos + Coord(1, 1)), Message::Fire);
+            angelos.tell_area((pos - Coord(1, 1)) | (pos + Coord(1, 1)), Message::Light);
         }
     }
 
     #[inline]
-    fn this_fire_tick(angelos: &Angelos) -> u64 {
-        angelos.properties.tick / angelos.properties.runtime_conf.fire_tick
-            + angelos.properties.runtime_conf.fire_tick
-            - 1
-            - angelos.properties.tick
-    }
-    #[inline]
     fn next_fire_tick(angelos: &Angelos) -> u64 {
-        angelos.properties.tick / angelos.properties.runtime_conf.fire_tick
-            + angelos.properties.runtime_conf.fire_tick * 2
-            - 1
-            - angelos.properties.tick
+        angelos.properties.runtime_conf.fire_tick
+            - angelos.properties.tick % angelos.properties.runtime_conf.fire_tick
     }
 }
 

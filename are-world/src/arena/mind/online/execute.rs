@@ -29,6 +29,12 @@ impl Player {
                 let y = args.next().ok_or(())?.parse::<isize>().or(Err(()))?;
                 Command::Const(ConstCommand::Light { pos: Coord(x, y) })
             }
+            // ignite <x> <y>
+            "ignite" => {
+                let x = args.next().ok_or(())?.parse::<isize>().or(Err(()))?;
+                let y = args.next().ok_or(())?.parse::<isize>().or(Err(()))?;
+                Command::Const(ConstCommand::Ignite { pos: Coord(x, y) })
+            }
             // blind
             "mode" => Command::Const(ConstCommand::Mode {
                 mode: {
@@ -53,21 +59,22 @@ enum Command {
 
 enum ConstCommand {
     Light { pos: Coord<isize> },
+    Ignite { pos: Coord<isize> },
     Mode { mode: Mode },
-    Get {},
 }
 
 impl ConstCommand {
+    #[inline]
     fn exec(self, player: &mut Player, cosmos: &Cosmos) {
         match self {
             ConstCommand::Light { pos } => {
-                cosmos.plate[pos].body.element.light();
+                cosmos.plate[pos].body.element.light(cosmos, pos);
+            }
+            ConstCommand::Ignite { pos } => {
+                cosmos.plate[pos].body.element.ignite(cosmos, pos);
             }
             ConstCommand::Mode { mode } => {
                 player.mode = mode;
-            }
-            ConstCommand::Get {} => {
-                unimplemented!();
             }
         }
     }
@@ -78,6 +85,7 @@ enum MutCommand {
 }
 
 impl MutCommand {
+    #[inline]
     fn exec(self, player: &mut Player, cosmos: &mut Cosmos) {
         match self {
             MutCommand::SetElement { pos, value } => {

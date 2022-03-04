@@ -102,6 +102,7 @@ impl Mind for Player {
                 Ok(Command::Const(const_cmd)) => const_cmd.exec(self, cosmos),
             }
         }
+        self.input_buffer.extend_from_slice(remain.as_bytes());
 
         Ok(())
     }
@@ -125,6 +126,8 @@ impl Player {
 
     fn render(&mut self, cosmos: &Cosmos) -> Result<Vec<u8>, ()> {
         let window = cosmos.plate.area(self.watch_area).map(|b| b.body.name);
+        println!("~{}", window);
+
         self.monitor.put(window);
         let display = self.monitor.render();
         let chars = self.con.flush(&display);

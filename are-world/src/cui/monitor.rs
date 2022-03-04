@@ -53,9 +53,9 @@ where
                 Matrix::with_ctor(
                     &((*texts.size()).try_into().unwrap_or(Coord(0, 0)) * Coord(EDW, EDH)),
                     |p| {
-                        let grid = Coord(p.0 as usize / EDW, p.1 as usize / EDH);
-                        let offset = Coord(p.0 as usize % EDW, p.1 as usize % EDH);
-                        texts[grid][offset.0][offset.1]
+                        let grid = Coord(p.0 / EDW as isize, p.1 / EDH as isize);
+                        let offset = Coord(p.0 % EDW as isize, p.1 % EDH as isize);
+                        texts[grid][offset.0 as usize][offset.1 as usize]
                     },
                 )
             }

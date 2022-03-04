@@ -198,32 +198,32 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> std::ops::Ind
     }
 }
 
-impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> std::ops::Index<Coord<usize>>
-    for Matrix<Element, CHUNK_WIDTH, CHUNK_HEIGHT>
-{
-    type Output = Element;
-    fn index(&self, index: Coord<usize>) -> &Element {
-        unsafe {
-            self.get_by_addr(Self::calc_address_unchecked(
-                self.size,
-                Coord(index.0 as isize, index.1 as isize),
-            ))
-        }
-    }
-}
-
-impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> std::ops::IndexMut<Coord<usize>>
-    for Matrix<Element, CHUNK_WIDTH, CHUNK_HEIGHT>
-{
-    fn index_mut(&mut self, index: Coord<usize>) -> &mut Element {
-        unsafe {
-            self.get_by_addr_mut(Self::calc_address_unchecked(
-                self.size,
-                Coord(index.0 as isize, index.1 as isize),
-            ))
-        }
-    }
-}
+// impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> std::ops::Index<Coord<usize>>
+//     for Matrix<Element, CHUNK_WIDTH, CHUNK_HEIGHT>
+// {
+//     type Output = Element;
+//     fn index(&self, index: Coord<usize>) -> &Element {
+//         unsafe {
+//             self.get_by_addr(Self::calc_address_unchecked(
+//                 self.size,
+//                 Coord(index.0 as isize, index.1 as isize),
+//             ))
+//         }
+//     }
+// }
+//
+// impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> std::ops::IndexMut<Coord<usize>>
+//     for Matrix<Element, CHUNK_WIDTH, CHUNK_HEIGHT>
+// {
+//     fn index_mut(&mut self, index: Coord<usize>) -> &mut Element {
+//         unsafe {
+//             self.get_by_addr_mut(Self::calc_address_unchecked(
+//                 self.size,
+//                 Coord(index.0 as isize, index.1 as isize),
+//             ))
+//         }
+//     }
+// }
 
 #[allow(dead_code)]
 impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>

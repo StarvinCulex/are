@@ -2,9 +2,6 @@
 #![feature(const_fn_trait_bound)]
 #![feature(adt_const_params)]
 
-use std::iter::Iterator;
-use std::mem::size_of;
-
 use crate::arena::conf::StaticConf;
 use crate::arena::mind::online::Gate;
 use crate::arena::RuntimeConf;
@@ -22,11 +19,11 @@ mod sword;
 fn main() {
     let mut meta = arena::MetaCosmos::new(
         StaticConf {
-            plate_size: Coord(10, 10),
+            plate_size: Coord(10, 9),
         },
         RuntimeConf {
             period: 1000,
-            fire_tick: 1,
+            fire_tick: 3,
         },
     );
     meta.cosmos.plate[Coord(1isize, 1isize)].body.name = SWord::new("hi");

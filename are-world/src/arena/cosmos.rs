@@ -7,7 +7,7 @@ pub use super::*;
 type Hasher = std::collections::hash_map::RandomState;
 
 pub struct Cosmos {
-    pub plate: Matrix<Block, 1, 64>,
+    pub plate: Matrix<Block, 1, 1>,
     pub angelos: Angelos,
 }
 
@@ -115,7 +115,7 @@ impl Cosmos {
 
     // TODO: move this away
     pub fn burn(&mut self, at: Coord<isize>) {
-        self.plate[at].body.element.burn(self, at);
+        self.plate[at].body.element.ignite(self, at);
     }
 }
 
