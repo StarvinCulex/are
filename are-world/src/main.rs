@@ -41,6 +41,7 @@ fn main() {
     meta.cosmos.burn(Coord(2isize, 8isize));
     loop {
         println!("=====");
+        println!("{}", meta.cosmos.plate.as_area().map(|b| b.body.name));
         meta.step();
         std::thread::sleep(std::time::Duration::from_millis(
             meta.cosmos.angelos.properties.runtime_conf.period,

@@ -1,6 +1,5 @@
 use std::collections::VecDeque;
 
-use crate::arena::body::element::Element;
 use crate::arena::conf::StaticConf;
 
 pub use super::*;
@@ -116,7 +115,7 @@ impl Cosmos {
 
     // TODO: move this away
     pub fn burn(&mut self, at: Coord<isize>) {
-        Element::burn(self, at);
+        self.plate[at].body.element.burn(self, at);
     }
 }
 

@@ -13,7 +13,6 @@ pub struct Element {
 }
 
 impl Element {
-    // TODO: remove self, &mut Cosmos
     pub fn hear(&self, cosmos: &Cosmos, at: Coord<isize>, message: &Message) {
         match message {
             Message::Fire => {
@@ -48,8 +47,8 @@ impl Element {
 }
 
 impl Element {
-    pub fn burn(cosmos: &mut Cosmos, at: Coord<isize>) {
-        if cosmos.plate[at].body.element.data.fetch_or(IS_FIRE, SeqCst) & IS_FIRE == 0 {
+    pub fn burn(&self, cosmos: &Cosmos, at: Coord<isize>) {
+        if self.data.fetch_or(IS_FIRE, SeqCst) & IS_FIRE == 0 {
             cosmos.angelos.tell_area((at - Coord(1, 1)) | (at + Coord(1, 1)), Message::Fire);
         }
     }
@@ -58,7 +57,6 @@ impl Element {
         self.data.load(SeqCst) & IS_FIRE != 0
     }
 
-    // TODO: &mut self
     #[inline]
     pub fn light(&self) -> bool {
         self.data.fetch_add(1, SeqCst) & FIRE_COUNT == 0
@@ -66,34 +64,34 @@ impl Element {
 
     #[inline]
     fn fire_tick(&mut self, pos: Coord<isize>, angelos: &Angelos) {
-        let burning = self.is_burning();
+        let data = *self.data.get_mut();
+        let burning = data & IS_FIRE != 0;
         // 邻居个数（不含自己）
-        let neighbors = (*self.data.get_mut() & FIRE_COUNT) - (if burning { 1 } else { 0 });
+        let neighbors = (data & FIRE_COUNT) - (burning as u32);
         if burning {
-            println!("{} burning, neighbors={}", pos, neighbors);
             angelos.tell_area((pos - Coord(1, 1)) | (pos + Coord(1, 1)), Message::Fire);
         }
         // 3 个邻居 -> 复活
         // 2 个邻居 -> 稳定
         // <2 个邻居 -> 孤单死亡
         // >3 个邻居 -> 拥挤死亡
-        match neighbors {
+        *self.data.get_mut() = match neighbors {
             3 => {
                 // live
                 if !burning {
-                    angelos.wake(pos, Self::next_fire_tick(angelos));
+                    angelos.wake(pos, Self::this_fire_tick(angelos));
                 }
-                *self.data.get_mut() = IS_FIRE
+                IS_FIRE
             }
             2 => {
                 // keep
-                *self.data.get_mut() &= IS_FIRE
+                data & IS_FIRE
             }
             _ => {
                 // dead
-                *self.data.get_mut() = 0
+                0
             }
-        }
+        };
     }
 
     #[inline]
