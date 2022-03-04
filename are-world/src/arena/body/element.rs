@@ -49,7 +49,9 @@ impl Element {
 impl Element {
     pub fn burn(&self, cosmos: &Cosmos, at: Coord<isize>) {
         if self.data.fetch_or(IS_FIRE, SeqCst) & IS_FIRE == 0 {
-            cosmos.angelos.tell_area((at - Coord(1, 1)) | (at + Coord(1, 1)), Message::Fire);
+            cosmos
+                .angelos
+                .tell_area((at - Coord(1, 1)) | (at + Coord(1, 1)), Message::Fire);
         }
     }
 
@@ -65,12 +67,9 @@ impl Element {
     #[inline]
     fn fire_tick(&mut self, pos: Coord<isize>, angelos: &Angelos) {
         let data = *self.data.get_mut();
-        let burning = data & IS_FIRE != 0;
+        let mut burning = data & IS_FIRE != 0;
         // 邻居个数（不含自己）
         let neighbors = (data & FIRE_COUNT) - (burning as u32);
-        if burning {
-            angelos.tell_area((pos - Coord(1, 1)) | (pos + Coord(1, 1)), Message::Fire);
-        }
         // 3 个邻居 -> 复活
         // 2 个邻居 -> 稳定
         // <2 个邻居 -> 孤单死亡
@@ -78,9 +77,7 @@ impl Element {
         *self.data.get_mut() = match neighbors {
             3 => {
                 // live
-                if !burning {
-                    angelos.wake(pos, Self::this_fire_tick(angelos));
-                }
+                burning = true;
                 IS_FIRE
             }
             2 => {
@@ -89,9 +86,13 @@ impl Element {
             }
             _ => {
                 // dead
+                burning = false;
                 0
             }
         };
+        if burning {
+            angelos.tell_area((pos - Coord(1, 1)) | (pos + Coord(1, 1)), Message::Fire);
+        }
     }
 
     #[inline]
