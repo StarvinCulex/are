@@ -3,6 +3,7 @@ use std::sync::mpsc;
 use std::sync::mpsc::TryRecvError;
 use std::thread::JoinHandle;
 
+use crate::grids::Coord;
 use crate::arena::Cosmos;
 
 use super::{Mind, Player};
@@ -43,7 +44,10 @@ impl Mind for Gate {
                 Err(TryRecvError::Disconnected) => return Err(()),
                 Err(TryRecvError::Empty) => return Ok(()),
                 Ok((stream, addr)) => {
-                    if let Ok(player) = Player::new(stream, addr) {
+                    let Coord(x, y) = *cosmos.plate.size();
+                    if let Ok(player) =
+                        Player::new(stream, addr, Coord(0, 0) | Coord(x - 1, y - 1), Coord(x as usize, y as usize))
+                    {
                         cosmos.angelos.join(Box::new(player))
                     }
                 }

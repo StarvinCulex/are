@@ -36,14 +36,19 @@ enum Mode {
 include!("execute.rs");
 
 impl Player {
-    pub(crate) fn new(tcp_stream: TcpStream, socket_addr: SocketAddr) -> Result<Player, ()> {
+    pub(crate) fn new(
+        tcp_stream: TcpStream,
+        socket_addr: SocketAddr,
+        watch_area: Coord<Interval<isize>>,
+        grid_size: Coord<usize>,
+    ) -> Result<Player, ()> {
         tcp_stream.set_nonblocking(true).or(Err(()))?;
         Ok(Player {
             tcp_stream,
             socket_addr,
-            watch_area: Coord(0, 0) | Coord(10, 10),
+            watch_area,
             con: NVTer::new(),
-            monitor: Monitor::new(Coord(10, 10), resource::resource),
+            monitor: Monitor::new(grid_size, resource::resource),
             mut_commands: VecDeque::new(),
             input_buffer: Vec::new(),
             output_buffer: Vec::new(),
