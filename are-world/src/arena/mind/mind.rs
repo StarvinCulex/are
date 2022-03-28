@@ -1,6 +1,6 @@
 use crate::arena::Cosmos;
 
-pub trait Mind {
+pub trait Mind: Send {
     fn observe(&mut self, cosmos: &Cosmos) -> Result<(), ()>;
 
     fn make_move(&mut self, cosmos: &Cosmos) -> Result<(), ()>;

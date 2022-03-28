@@ -1,10 +1,12 @@
 // by *StarvinCulex @2021/11/13*
 
+use std::ops::Index;
+
 use serde::{Deserialize, Serialize};
 
 /// 固定宽度和高度的矩阵。  
 /// 通过[`Coord<isize>`]作为索引获得其中的值。  
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct Matrix<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> {
     elements: Vec<Element>,
     size: Coord<isize>,
@@ -21,12 +23,13 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
     ///  
     /// *`size.0`或`size.1`超过[`isize::MAX`]引发未定义行为。*
     #[inline]
-    pub fn with_ctor_default(
-        size: &Coord<usize>,
+    pub fn with_ctor_default<Index: Into<usize>>(
+        siz: Coord<Index>,
         mut constructor: impl FnMut(Coord<isize>) -> Element,
         mut default_generator: impl FnMut() -> Element,
     ) -> Self {
-        let alloc_size = Self::calc_alloc_size(*size);
+        let size: Coord<usize> = Coord(siz.0.into(), siz.1.into());
+        let alloc_size = Self::calc_alloc_size::<usize>(size);
         let mut instance = Self {
             elements: Vec::with_capacity(alloc_size),
             size: Coord(size.0 as isize, size.1 as isize),
@@ -50,7 +53,7 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
         default_generator: impl Fn() -> Element,
     ) -> Self {
         Self::with_ctor_default(
-            &Coord(X, Y),
+            Coord(X, Y),
             |pos| {
                 if pos >= Coord(0, 0) && pos < Coord(X as isize, Y as isize) {
                     std::mem::replace(
@@ -87,8 +90,14 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
     Matrix<Element, CHUNK_WIDTH, CHUNK_HEIGHT>
 {
     #[inline]
-    pub fn area(&self, area: Coord<Interval<isize>>) -> Area<Element, CHUNK_WIDTH, CHUNK_HEIGHT> {
-        Area { matrix: self, area }
+    pub fn area<Index: Into<isize> + Ord>(
+        &self,
+        a: Coord<Interval<Index>>,
+    ) -> Area<Element, CHUNK_WIDTH, CHUNK_HEIGHT> {
+        Area {
+            matrix: self,
+            area: Coord(a.0.from.into(), a.1.from.into()) | Coord(a.0.to.into(), a.1.to.into()),
+        }
     }
 
     #[inline]
@@ -108,10 +117,7 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
 #[allow(dead_code)]
 impl<Element> Matrix<Element, 1, 1> {
     #[inline]
-    pub fn with_ctor(
-        size: &Coord<usize>,
-        constructor: impl FnMut(Coord<isize>) -> Element,
-    ) -> Self {
+    pub fn with_ctor(size: Coord<usize>, constructor: impl FnMut(Coord<isize>) -> Element) -> Self {
         Self::with_ctor_default(size, constructor, || panic!("never happen"))
     }
 
@@ -166,33 +172,37 @@ where
     /// 构造大小为参数`size`的矩阵。  
     /// 矩阵的所有元素由`Element::default()`的结果填充。  
     #[inline]
-    pub fn new(size: &Coord<usize>) -> Self {
+    pub fn new<Index: Into<usize>>(size: Coord<Index>) -> Self {
         Self::with_ctor_default(size, |_| Element::default(), Element::default)
     }
 }
 
-impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> std::ops::Index<Coord<isize>>
-    for Matrix<Element, CHUNK_WIDTH, CHUNK_HEIGHT>
+impl<Index, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
+    std::ops::Index<Coord<Index>> for Matrix<Element, CHUNK_WIDTH, CHUNK_HEIGHT>
+where
+    Index: Into<isize>,
 {
     type Output = Element;
-    fn index(&self, index: Coord<isize>) -> &Element {
+    fn index(&self, index: Coord<Index>) -> &Element {
         unsafe {
             self.get_by_addr(Self::calc_address_unchecked(
                 self.size,
-                self.normalize(index),
+                self.normalize(Coord(index.0.into(), index.1.into())),
             ))
         }
     }
 }
 
-impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> std::ops::IndexMut<Coord<isize>>
-    for Matrix<Element, CHUNK_WIDTH, CHUNK_HEIGHT>
+impl<Index, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
+    std::ops::IndexMut<Coord<Index>> for Matrix<Element, CHUNK_WIDTH, CHUNK_HEIGHT>
+where
+    Index: Into<isize>,
 {
-    fn index_mut(&mut self, index: Coord<isize>) -> &mut Element {
+    fn index_mut(&mut self, index: Coord<Index>) -> &mut Element {
         unsafe {
             self.get_by_addr_mut(Self::calc_address_unchecked(
                 self.size,
-                self.normalize(index),
+                self.normalize(Coord(index.0.into(), index.1.into())),
             ))
         }
     }
@@ -236,7 +246,7 @@ where
     ///   
     /// *`size.0`或`size.1`超过[`isize::MAX`]引发未定义行为。*
     #[inline]
-    pub fn with_fill(size: &Coord<usize>, element: &Element) -> Self {
+    pub fn with_fill(size: Coord<usize>, element: &Element) -> Self {
         Self::with_ctor_default(size, |_| element.clone(), || element.clone())
     }
 }
@@ -304,7 +314,7 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
 
     /// 计算`size`大小的矩阵需要分配多长的数组才能存下
     #[inline]
-    const fn calc_alloc_size(size: Coord<usize>) -> usize {
+    const fn calc_alloc_size<Index: Into<usize>>(size: Coord<usize>) -> usize {
         let chunk_size = Self::calc_chunk_size(size);
         let chunk_count = chunk_size.0 * chunk_size.1;
         CHUNK_WIDTH * CHUNK_HEIGHT * chunk_count

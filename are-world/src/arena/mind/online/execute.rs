@@ -66,17 +66,17 @@ enum ConstCommand {
 impl ConstCommand {
     #[inline]
     fn exec(self, player: &mut Player, cosmos: &Cosmos) {
-        match self {
-            ConstCommand::Light { pos } => {
-                cosmos.plate[pos].body.element.light(cosmos, pos);
-            }
-            ConstCommand::Ignite { pos } => {
-                cosmos.plate[pos].body.element.ignite(cosmos, pos);
-            }
-            ConstCommand::Mode { mode } => {
-                player.mode = mode;
-            }
-        }
+        // match self {
+        //     ConstCommand::Light { pos } => {
+        //         cosmos.plate[pos].ground.element.light(cosmos, pos);
+        //     }
+        //     ConstCommand::Ignite { pos } => {
+        //         cosmos.plate[pos].ground.element.ignite(cosmos, pos);
+        //     }
+        //     ConstCommand::Mode { mode } => {
+        //         player.mode = mode;
+        //     }
+        // }
     }
 }
 
@@ -87,10 +87,10 @@ enum MutCommand {
 impl MutCommand {
     #[inline]
     fn exec(self, player: &mut Player, cosmos: &mut Cosmos) {
-        match self {
-            MutCommand::SetElement { pos, value } => {
-                cosmos.plate[pos].body.element.set_raw(value);
-            }
-        }
+        // match self {
+        //     MutCommand::SetElement { pos, value } => {
+        //         cosmos.plate[pos].ground.element.set_raw(value);
+        //     }
+        // }
     }
 }

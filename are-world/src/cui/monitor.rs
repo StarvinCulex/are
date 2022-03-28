@@ -47,11 +47,11 @@ where
 
     fn render(&mut self) -> Matrix<char, 1, 1> {
         let m = match &self.window {
-            None => Matrix::new(&Coord(0, 0)),
+            None => Matrix::new(Coord(0usize, 0usize)),
             Some(w) => {
                 let texts = w.as_area().map(|e| (self.resource)(e, self.phase));
                 Matrix::with_ctor(
-                    &((*texts.size()).try_into().unwrap_or(Coord(0, 0)) * Coord(EDW, EDH)),
+                    ((*texts.size()).try_into().unwrap_or(Coord(0, 0)) * Coord(EDW, EDH)),
                     |p| {
                         let grid = Coord(p.0 / EDW as isize, p.1 / EDH as isize);
                         let offset = Coord(p.0 % EDW as isize, p.1 % EDH as isize);

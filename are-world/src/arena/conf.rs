@@ -1,9 +1,11 @@
+use crate::arena::defs::{Crd, Tick};
+use crate::Coord;
+
 pub struct StaticConf {
-    pub plate_size: crate::grids::Coord<usize>,
+    pub plate_size: Coord<usize>,
 }
 
 pub struct RuntimeConf {
-    pub period: u64,
-    pub fire_tick: u64,
-    pub thread_count: u64,
+    pub period: Tick,
+    pub fire_tick: Tick,
 }

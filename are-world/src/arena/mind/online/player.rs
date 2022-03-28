@@ -125,7 +125,7 @@ impl Player {
     const LINE_CMD_END: &'static str = "\r\n";
 
     fn render(&mut self, cosmos: &Cosmos) -> Result<Vec<u8>, ()> {
-        let window = cosmos.plate.area(self.watch_area).map(|b| b.body.name);
+        let window = cosmos.plate.area(self.watch_area).map(|b| b.ground.name);
         println!("~{}", window);
 
         self.monitor.put(window);

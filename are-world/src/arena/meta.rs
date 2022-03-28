@@ -19,8 +19,8 @@ impl MetaCosmos {
         self.mind_move_tick();
         self.mind_set_cosmos();
         self.mind_flush_queue();
-        self.cosmos.hear_tick();
-        self.cosmos.watch_act_tick();
+        self.cosmos.message_tick();
+        self.cosmos.order_tick();
         self.mind_view_tick();
         self.cosmos.angelos.properties.tick += 1;
     }
