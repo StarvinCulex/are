@@ -4,6 +4,8 @@ use std::ops::Index;
 
 use serde::{Deserialize, Serialize};
 
+use ::duplicate::duplicate;
+
 /// 固定宽度和高度的矩阵。  
 /// 通过[`Coord<isize>`]作为索引获得其中的值。  
 #[derive(Serialize, Deserialize, Debug, Default)]
@@ -85,33 +87,41 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
         self.normalize(area.from()) | self.normalize(area.to())
     }
 }
+duplicate! {
+    [
+        AreaType     area_fn       as_area_fn       iter_fn       reference(T)  ref_life(T, a);
+        [ Area ]     [ area ]      [ as_area ]      [ iter ]      [ &T ]        [ &'a T ];
+        [ AreaMut ]  [ area_mut ]  [ as_area_mut ]  [ iter_mut ]  [ &mut T ]    [ &'a mut T ];
+    ]
 
 impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
     Matrix<Element, CHUNK_WIDTH, CHUNK_HEIGHT>
 {
     #[inline]
-    pub fn area<Index: Into<isize> + Ord>(
-        &self,
+    pub fn area_fn<Index: Into<isize> + Ord>(
+        self: reference([Self]),
         a: Coord<Interval<Index>>,
-    ) -> Area<Element, CHUNK_WIDTH, CHUNK_HEIGHT> {
-        Area {
+    ) -> AreaType<Element, CHUNK_WIDTH, CHUNK_HEIGHT> {
+        AreaType {
             matrix: self,
             area: Coord(a.0.from.into(), a.1.from.into()) | Coord(a.0.to.into(), a.1.to.into()),
         }
     }
 
     #[inline]
-    pub fn as_area(&self) -> Area<Element, CHUNK_WIDTH, CHUNK_HEIGHT> {
-        self.area(Coord(0, 0) | (*self.size() - Coord(1, 1)))
+    pub fn as_area_fn(self: reference([Self])) -> AreaType<Element, CHUNK_WIDTH, CHUNK_HEIGHT> {
+        self.area_fn(Coord(0, 0) | (*self.size() - Coord(1, 1)))
     }
 
     #[inline]
-    pub fn iter<'m>(
-        &'m self,
-    ) -> <Area<Element, CHUNK_WIDTH, CHUNK_HEIGHT> as std::iter::IntoIterator>::IntoIter {
-        let area: Area<'m, Element, CHUNK_WIDTH, CHUNK_HEIGHT> = self.into();
+    pub fn iter_fn<'m>(
+        self: ref_life([Self], [m]),
+    ) -> <AreaType<Element, CHUNK_WIDTH, CHUNK_HEIGHT> as std::iter::IntoIterator>::IntoIter {
+        let area: AreaType<'m, Element, CHUNK_WIDTH, CHUNK_HEIGHT> = self.into();
         area.into_iter()
     }
+}
+
 }
 
 #[allow(dead_code)]
@@ -290,14 +300,23 @@ where
 {
 }
 
+duplicate! {
+    [
+        AreaType     ref_life(T, a)  as_area_fn;
+        [ Area ]     [ &'a T ]       [ as_area ];
+        [ AreaMut ]  [ &'a mut T ]   [ as_area_mut ];
+    ]
+
 impl<'m, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
-    Into<Area<'m, Element, CHUNK_WIDTH, CHUNK_HEIGHT>>
-    for &'m Matrix<Element, CHUNK_WIDTH, CHUNK_HEIGHT>
+    Into<AreaType<'m, Element, CHUNK_WIDTH, CHUNK_HEIGHT>>
+    for ref_life([Matrix<Element, CHUNK_WIDTH, CHUNK_HEIGHT>], [m])
 {
     #[inline]
-    fn into(self) -> Area<'m, Element, CHUNK_WIDTH, CHUNK_HEIGHT> {
-        self.as_area()
+    fn into(self) -> AreaType<'m, Element, CHUNK_WIDTH, CHUNK_HEIGHT> {
+        self.as_area_fn()
     }
+}
+
 }
 
 // private
