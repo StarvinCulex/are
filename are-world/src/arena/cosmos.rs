@@ -106,18 +106,18 @@ impl<'c> Deamon<'c> {
                     DeamonOrder::Set { mob, at } => {
                         for (_, grid) in plate.area(at) {
                             if grid.mob.is_some() {
-                                results_sender.send(DeamonResult::Set(Err(mob)));
+                                results_sender.send(DeamonResult::Set(Err(mob))).unwrap();
                                 continue 'ret;
                             }
                         }
-                        results_sender.send(DeamonResult::Set(Ok(())));
+                        results_sender.send(DeamonResult::Set(Ok(()))).unwrap();
                         todo!() // set
                     }
                     DeamonOrder::Take { .. } => {}
                     DeamonOrder::Reset { .. } => {}
                 }
             }
-            plate_sender.send(plate);
+            plate_sender.send(plate).unwrap();
         });
 
         Self {
@@ -214,13 +214,13 @@ impl Cosmos {
 impl Cosmos {
     #[inline]
     pub(crate) fn message_tick(&mut self) {
-        let gnd_messgaes = self.angelos.gnd_messages.pop_this_turn();
+        let gnd_messages = self.angelos.gnd_messages.pop_this_turn();
         let mob_pos_messages = self.angelos.mob_pos_messages.pop_this_turn();
         let mut mob_messages = self.angelos.mob_messages.pop_this_turn();
 
         rayon::join(
             || {
-                gnd_messgaes
+                gnd_messages
                     .into_iter()
                     .par_bridge()
                     .for_each(|(pos, msgs)| self.plate[pos].ground.hear(self, pos, msgs))

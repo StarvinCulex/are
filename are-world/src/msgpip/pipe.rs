@@ -21,6 +21,7 @@ impl<K: std::cmp::Eq + std::hash::Hash, V> MPipe<K, V> {
     /// 存储事件  
     /// 事件按[`next_turn`]和[`key`]维度进行汇聚
     pub fn push(&self, next_turn: u64, key: K, value: V) {
+        debug_assert!(next_turn >= self.turn_now);
         self.data
             .lock()
             .unwrap()
