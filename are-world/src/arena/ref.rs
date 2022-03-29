@@ -128,3 +128,51 @@ where
         }
     }
 }
+
+impl<Element, AccessKey> PartialEq for P<Element, AccessKey>
+where
+    Element: ?Sized,
+{
+    fn eq(&self, other: &P<Element, AccessKey>) -> bool {
+        Arc::as_ptr(&self.data) == Arc::as_ptr(&other.data)
+    }
+}
+
+impl<Element, AccessKey> PartialEq for Weak<Element, AccessKey>
+where
+    Element: ?Sized,
+{
+    fn eq(&self, other: &Weak<Element, AccessKey>) -> bool {
+        self.data.as_ptr() == other.data.as_ptr()
+    }
+}
+
+impl<Element, AccessKey> Eq for P<Element, AccessKey>
+where
+    Element: ?Sized,
+{
+}
+
+impl<Element, AccessKey> Eq for Weak<Element, AccessKey>
+where
+    Element: ?Sized,
+{
+}
+
+impl<Element, AccessKey> std::hash::Hash for P<Element, AccessKey>
+where
+    Element: ?Sized,
+{
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        Arc::as_ptr(&self.data).hash(state)
+    }
+}
+
+impl<Element, AccessKey> std::hash::Hash for Weak<Element, AccessKey>
+where
+    Element: ?Sized,
+{
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.data.as_ptr().hash(state)
+    }
+}
