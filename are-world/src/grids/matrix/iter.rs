@@ -2,9 +2,9 @@
 
 duplicate! {
     [
-        IterType         reference(T)  ref_life(T, a)  pointer(T)    get_by_addr_fn       get_ref_fn;
-        [ Iterator ]     [ &T ]        [ &'a T ]       [ *const T ]  [ get_by_addr ]      [ as_ref ];
-        [ IteratorMut ]  [ &mut T ]    [ &'a mut T ]   [ *mut T ]    [ get_by_addr_mut ]  [ as_mut ];
+        IterType         reference(T)  ref_life(T, a)  get_by_addr_fn;
+        [ Iterator    ]  [ &    T ]    [ &'a     T ]   [ get_by_addr     ];
+        [ IteratorMut ]  [ &mut T ]    [ &'a mut T ]   [ get_by_addr_mut ];
     ]
 
 pub struct IterType<
@@ -37,8 +37,8 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some((pos, addr)) = self.accessor.next() {
-            // magic to extend the lifetime to 'm (the lifetime of Matrix) while preserving borrow checker working
-            Some((pos, unsafe { (self.matrix.get_by_addr_fn(addr) as pointer([Element])).get_ref_fn().unwrap_unchecked() } ))
+            // extend the lifetime to 'm (the lifetime of Matrix) while preserving borrow checker working
+            Some((pos, unsafe { std::mem::transmute(self.matrix.get_by_addr_fn(addr)) } ))
         } else {
             None
         }

@@ -90,7 +90,7 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
 duplicate! {
     [
         AreaType     area_fn       as_area_fn       iter_fn       reference(T)  ref_life(T, a);
-        [ Area ]     [ area ]      [ as_area ]      [ iter ]      [ &T ]        [ &'a T ];
+        [ Area    ]  [ area     ]  [ as_area     ]  [ iter     ]  [ &    T ]    [ &'a     T ];
         [ AreaMut ]  [ area_mut ]  [ as_area_mut ]  [ iter_mut ]  [ &mut T ]    [ &'a mut T ];
     ]
 
@@ -303,7 +303,7 @@ where
 duplicate! {
     [
         AreaType     ref_life(T, a)  as_area_fn;
-        [ Area ]     [ &'a T ]       [ as_area ];
+        [ Area    ]  [ &'a     T ]   [ as_area     ];
         [ AreaMut ]  [ &'a mut T ]   [ as_area_mut ];
     ]
 

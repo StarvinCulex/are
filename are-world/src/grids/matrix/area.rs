@@ -7,9 +7,9 @@ use ::duplicate::duplicate;
 
 duplicate! {
     [
-        try_derive_clone   AreaType     IterType         reference(T)  ref_life(T, a)  clone_or_move(T);
-        [ derive(Clone) ]  [ Area ]     [ Iterator ]     [ &T ]        [ &'a T ]       [ &T ];
-        [ derive() ]       [ AreaMut ]  [ IteratorMut ]  [ &mut T ]    [ &'a mut T ]   [ T ];
+        AreaType     IterType         reference(T)  ref_life(T, a)  try_derive_clone   ref_or_val(T);
+        [ Area    ]  [ Iterator    ]  [ &    T ]    [ &'a     T ]   [ derive(Clone) ]  [ &T ];
+        [ AreaMut ]  [ IteratorMut ]  [ &mut T ]    [ &'a mut T ]   [ derive(     ) ]  [  T ];
     ]
 
 // mutable reference can't be cloned
@@ -26,7 +26,7 @@ impl<'m, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
     // another available choice is to make IteratorMut returned from scan() not outlive AreaMut
     #[inline]
     pub fn scan(
-        self: clone_or_move([Self]),
+        self: ref_or_val([Self]),
     ) -> IterType<'m, Element, Scan<CHUNK_WIDTH, CHUNK_HEIGHT>, CHUNK_WIDTH, CHUNK_HEIGHT> {
         IterType::new(self.matrix, Scan::new(self.matrix.size, self.area))
     }
@@ -80,26 +80,26 @@ impl<'m, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
     }
 }
 
-impl<'m, 'a, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
-    Into<Area<'a, Element, CHUNK_WIDTH, CHUNK_HEIGHT>> for &'a AreaMut<'m, Element, CHUNK_WIDTH, CHUNK_HEIGHT>
+//         AreaMut<'m> -> Area   <'m>
+// &'a     AreaMut<'m> -> Area   <'a>
+// &'a mut AreaMut<'m> -> AreaMut<'a>
+duplicate! {
+    [
+        lifetimes   into_lifetime  IntoType     ref_life(T, a);
+        [ 'm     ]  [ 'm ]         [ Area    ]  [         T ];
+        [ 'm, 'a ]  [ 'a ]         [ Area    ]  [ &'a     T ];
+        [ 'm, 'a ]  [ 'a ]         [ AreaMut ]  [ &'a mut T ];
+    ]
+impl<lifetimes, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
+    Into<IntoType<into_lifetime, Element, CHUNK_WIDTH, CHUNK_HEIGHT>> for ref_life([AreaMut<'m, Element, CHUNK_WIDTH, CHUNK_HEIGHT>], [a])
 {
     #[inline]
-    fn into(self) -> Area<'a, Element, CHUNK_WIDTH, CHUNK_HEIGHT> {
-        Area {
+    fn into(self) -> IntoType<into_lifetime, Element, CHUNK_WIDTH, CHUNK_HEIGHT> {
+        IntoType {
             matrix: self.matrix,
             area: self.area,
         }
     }
 }
 
-impl<'m, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
-    Into<Area<'m, Element, CHUNK_WIDTH, CHUNK_HEIGHT>> for AreaMut<'m, Element, CHUNK_WIDTH, CHUNK_HEIGHT>
-{
-    #[inline]
-    fn into(self) -> Area<'m, Element, CHUNK_WIDTH, CHUNK_HEIGHT> {
-        Area {
-            matrix: self.matrix,
-            area: self.area,
-        }
-    }
 }
