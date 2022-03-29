@@ -3,6 +3,7 @@ use std::sync::mpsc::{channel, sync_channel, Receiver, SyncSender};
 use std::thread;
 
 use rayon::prelude::*;
+use duplicate::duplicate;
 
 use crate::arena::conf::StaticConf;
 use crate::arena::defs::{Crd, CrdI, Tick};
@@ -147,46 +148,24 @@ impl<'c> Deamon<'c> {
     }
 }
 
-impl Teller<Crd, gnd::Msg> for Angelos {
+duplicate! {
+    [
+        Trait        K                   V               fn_name    holder;
+        [ Teller  ]  [ Crd            ]  [ gnd::Msg   ]  [ tell  ]  [ gnd_messages     ];
+        [ Orderer ]  [ Crd            ]  [ gnd::Order ]  [ order ]  [ gnd_orders       ];
+        [ Teller  ]  [ Crd            ]  [ mob::Msg   ]  [ tell  ]  [ mob_pos_messages ];
+        [ Orderer ]  [ Crd            ]  [ mob::Order ]  [ order ]  [ mob_pos_orders   ];
+        [ Teller  ]  [ Weak<MobBlock> ]  [ mob::Msg   ]  [ tell  ]  [ mob_messages     ];
+        [ Orderer ]  [ Weak<MobBlock> ]  [ mob::Order ]  [ order ]  [ mob_orders       ];
+    ]
+    
+impl Trait<K, V> for Angelos {
     #[inline]
-    fn tell(&self, at: Crd, msg: gnd::Msg, delay: Tick) {
-        self.gnd_messages.push(delay, at, msg)
+    fn fn_name(&self, k: K, v: V, delay: Tick) {
+        self.holder.push(delay, k, v)
     }
 }
 
-impl Orderer<Crd, gnd::Order> for Angelos {
-    #[inline]
-    fn order(&self, at: Crd, order: gnd::Order, delay: Tick) {
-        self.gnd_orders.push(delay, at, order)
-    }
-}
-
-impl Teller<Crd, mob::Msg> for Angelos {
-    #[inline]
-    fn tell(&self, at: Crd, msg: mob::Msg, delay: Tick) {
-        self.mob_pos_messages.push(delay, at, msg)
-    }
-}
-
-impl Orderer<Crd, mob::Order> for Angelos {
-    #[inline]
-    fn order(&self, at: Crd, order: mob::Order, delay: Tick) {
-        self.mob_pos_orders.push(delay, at, order)
-    }
-}
-
-impl Teller<Weak<MobBlock>, mob::Msg> for Angelos {
-    #[inline]
-    fn tell(&self, target: Weak<MobBlock>, msg: mob::Msg, delay: Tick) {
-        self.mob_messages.push(delay, target, msg)
-    }
-}
-
-impl Orderer<Weak<MobBlock>, mob::Order> for Angelos {
-    #[inline]
-    fn order(&self, target: Weak<MobBlock>, order: mob::Order, delay: Tick) {
-        self.mob_orders.push(delay, target, order)
-    }
 }
 
 impl Cosmos {
