@@ -1,5 +1,5 @@
 use std::collections::VecDeque;
-use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
+use std::sync::mpsc::{channel, sync_channel, Receiver, SyncSender};
 use std::thread;
 
 use rayon::prelude::*;
@@ -9,6 +9,7 @@ use crate::arena::defs::{Crd, CrdI, Tick};
 use crate::arena::gnd;
 use crate::arena::mob::Mob;
 use crate::msgpip::MPipe;
+use crate::msgpip::pipe::Output;
 
 pub use super::*;
 use super::{Weak, P};
@@ -213,6 +214,22 @@ impl Cosmos {
 
 impl Cosmos {
     #[inline]
+    fn pos_to_weak_mob<T: Send>(&self, from: Output<Crd, T>, to: &mut Output<Weak<MobBlock>, T>) {
+        let (tx, rx) = channel();
+        rayon::join(|| {
+            from.into_iter().par_bridge().for_each_with(tx, |tx, (pos, data)| {
+                if let Some(mob) = &self.plate[pos].mob {
+                    tx.send((mob.downgrade(), data)).unwrap();
+                }
+            });
+        }, move || {
+            for (weak_mob, data) in rx.iter() {
+                to.append(weak_mob, data)
+            }
+        });
+    }
+
+    #[inline]
     pub(crate) fn message_tick(&mut self) {
         let gnd_messages = self.angelos.gnd_messages.pop_this_turn();
         let mob_pos_messages = self.angelos.mob_pos_messages.pop_this_turn();
@@ -225,13 +242,7 @@ impl Cosmos {
                     .par_bridge()
                     .for_each(|(pos, msgs)| self.plate[pos].ground.hear(self, pos, msgs))
             },
-            || {
-                mob_pos_messages.into_iter().for_each(|(pos, msgs)| {
-                    if let Some(m) = &self.plate[pos].mob {
-                        mob_messages.append(m.downgrade(), msgs)
-                    }
-                })
-            },
+            || self.pos_to_weak_mob(mob_pos_messages, &mut mob_messages),
         );
 
         mob_messages.into_iter().par_bridge().for_each(|(m, msgs)| {
@@ -257,13 +268,7 @@ impl Cosmos {
                     mg.order(pos, &deamon, orders);
                 })
             },
-            || {
-                mob_pos_orders.into_iter().for_each(|(pos, orders)| {
-                    if let Some(m) = &self.plate[pos].mob {
-                        mob_orders.append(m.downgrade(), orders)
-                    }
-                })
-            },
+            || self.pos_to_weak_mob(mob_pos_orders, &mut mob_orders),
         );
 
         mob_orders.into_iter().par_bridge().for_each(|(m, orders)| {
