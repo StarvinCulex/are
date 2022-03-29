@@ -385,7 +385,7 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
     }
 
     #[inline]
-    fn normalize_pos(size: Coord<isize>, pos: Coord<isize>) -> Coord<isize> {
+    pub fn normalize_pos(size: Coord<isize>, pos: Coord<isize>) -> Coord<isize> {
         pos.reduce(size, isize::rem_euclid)
     }
 }

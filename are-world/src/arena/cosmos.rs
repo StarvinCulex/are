@@ -155,8 +155,23 @@ duplicate! {
         [ Orderer ]  [ Crd            ]  [ gnd::Order ]  [ order ]  [ gnd_orders       ];
         [ Teller  ]  [ Crd            ]  [ mob::Msg   ]  [ tell  ]  [ mob_pos_messages ];
         [ Orderer ]  [ Crd            ]  [ mob::Order ]  [ order ]  [ mob_pos_orders   ];
-        [ Teller  ]  [ Weak<MobBlock> ]  [ mob::Msg   ]  [ tell  ]  [ mob_messages     ];
-        [ Orderer ]  [ Weak<MobBlock> ]  [ mob::Order ]  [ order ]  [ mob_orders       ];
+    ]
+    
+impl Trait<K, V> for Angelos {
+    #[inline]
+    fn fn_name(&self, mut k: K, v: V, delay: Tick) {
+        k = Matrix::<(), 1, 1>::normalize_pos(self.plate_size.to_isize(), k.to_isize()).to_i16();
+        self.holder.push(delay, k, v)
+    }
+}
+
+}
+
+duplicate! {
+    [
+        Trait        K                   V               fn_name    holder;
+        [ Teller  ]  [ Weak<MobBlock> ]  [ mob::Msg   ]  [ tell  ]  [ mob_messages ];
+        [ Orderer ]  [ Weak<MobBlock> ]  [ mob::Order ]  [ order ]  [ mob_orders   ];
     ]
     
 impl Trait<K, V> for Angelos {
@@ -242,8 +257,9 @@ impl Cosmos {
         rayon::join(
             || {
                 gnd_orders.into_iter().par_bridge().for_each(|(pos, orders)| {
-                    let g = &self.plate[pos].ground as *const gnd::Ground;
-                    let mg = unsafe { &mut *(g as *mut gnd::Ground) };
+                    // pos is distinct, so there is no data racing
+                    #![allow(mutable_transmutes)]
+                    let mg: &mut gnd::Ground = unsafe { std::mem::transmute(&self.plate[pos].ground) };
                     mg.order(pos, &deamon, orders);
                 })
             },
