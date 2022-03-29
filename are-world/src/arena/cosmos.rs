@@ -221,11 +221,12 @@ impl Cosmos {
         rayon::join(
             || {
                 gnd_messgaes
+                    .into_iter()
                     .par_bridge()
                     .for_each(|(pos, msgs)| self.plate[pos].ground.hear(self, pos, msgs))
             },
             || {
-                mob_pos_messages.for_each(|(pos, msgs)| {
+                mob_pos_messages.into_iter().for_each(|(pos, msgs)| {
                     if let Some(m) = &self.plate[pos].mob {
                         mob_messages.append(m.downgrade(), msgs)
                     }
@@ -233,7 +234,7 @@ impl Cosmos {
             },
         );
 
-        mob_messages.par_bridge().for_each(|(m, msgs)| {
+        mob_messages.into_iter().par_bridge().for_each(|(m, msgs)| {
             if let Some(mob) = m.upgrade() {
                 mob.get(self).mob.hear(self, msgs, mob.clone())
             }
@@ -250,14 +251,14 @@ impl Cosmos {
 
         rayon::join(
             || {
-                gnd_orders.par_bridge().for_each(|(pos, orders)| {
+                gnd_orders.into_iter().par_bridge().for_each(|(pos, orders)| {
                     let g = &self.plate[pos].ground as *const gnd::Ground;
                     let mg = unsafe { &mut *(g as *mut gnd::Ground) };
                     mg.order(pos, &deamon, orders);
                 })
             },
             || {
-                mob_pos_orders.for_each(|(pos, orders)| {
+                mob_pos_orders.into_iter().for_each(|(pos, orders)| {
                     if let Some(m) = &self.plate[pos].mob {
                         mob_orders.append(m.downgrade(), orders)
                     }
@@ -265,7 +266,7 @@ impl Cosmos {
             },
         );
 
-        mob_orders.par_bridge().for_each(|(m, orders)| {
+        mob_orders.into_iter().par_bridge().for_each(|(m, orders)| {
             if let Some(mob) = m.upgrade() {
                 unsafe { mob.get_mut(&self.angelos.pkey) }
                     .mob

@@ -53,9 +53,12 @@ impl<K: std::cmp::Eq + std::hash::Hash, V> Output<K, V> {
     }
 }
 
-impl<K: std::cmp::Eq + std::hash::Hash, V> std::iter::Iterator for Output<K, V> {
-    type Item = (K, Vec<V>);
-    fn next(&mut self) -> Option<Self::Item> {
-        todo!()
+impl<K: std::cmp::Eq + std::hash::Hash, V> std::iter::IntoIterator for Output<K, V> {
+    type Item = <HashMap<K, Vec<V>> as std::iter::IntoIterator>::Item;
+    type IntoIter = <HashMap<K, Vec<V>> as std::iter::IntoIterator>::IntoIter;
+    
+    #[inline]
+    fn into_iter(self) -> Self::IntoIter {
+        self.data.into_iter()
     }
 }
