@@ -34,8 +34,6 @@
 /// * [`contains_point`]
 /// * [`offset`]
 use serde::{Deserialize, Serialize};
-use duplicate::duplicate;
-use concat_idents::concat_idents;
 
 #[derive(Hash, Debug, Serialize, Deserialize)]
 pub struct Coord<T>(pub T, pub T);
@@ -192,7 +190,9 @@ where
     }
 }
 
-impl<T: Copy> From<T> for Coord<T> {
+auto trait NotCoord {}
+impl<T> !NotCoord for Coord<T> {}
+impl<T: Copy + NotCoord> From<T> for Coord<T> {
     fn from(t: T) -> Self {
         Coord(t, t)
     }
@@ -210,44 +210,3 @@ impl<T: std::fmt::Display> std::fmt::Display for Coord<T> {
     }
 }
 
-duplicate! {
-    [
-        FromType;
-        [ i8    ];
-        [ i16   ];
-        [ i32   ];
-        [ i64   ];
-        [ i128  ];
-        [ isize ];
-        [ u8    ];
-        [ u16   ];
-        [ u32   ];
-        [ u64   ];
-        [ u128  ];
-        [ usize ];
-    ]
-impl Coord<FromType> {
-    duplicate! {
-        [
-            ToType;
-            [ i8    ];
-            [ i16   ];
-            [ i32   ];
-            [ i64   ];
-            [ i128  ];
-            [ isize ];
-            [ u8    ];
-            [ u16   ];
-            [ u32   ];
-            [ u64   ];
-            [ u128  ];
-            [ usize ];
-        ]
-    concat_idents!(fn_name = to_, ToType {
-        pub fn fn_name(self) -> Coord<ToType> {
-            Coord(self.0 as ToType, self.1 as ToType)
-        }
-    });
-}
-}
-}

@@ -1,7 +1,8 @@
 #![feature(exclusive_range_pattern)]
 #![feature(const_fn_trait_bound)]
 #![feature(stmt_expr_attributes)]
-#![feature(concat_idents)]
+#![feature(auto_traits)]
+#![feature(negative_impls)]
 
 use crate::arena::conf::StaticConf;
 use crate::arena::mind::online::Gate;

@@ -160,7 +160,7 @@ duplicate! {
 impl Trait<K, V> for Angelos {
     #[inline]
     fn fn_name(&self, mut k: K, v: V, delay: Tick) {
-        k = Matrix::<(), 1, 1>::normalize_pos(self.plate_size.to_isize(), k.to_isize()).to_i16();
+        k = Matrix::<(), 1, 1>::normalize_pos(self.plate_size.try_into().unwrap(), k.into()).try_into().unwrap();
         self.holder.push(delay, k, v)
     }
 }
