@@ -4,6 +4,8 @@ pub use std::sync::{atomic, Mutex};
 pub use conf::RuntimeConf;
 pub use cosmos::Angelos;
 pub use cosmos::Cosmos;
+pub use cosmos::Orderer;
+pub use cosmos::Teller;
 pub use meta::MetaCosmos;
 pub use r#ref::Weak;
 pub use r#ref::P;

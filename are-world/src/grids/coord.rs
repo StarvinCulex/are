@@ -190,7 +190,7 @@ where
     }
 }
 
-auto trait NotCoord {}
+pub auto trait NotCoord {}
 impl<T> !NotCoord for Coord<T> {}
 impl<T: Copy + NotCoord> From<T> for Coord<T> {
     fn from(t: T) -> Self {
@@ -209,4 +209,3 @@ impl<T: std::fmt::Display> std::fmt::Display for Coord<T> {
         write!(f, "({0}, {1})", self.0, self.1)
     }
 }
-

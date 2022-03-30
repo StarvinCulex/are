@@ -1,12 +1,16 @@
 //! by *StarvinCulex @2021/12/03*
 
-use super::{Coord, Interval};
 use std::cmp::Ord;
 use std::marker::PhantomData;
+
 use duplicate::duplicate;
 
-struct TypeTest<T, U>(PhantomData<T>, PhantomData<U>);
-auto trait TypeNe {}
+use super::{Coord, Interval};
+
+pub struct TypeTest<T, U>(PhantomData<T>, PhantomData<U>);
+
+pub auto trait TypeNe {}
+
 impl<T> !TypeNe for TypeTest<T, T> {}
 
 duplicate! {

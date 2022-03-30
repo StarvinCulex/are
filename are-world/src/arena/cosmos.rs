@@ -2,15 +2,15 @@ use std::collections::VecDeque;
 use std::sync::mpsc::{channel, sync_channel, Receiver, SyncSender};
 use std::thread;
 
-use rayon::prelude::*;
 use duplicate::duplicate;
+use rayon::prelude::*;
 
 use crate::arena::conf::StaticConf;
 use crate::arena::defs::{Crd, CrdI, Tick};
 use crate::arena::gnd;
 use crate::arena::mob::Mob;
-use crate::msgpip::MPipe;
 use crate::msgpip::pipe::Output;
+use crate::msgpip::MPipe;
 
 pub use super::*;
 use super::{Weak, P};
@@ -156,7 +156,7 @@ duplicate! {
         [ Teller  ]  [ Crd            ]  [ mob::Msg   ]  [ tell  ]  [ mob_pos_messages ];
         [ Orderer ]  [ Crd            ]  [ mob::Order ]  [ order ]  [ mob_pos_orders   ];
     ]
-    
+
 impl Trait<K, V> for Angelos {
     #[inline]
     fn fn_name(&self, mut k: K, v: V, delay: Tick) {
@@ -173,7 +173,7 @@ duplicate! {
         [ Teller  ]  [ Weak<MobBlock> ]  [ mob::Msg   ]  [ tell  ]  [ mob_messages ];
         [ Orderer ]  [ Weak<MobBlock> ]  [ mob::Order ]  [ order ]  [ mob_orders   ];
     ]
-    
+
 impl Trait<K, V> for Angelos {
     #[inline]
     fn fn_name(&self, k: K, v: V, delay: Tick) {
@@ -210,17 +210,22 @@ impl Cosmos {
     #[inline]
     fn pos_to_weak_mob<T: Send>(&self, from: Output<Crd, T>, to: &mut Output<Weak<MobBlock>, T>) {
         let (tx, rx) = channel();
-        rayon::join(|| {
-            from.into_iter().par_bridge().for_each_with(tx, |tx, (pos, data)| {
-                if let Some(mob) = &self.plate[pos].mob {
-                    tx.send((mob.downgrade(), data)).unwrap();
+        rayon::join(
+            || {
+                from.into_iter()
+                    .par_bridge()
+                    .for_each_with(tx, |tx, (pos, data)| {
+                        if let Some(mob) = &self.plate[pos].mob {
+                            tx.send((mob.downgrade(), data)).unwrap();
+                        }
+                    });
+            },
+            move || {
+                for (weak_mob, data) in rx.iter() {
+                    to.append(weak_mob, data)
                 }
-            });
-        }, move || {
-            for (weak_mob, data) in rx.iter() {
-                to.append(weak_mob, data)
-            }
-        });
+            },
+        );
     }
 
     #[inline]
@@ -256,12 +261,16 @@ impl Cosmos {
 
         rayon::join(
             || {
-                gnd_orders.into_iter().par_bridge().for_each(|(pos, orders)| {
-                    // pos is distinct, so there is no data racing
-                    #![allow(mutable_transmutes)]
-                    let mg: &mut gnd::Ground = unsafe { std::mem::transmute(&self.plate[pos].ground) };
-                    mg.order(pos, &deamon, orders);
-                })
+                gnd_orders
+                    .into_iter()
+                    .par_bridge()
+                    .for_each(|(pos, orders)| {
+                        // pos is distinct, so there is no data racing
+                        #![allow(mutable_transmutes)]
+                        let mg: &mut gnd::Ground =
+                            unsafe { std::mem::transmute(&self.plate[pos].ground) };
+                        mg.order(pos, &deamon, orders);
+                    })
             },
             || self.pos_to_weak_mob(mob_pos_orders, &mut mob_orders),
         );

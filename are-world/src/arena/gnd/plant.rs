@@ -1,12 +1,15 @@
+use std::ops::{AddAssign, DivAssign};
+use std::sync::atomic::Ordering::SeqCst;
 use std::sync::atomic::{AtomicU8, Ordering};
 
+use crate::arena::cosmos::Deamon;
 use crate::arena::defs::Crd;
-use crate::arena::{Angelos, Cosmos};
+use crate::arena::{gnd, Angelos, Cosmos, Orderer};
 use crate::Coord;
 
 pub struct Plant {
     pub kind: Kind,
-    pub age: AtomicU8,
+    pub age: u8,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -14,38 +17,47 @@ pub enum Kind {
     None,
     Grass,
 }
-//
-// impl Plant {
-//     #[inline]
-//     pub fn age(&self, cosmos: &Cosmos, pos: Crd) {
-//         let last_age = self.age.fetch_add(1, Ordering::Relaxed);
-//         if last_age >= self.kind.max_age() {
-//             cosmos.angelos.wake(pos, 0);
-//         }
-//     }
-//
-//     #[inline]
-//     fn breed(&mut self, at: Crd, angelos: &Angelos) {
-//         // match self.kind.clone() {
-//         //     Kind::None => (),
-//         //     Kind::Grass => angelos.tell_area(
-//         //         (at - Coord(1, 1)) | (at + Coord(1, 1)),
-//         //         message::Message::PlantSowing(self.kind),
-//         //     ),
-//         // }
-//         // 不能这么做。Kind如此设定就必须在act tick进行更改操作。
-//     }
-//
-//     #[inline]
-//     fn sow(&mut self, at: Crd, angelos: &Angelos) {}
-// }
-//
-// impl Kind {
-//     #[inline]
-//     fn max_age(&self) -> u8 {
-//         match self {
-//             Kind::None => 255,
-//             Kind::Grass => 16,
-//         }
-//     }
-// }
+
+impl Plant {
+    #[inline]
+    pub fn new(kind: Kind) -> Self {
+        Plant { kind, age: 0 }
+    }
+
+    #[inline]
+    pub fn aging(&mut self, at: Crd, deamon: &Deamon) {
+        if self.age >= self.kind.max_age() {
+            self.age /= 2;
+            for p in [Coord(-1, 0), Coord(0, -1), Coord(0, 1), Coord(1, 0)] {
+                deamon
+                    .angelos
+                    .order(at + p, gnd::Order::PlantSowing(self.kind), 0);
+            }
+        } else {
+            self.age += 1;
+        }
+    }
+
+    #[inline]
+    pub fn mow(&mut self, value: u8) {
+        if self.age.checked_sub(value).is_none() {
+            self.age = 0
+        }
+    }
+}
+
+impl Default for Plant {
+    fn default() -> Self {
+        Plant::new(Kind::None)
+    }
+}
+
+impl Kind {
+    #[inline]
+    fn max_age(&self) -> u8 {
+        match self {
+            Kind::None => 255,
+            Kind::Grass => 16,
+        }
+    }
+}

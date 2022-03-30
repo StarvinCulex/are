@@ -4,4 +4,5 @@ use crate::arena;
 pub enum Order {
     PlantAging,
     PlantSowing(arena::gnd::plant::Kind),
+    PlantMow(u8),
 }
