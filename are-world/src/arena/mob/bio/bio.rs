@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use crate::arena::cosmos::{Deamon, MobBlock, _MobBlock};
+use crate::arena::cosmos::{Deamon, MobBlock, _MobBlock, PKey};
 use crate::arena::defs::CrdI;
 use crate::arena::mob::{Mob, Msg, Order};
-use crate::arena::Cosmos;
-use crate::arena::P;
+use crate::arena::{Cosmos, P, ReadGuard};
+
 use crate::SWord;
 
 use super::species::Species;
@@ -29,7 +29,7 @@ impl Mob for Bio {
         todo!()
     }
 
-    fn hear(&self, cosmos: &Cosmos, message: Vec<Msg>, this: P<MobBlock>) {
+    fn hear(&self, cosmos: &Cosmos, message: Vec<Msg>, this: P<MobBlock>, reader: &ReadGuard<PKey>) {
         todo!()
     }
 

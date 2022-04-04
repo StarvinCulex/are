@@ -15,7 +15,7 @@ use crate::msgpip::pipe::Output;
 use crate::msgpip::MPipe;
 
 pub use super::*;
-use super::{Weak, P};
+use super::{Weak, P, ReadGuard, WriteGuard};
 
 pub struct Cosmos {
     pub plate: Matrix<Block, 1, 1>,
@@ -248,10 +248,12 @@ impl Cosmos {
             || self.pos_to_weak_mob(mob_pos_messages, &mut mob_messages),
         );
 
-        mob_messages.into_iter().par_bridge().for_each(|(m, msgs)| {
-            if let Some(mob) = m.upgrade() {
-                mob.get(self).mob.hear(self, msgs, mob.clone())
-            }
+        ReadGuard::with(&self.angelos.pkey, |guard| {
+            mob_messages.into_iter().par_bridge().for_each(|(m, msgs)| {
+                if let Some(mob) = m.upgrade() {
+                    mob.get(guard).mob.hear(self, msgs, mob.clone(), guard)
+                }
+            })
         });
     }
 
@@ -278,12 +280,14 @@ impl Cosmos {
 
         let deamon = Deamon::new(&self.angelos, std::mem::take(&mut self.plate));
 
-        mob_orders.into_iter().par_bridge().for_each(|(m, orders)| {
-            if let Some(mob) = m.upgrade() {
-                unsafe { mob.get_mut(&self.angelos.pkey) }
-                    .mob
-                    .order(&deamon, orders, mob.clone())
-            }
+        WriteGuard::with(&self.angelos.pkey, |guard| {
+            mob_orders.into_iter().par_bridge().for_each(|(m, orders)| {
+                if let Some(mob) = m.upgrade() {
+                    unsafe { mob.clone().get_mut_unchecked(guard) }
+                        .mob
+                        .order(&deamon, orders, mob)
+                }
+            })
         });
 
         self.plate = deamon.stop();
