@@ -5,6 +5,8 @@ use crate::arena::{Angelos, Cosmos};
 use crate::{SWord, P};
 
 pub trait Mob: Send + Sync {
+    fn into_block(self) -> P<MobBlock>;
+
     fn get_name(&self) -> SWord;
 
     fn at(&self) -> CrdI;

@@ -3,28 +3,21 @@ use std::marker::PhantomData;
 use std::sync;
 use std::sync::{Arc, RwLock};
 
+use duplicate::duplicate;
+
 use crate::arena::cosmos::PKey;
 use crate::arena::Cosmos;
 
-use duplicate::duplicate;
-
-duplicate! {
-    [
-        PtrType   UnderlyingPtr;
-        [ P    ]  [ Arc        ];
-        [ Weak ]  [ sync::Weak ];
-    ]
-
-pub struct PtrType<Element, ReadKey = Cosmos, WriteKey = PKey>
+pub struct P<Element, ReadKey = Cosmos, WriteKey = PKey>
 where
     Element: ?Sized,
 {
-    data: UnderlyingPtr<RwLock<Element>>,
+    data: sync::Arc<Element>,
     _ak: PhantomData<ReadKey>,
     _wk: PhantomData<WriteKey>,
 }
 
-impl<Element, AccessKey> Clone for PtrType<Element, AccessKey>
+impl<Element, AccessKey> Clone for P<Element, AccessKey>
 where
     Element: ?Sized,
 {
@@ -37,29 +30,66 @@ where
     }
 }
 
-impl<Element, AccessKey> PartialEq for PtrType<Element, AccessKey>
+impl<Element, AccessKey> PartialEq for P<Element, AccessKey>
 where
     Element: ?Sized,
 {
-    fn eq(&self, other: &PtrType<Element, AccessKey>) -> bool {
-        UnderlyingPtr::as_ptr(&self.data) == UnderlyingPtr::as_ptr(&other.data)
+    fn eq(&self, other: &P<Element, AccessKey>) -> bool {
+        sync::Arc::as_ptr(&self.data) == sync::Arc::as_ptr(&other.data)
     }
 }
 
-impl<Element, AccessKey> Eq for PtrType<Element, AccessKey>
-where
-    Element: ?Sized,
-{
-}
+impl<Element, AccessKey> Eq for P<Element, AccessKey> where Element: ?Sized {}
 
-impl<Element, AccessKey> std::hash::Hash for PtrType<Element, AccessKey>
+impl<Element, AccessKey> std::hash::Hash for P<Element, AccessKey>
 where
     Element: ?Sized,
 {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        UnderlyingPtr::as_ptr(&self.data).hash(state)
+        sync::Arc::as_ptr(&self.data).hash(state)
     }
 }
+
+pub struct Weak<Element, ReadKey = Cosmos, WriteKey = PKey>
+where
+    Element: ?Sized,
+{
+    data: sync::Weak<Element>,
+    _ak: PhantomData<ReadKey>,
+    _wk: PhantomData<WriteKey>,
+}
+
+impl<Element, AccessKey> Clone for Weak<Element, AccessKey>
+where
+    Element: ?Sized,
+{
+    fn clone(&self) -> Self {
+        Self {
+            data: self.data.clone(),
+            _ak: PhantomData::default(),
+            _wk: PhantomData::default(),
+        }
+    }
+}
+
+impl<Element, AccessKey> PartialEq for Weak<Element, AccessKey>
+where
+    Element: ?Sized,
+{
+    fn eq(&self, other: &Weak<Element, AccessKey>) -> bool {
+        sync::Weak::as_ptr(&self.data) == sync::Weak::as_ptr(&other.data)
+    }
+}
+
+impl<Element, AccessKey> Eq for Weak<Element, AccessKey> where Element: ?Sized {}
+
+impl<Element, AccessKey> std::hash::Hash for Weak<Element, AccessKey>
+where
+    Element: ?Sized,
+{
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        sync::Weak::as_ptr(&self.data).hash(state)
+    }
 }
 
 impl<Element, AccessKey> P<Element, AccessKey>
@@ -69,7 +99,21 @@ where
     #[inline]
     pub fn new(e: Element) -> Self {
         Self {
-            data: Arc::new(RwLock::new(e)),
+            data: Arc::new(e),
+            _ak: PhantomData::default(),
+            _wk: PhantomData::default(),
+        }
+    }
+}
+
+impl<Element, AccessKey> P<Element, AccessKey>
+where
+    Element: ?Sized,
+{
+    #[inline]
+    pub unsafe fn from_raw(ptr: *const Element) -> Self {
+        Self {
+            data: Arc::from_raw(ptr),
             _ak: PhantomData::default(),
             _wk: PhantomData::default(),
         }
@@ -81,12 +125,14 @@ where
     Element: ?Sized,
 {
     #[inline]
-    pub fn get(&self, _: &'_ AccessKey) -> std::sync::RwLockReadGuard<Element> {
-        self._get()
+    pub fn get(&self, _: &'_ AccessKey) -> &Element {
+        self.data.as_ref()
     }
 
-    pub unsafe fn get_mut(&self, _: &'_ WriteKey) -> std::sync::RwLockWriteGuard<Element> {
-        self._get_mut()
+    pub unsafe fn get_mut<'a>(&'a self, _: &'_ WriteKey) -> &mut Element {
+        (self.data.as_ref() as *const Element as *mut Element)
+            .as_mut::<'a>()
+            .unwrap()
     }
 
     pub fn downgrade(&self) -> Weak<Element, AccessKey> {
@@ -95,14 +141,6 @@ where
             _ak: PhantomData::default(),
             _wk: PhantomData::default(),
         }
-    }
-
-    fn _get(&self) -> std::sync::RwLockReadGuard<Element> {
-        self.data.read().unwrap()
-    }
-
-    fn _get_mut(&self) -> std::sync::RwLockWriteGuard<Element> {
-        self.data.write().unwrap()
     }
 }
 

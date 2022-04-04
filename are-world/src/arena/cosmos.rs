@@ -1,4 +1,6 @@
+use std::alloc::Layout;
 use std::collections::VecDeque;
+use std::ptr::{null, null_mut};
 use std::sync::mpsc::{channel, sync_channel, Receiver, SyncSender};
 use std::thread;
 
@@ -30,10 +32,12 @@ pub struct Block {
     pub mob: Option<P<MobBlock>>,
 }
 
-pub struct MobBlock {
+pub struct _MobBlock<M: ?Sized> {
     pub at: CrdI,
-    pub mob: dyn Mob,
+    pub mob: M,
 }
+
+pub type MobBlock = _MobBlock<dyn Mob>;
 
 pub struct Angelos {
     pub properties: Properties,
@@ -257,23 +261,22 @@ impl Cosmos {
         let mob_pos_orders = self.angelos.mob_pos_orders.pop_this_turn();
         let mut mob_orders = self.angelos.mob_orders.pop_this_turn();
 
-        let deamon = Deamon::new(&self.angelos, std::mem::take(&mut self.plate));
-
         rayon::join(
             || {
                 gnd_orders
                     .into_iter()
                     .par_bridge()
                     .for_each(|(pos, orders)| {
-                        // pos is distinct, so there is no data racing
                         #![allow(mutable_transmutes)]
                         let mg: &mut gnd::Ground =
                             unsafe { std::mem::transmute(&self.plate[pos].ground) };
-                        mg.order(pos, &deamon, orders);
+                        mg.order(pos, &self.angelos, orders);
                     })
             },
             || self.pos_to_weak_mob(mob_pos_orders, &mut mob_orders),
         );
+
+        let deamon = Deamon::new(&self.angelos, std::mem::take(&mut self.plate));
 
         mob_orders.into_iter().par_bridge().for_each(|(m, orders)| {
             if let Some(mob) = m.upgrade() {
@@ -282,6 +285,8 @@ impl Cosmos {
                     .order(&deamon, orders, mob.clone())
             }
         });
+
+        self.plate = deamon.stop();
     }
 
     // // TODO: move this away

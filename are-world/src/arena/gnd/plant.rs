@@ -16,6 +16,7 @@ pub struct Plant {
 pub enum Kind {
     None,
     Grass,
+    Tree,
 }
 
 impl Plant {
@@ -25,13 +26,11 @@ impl Plant {
     }
 
     #[inline]
-    pub fn aging(&mut self, at: Crd, deamon: &Deamon) {
+    pub fn aging(&mut self, at: Crd, angelos: &Angelos) {
         if self.age >= self.kind.max_age() {
             self.age /= 2;
             for p in [Coord(-1, 0), Coord(0, -1), Coord(0, 1), Coord(1, 0)] {
-                deamon
-                    .angelos
-                    .order(at + p, gnd::Order::PlantSowing(self.kind), 0);
+                angelos.order(at + p, gnd::Order::PlantSowing(self.kind), 0);
             }
         } else {
             self.age += 1;
@@ -56,8 +55,9 @@ impl Kind {
     #[inline]
     fn max_age(&self) -> u8 {
         match self {
-            Kind::None => 255,
+            Kind::None => 0,
             Kind::Grass => 16,
+            Kind::Tree => 128,
         }
     }
 }

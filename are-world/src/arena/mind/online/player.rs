@@ -14,7 +14,7 @@ pub struct Player {
     socket_addr: SocketAddr,
 
     con: NVTer,
-    monitor: Monitor<SWord, fn(&SWord, usize) -> [[char; 1]; 5], 5, 1>,
+    monitor: Monitor<String, fn(&String, usize) -> [[char; 1]; 5], 5, 1>,
 
     mode: Mode,
     query_result: Vec<Vec<u8>>,
@@ -125,7 +125,7 @@ impl Player {
     const LINE_CMD_END: &'static str = "\r\n";
 
     fn render(&mut self, cosmos: &Cosmos) -> Result<Vec<u8>, ()> {
-        let window = cosmos.plate.area(self.watch_area).map(|b| b.ground.name);
+        let window = cosmos.plate.area(self.watch_area).map(|b| b.ground.name());
         println!("~{}", window);
 
         self.monitor.put(window);
