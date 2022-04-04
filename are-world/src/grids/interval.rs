@@ -117,6 +117,15 @@ where
     }
 }
 
+impl<T: std::cmp::Ord + Default> Default for Interval<T> {
+    fn default() -> Self {
+        Self {
+            from: T::default(),
+            to: T::default(),
+        }
+    }
+}
+
 #[cfg(test)]
 #[test]
 fn test_contains() {
