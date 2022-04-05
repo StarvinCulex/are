@@ -22,11 +22,7 @@ impl Mob for Bio {
     }
 
     fn get_name(&self) -> SWord {
-        todo!()
-    }
-
-    fn at(&self) -> CrdI {
-        todo!()
+        self.species.name[..].into()
     }
 
     fn hear(&self, cosmos: &Cosmos, message: Vec<Msg>, this: P<MobBlock>, reader: &ReadGuard<PKey>) {

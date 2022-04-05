@@ -72,8 +72,16 @@ pub struct Properties {
 }
 
 impl PKey {
+    #[inline]
     fn new() -> Self {
         Self { _a: () }
+    }
+}
+
+impl<WriteKey: ?Sized> P<MobBlock, PKey, WriteKey> {
+    #[inline]
+    pub fn at(&self) -> CrdI {
+        ReadGuard::with(&PKey::new(), |guard| self.get(guard).at)
     }
 }
 
@@ -84,6 +92,7 @@ impl Angelos {
 }
 
 impl<'c> Deamon<'c> {
+    #[inline]
     fn with<F: FnOnce(&Self)>(angelos: &'c Angelos, plate: Matrix<Block, 1, 1>, f: F) -> Matrix<Block, 1, 1> {
         let instance = Self {
             angelos,
@@ -91,11 +100,6 @@ impl<'c> Deamon<'c> {
         };
         f(&instance);
         instance.plate.into_inner().unwrap()
-    }
-
-    #[inline]
-    fn get_at(&self, mob: &P<MobBlock>) -> CrdI {
-        ReadGuard::with(&self.angelos.pkey, |guard| { mob.get(guard).at })
     }
 
     #[inline]
@@ -123,7 +127,7 @@ impl<'c> Deamon<'c> {
 
     pub fn take(&self, mob: Weak<MobBlock>) -> Result<Box<MobBlock>, ()> {
         let mut plate = self.plate.lock().unwrap();
-        if let Some(mob) = mob.upgrade() && let at = self.get_at(&mob) && Self::is_same_mob(&mob, &plate[at.from()].mob) {
+        if let Some(mob) = mob.upgrade() && let at = mob.at() && Self::is_same_mob(&mob, &plate[at.from()].mob) {
             for (_, grid) in plate.area_mut(at) {
                 grid.mob = None;
             }
@@ -138,7 +142,7 @@ impl<'c> Deamon<'c> {
         // lock() before upgrade(), as it can be take()-n between upgrade() and lock() otherwise
         let mut plate = self.plate.lock().unwrap();
         if let Some(mob) = mob.upgrade() {
-            let new_at = self.get_at(&mob);
+            let new_at = mob.at();
             for (_, grid) in plate.area(new_at) {
                 if let Some(pos_mob) = &grid.mob && &mob != pos_mob {
                     return Err(());
