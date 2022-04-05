@@ -261,10 +261,11 @@ impl<'a, ReadKey: ?Sized> ReadGuard<'a, ReadKey> {
     }
 
     #[inline]
-    pub fn with<F: FnOnce(&ReadGuard<ReadKey>)>(key: &'a ReadKey, f: F) {
+    pub fn with<T, F: FnOnce(&Self) -> T>(key: &'a ReadKey, f: F) -> T {
         let guard = unsafe { Self::new(key) };
-        f(&guard);
+        let ret = f(&guard);
         drop(guard); // useless, but a guarantee that it is not moved away(to extend its lifetime)
+        ret
     }
 }
 
@@ -275,9 +276,10 @@ impl<'a, WriteKey: ?Sized> WriteGuard<'a, WriteKey> {
     }
 
     #[inline]
-    pub fn with<F: FnOnce(&WriteGuard<WriteKey>)>(key: &'a WriteKey, f: F) {
+    pub fn with<T, F: FnOnce(&Self) -> T>(key: &'a WriteKey, f: F) -> T {
         let guard = unsafe { Self::new(key) };
-        f(&guard);
+        let ret = f(&guard);
         drop(guard); // useless, but a guarantee that it is not moved away(to extend its lifetime)
+        ret
     }
 }

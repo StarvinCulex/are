@@ -94,6 +94,11 @@ impl<'c> Deamon<'c> {
     }
 
     #[inline]
+    fn get_at(&self, mob: &P<MobBlock>) -> CrdI {
+        ReadGuard::with(&self.angelos.pkey, |guard| { mob.get(guard).at })
+    }
+
+    #[inline]
     fn is_same_mob(mob: &P<MobBlock>, another: &Option<P<MobBlock>>) -> bool {
         if let Some(another_mob) = another {
             mob == another_mob
@@ -118,8 +123,7 @@ impl<'c> Deamon<'c> {
 
     pub fn take(&self, mob: Weak<MobBlock>) -> Result<Box<MobBlock>, ()> {
         let mut plate = self.plate.lock().unwrap();
-        let guard = unsafe { ReadGuard::new(&self.angelos.pkey) };
-        if let Some(mob) = mob.upgrade() && let at = mob.get(&guard).at && Self::is_same_mob(&mob, &plate[at.from()].mob) {
+        if let Some(mob) = mob.upgrade() && let at = self.get_at(&mob) && Self::is_same_mob(&mob, &plate[at.from()].mob) {
             for (_, grid) in plate.area_mut(at) {
                 grid.mob = None;
             }
@@ -131,7 +135,29 @@ impl<'c> Deamon<'c> {
     }
 
     pub fn reset(&self, mob: Weak<MobBlock>, at: CrdI) -> Result<(), ()> {
-        todo!()
+        // lock() before upgrade(), as it can be take()-n between upgrade() and lock() otherwise
+        let mut plate = self.plate.lock().unwrap();
+        if let Some(mob) = mob.upgrade() {
+            let new_at = self.get_at(&mob);
+            for (_, grid) in plate.area(new_at) {
+                if let Some(pos_mob) = &grid.mob && &mob != pos_mob {
+                    return Err(());
+                }
+            }
+            for (pos, grid) in plate.area_mut(at) {
+                if !new_at.contains(&pos.try_into().unwrap()) {
+                    grid.mob = None;
+                }
+            }
+            for (_, grid) in plate.area_mut(new_at) {
+                if grid.mob.is_none() {
+                    grid.mob = Some(mob.clone());
+                }
+            }
+            Ok(())
+        } else {
+            Err(())
+        }
     }
 }
 
