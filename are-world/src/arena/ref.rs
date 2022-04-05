@@ -1,9 +1,8 @@
 use std::marker::PhantomData;
 use std::sync::{self, Arc};
-use std::pin::Pin;
+use std::alloc::{alloc, Layout};
 
 use crate::arena::cosmos::PKey;
-use crate::arena::Cosmos;
 
 use core::marker::Unsize;
 use core::ops::{CoerceUnsized/*, DispatchFromDyn*/};
@@ -41,7 +40,7 @@ where
     WriteKey: ?Sized,
 {
     fn eq(&self, other: &P<Element, ReadKey, WriteKey>) -> bool {
-        sync::Arc::as_ptr(&self.data) == sync::Arc::as_ptr(&other.data)
+        Arc::ptr_eq(&self.data, &other.data)
     }
 }
 
@@ -91,7 +90,7 @@ where
     WriteKey: ?Sized,
 {
     fn eq(&self, other: &Weak<Element, ReadKey, WriteKey>) -> bool {
-        sync::Weak::as_ptr(&self.data) == sync::Weak::as_ptr(&other.data)
+        sync::Weak::ptr_eq(&self.data, &other.data)
     }
 }
 
@@ -179,6 +178,19 @@ where
     #[inline]
     pub unsafe fn get_mut_unchecked<'a>(&'a mut self, _write_guard: &'a WriteGuard<WriteKey>) -> &'a mut Element {
         Arc::get_mut_unchecked(&mut self.data)
+    }
+
+    // P<dyn Trait> -> Option<Box<dyn Trait>>
+    // can NOT used for zero-sized types
+    // https://users.rust-lang.org/t/arc-dyn-t-into-box-dyn-t/63841/9
+    #[inline]
+    pub unsafe fn into_box_leaky(mut self) -> Option<Box<Element>> {
+        let src: *mut Element = Arc::get_mut(&mut self.data)?;
+        let dst = alloc(Layout::for_value(&*src));
+        let len = std::mem::size_of_val(&*src);
+        std::ptr::copy_nonoverlapping(src as *const Element as *const u8, dst, len);
+        std::mem::forget(self);
+        Some(Box::from_raw(src.set_ptr_value(dst)))
     }
 
     pub fn downgrade(&self) -> Weak<Element, ReadKey, WriteKey> {
