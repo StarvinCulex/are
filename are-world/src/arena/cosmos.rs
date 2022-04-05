@@ -1,9 +1,5 @@
-use std::alloc::Layout;
 use std::collections::VecDeque;
-use std::ptr::{null, null_mut};
-use std::sync::mpsc::{channel, sync_channel, Receiver, SyncSender};
-use std::thread;
-use std::hint::unreachable_unchecked;
+use std::sync::mpsc::channel;
 
 use duplicate::duplicate;
 use rayon::prelude::*;
@@ -59,8 +55,7 @@ pub struct Angelos {
 
 pub struct Deamon<'c> {
     pub angelos: &'c Angelos,
-    orders: SyncSender<DeamonOrder>,
-    results: Mutex<Receiver<DeamonResult>>,
+    plate: Mutex<Matrix<Block, 1, 1>>,
 }
 
 pub trait Teller<Index, Letter> {
@@ -88,69 +83,14 @@ impl Angelos {
     }
 }
 
-enum DeamonOrder {
-    Set { mob: Box<MobBlock>, at: CrdI },
-    Take { mob: Weak<MobBlock> },
-    Reset { mob: Weak<MobBlock>, at: CrdI },
-}
-
-enum DeamonResult {
-    Set(Result<(), Box<MobBlock>>),
-    Take(Result<Box<MobBlock>, ()>),
-    Reset(Result<(), ()>),
-}
-
 impl<'c> Deamon<'c> {
-    fn with<F: FnOnce(&Self)>(angelos: &'c Angelos, mut plate: Matrix<Block, 1, 1>, f: F) -> Matrix<Block, 1, 1> {
-        thread::scope(|s| {
-            let (orders, orders_receiver) = sync_channel(0);
-            let (results_sender, results) = sync_channel(0);
-            let handle = s.spawn(move |_s| {
-                ReadGuard::with(&angelos.pkey, |guard| {
-                    'ret: while let Ok(order) = orders_receiver.recv() {
-                        match order {
-                            DeamonOrder::Set { mob, at } => {
-                                for (_, grid) in plate.area(at) {
-                                    if grid.mob.is_some() {
-                                        results_sender.send(DeamonResult::Set(Err(mob))).unwrap();
-                                        continue 'ret;
-                                    }
-                                }
-                                results_sender.send(DeamonResult::Set(Ok(()))).unwrap();
-                                let mob: P<MobBlock> = mob.into();
-                                for (_, grid) in plate.area_mut(at) {
-                                    grid.mob = Some(mob.clone());
-                                }
-                            }
-                            DeamonOrder::Take { mob } => {
-                                if let Some(mob) = mob.upgrade() && let at = mob.get(guard).at && Self::is_same_mob(&mob, &plate[at.from()].mob) {
-                                    for (_, grid) in plate.area_mut(at) {
-                                        grid.mob = None;
-                                    }
-                                    if let Some(boxed) = unsafe { mob.into_box_leaky() } {
-                                        results_sender.send(DeamonResult::Take(Ok(boxed))).unwrap();
-                                        continue 'ret;
-                                    }
-                                }
-                                results_sender.send(DeamonResult::Take(Err(()))).unwrap();
-                            }
-                            DeamonOrder::Reset { .. } => {
-                                todo!()
-                            }
-                        }
-                    };
-                });
-                plate
-            });
-            let instance = Self {
-                angelos,
-                orders,
-                results: Mutex::new(results),
-            };
-            f(&instance);
-            std::mem::drop(instance);
-            handle.join().unwrap()
-        })
+    fn with<F: FnOnce(&Self)>(angelos: &'c Angelos, plate: Matrix<Block, 1, 1>, f: F) -> Matrix<Block, 1, 1> {
+        let instance = Self {
+            angelos,
+            plate: Mutex::from(plate),
+        };
+        f(&instance);
+        instance.plate.into_inner().unwrap()
     }
 
     #[inline]
@@ -163,41 +103,35 @@ impl<'c> Deamon<'c> {
     }
 
     pub fn set(&self, mob: Box<MobBlock>, at: CrdI) -> Result<(), Box<MobBlock>> {
-        let results = self.results.lock().unwrap();
-        self.orders.send(DeamonOrder::Set {
-            mob,
-            at,
-        }).unwrap();
-        if let DeamonResult::Set(ret) = results.recv().unwrap() {
-            ret
-        } else {
-            unsafe { unreachable_unchecked() }
+        let mut plate = self.plate.lock().unwrap();
+        for (_, grid) in plate.area(at) {
+            if grid.mob.is_some() {
+                return Err(mob);
+            }
         }
+        let mob: P<MobBlock> = mob.into();
+        for (_, grid) in plate.area_mut(at) {
+            grid.mob = Some(mob.clone());
+        }
+        Ok(())
     }
 
     pub fn take(&self, mob: Weak<MobBlock>) -> Result<Box<MobBlock>, ()> {
-        let results = self.results.lock().unwrap();
-        self.orders.send(DeamonOrder::Take {
-            mob,
-        }).unwrap();
-        if let DeamonResult::Take(ret) = results.recv().unwrap() {
-            ret
-        } else {
-            unsafe { unreachable_unchecked() }
+        let mut plate = self.plate.lock().unwrap();
+        let guard = unsafe { ReadGuard::new(&self.angelos.pkey) };
+        if let Some(mob) = mob.upgrade() && let at = mob.get(&guard).at && Self::is_same_mob(&mob, &plate[at.from()].mob) {
+            for (_, grid) in plate.area_mut(at) {
+                grid.mob = None;
+            }
+            if let Some(boxed) = unsafe { mob.into_box_leaky() } {
+                return Ok(boxed);
+            }
         }
+        Err(())
     }
 
     pub fn reset(&self, mob: Weak<MobBlock>, at: CrdI) -> Result<(), ()> {
-        let results = self.results.lock().unwrap();
-        self.orders.send(DeamonOrder::Reset {
-            mob,
-            at,
-        }).unwrap();
-        if let DeamonResult::Reset(ret) = results.recv().unwrap() {
-            ret
-        } else {
-            unsafe { unreachable_unchecked() }
-        }
+        todo!()
     }
 }
 

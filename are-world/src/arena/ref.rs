@@ -256,7 +256,7 @@ pub struct WriteGuard<'a, WriteKey: ?Sized>(PhantomData<&'a WriteKey>);
 impl<'a, ReadKey: ?Sized> ReadGuard<'a, ReadKey> {
     // unsafe, you should drop() it manually to terminate the lifetime of the references it returned
     #[inline]
-    unsafe fn new(_key: &'a ReadKey) -> Self {
+    pub unsafe fn new(_key: &'a ReadKey) -> Self {
         Self(PhantomData::default())
     }
 
@@ -270,7 +270,7 @@ impl<'a, ReadKey: ?Sized> ReadGuard<'a, ReadKey> {
 
 impl<'a, WriteKey: ?Sized> WriteGuard<'a, WriteKey> {
     #[inline]
-    unsafe fn new(_key: &'a WriteKey) -> Self {
+    pub unsafe fn new(_key: &'a WriteKey) -> Self {
         Self(PhantomData::default())
     }
 
