@@ -36,12 +36,10 @@ where
     type Item = (Coord<isize>, ref_life([Element], [m]));
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some((pos, addr)) = self.accessor.next() {
+        self.accessor.next().map(|(pos, addr)| {
             // extend the lifetime to 'm (the lifetime of Matrix) while preserving borrow checker working
-            Some((pos, unsafe { std::mem::transmute(self.matrix.get_by_addr_fn(addr)) } ))
-        } else {
-            None
-        }
+            (pos, unsafe { std::mem::transmute(self.matrix.get_by_addr_fn(addr)) } )
+        })
     }
 }
 

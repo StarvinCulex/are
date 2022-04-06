@@ -107,22 +107,13 @@ impl<'c> Deamon<'c> {
         instance.plate.into_inner().unwrap()
     }
 
-    #[inline]
-    fn is_same_mob(mob: &P<MobBlock>, another: &Option<P<MobBlock>>) -> bool {
-        if let Some(another_mob) = another {
-            mob == another_mob
-        } else {
-            false
-        }
-    }
-
     pub fn set(&self, mob: ArcBox<MobBlock>, at: CrdI) -> Result<(), ArcBox<MobBlock>> {
         let mut plate = self.plate.lock().unwrap();
-        for (_, grid) in plate.area(at) {
-            if grid.mob.is_some() {
-                return Err(mob);
-            }
+        // check if the plate is empty
+        if plate.area(at).scan().any(|(_, grid)| grid.mob.is_some()) {
+            return Err(mob);
         }
+        // set the plate
         let mob: P<MobBlock> = mob.into();
         for (_, grid) in plate.area_mut(at) {
             grid.mob = Some(mob.clone());
@@ -132,47 +123,47 @@ impl<'c> Deamon<'c> {
 
     pub fn take(&self, mob: Weak<MobBlock>) -> Result<ArcBox<MobBlock>, ()> {
         let mut plate = self.plate.lock().unwrap();
-        if let Some(mob) = mob.upgrade() {
-            let at = mob.at();
-            if Self::is_same_mob(&mob, &plate[at.from()].mob) {
-                if plate.area(at).scan().len() + 1 != mob.strong_count() {
-                    return Err(())
-                }
-                for (_, grid) in plate.area_mut(at) {
-                    grid.mob = None;
-                }
-                return mob.try_into_box(&self.angelos.pkey).map_err(|_|());
-            }
+        let mob = mob.upgrade().ok_or(())?;
+        let at = mob.at();
+        // check if the mob.at() is valid
+        if &mob != plate[at.from()].mob.as_ref().ok_or(())? {
+            return Err(());
         }
-        Err(())
+        let scan = plate.area_mut(at).scan();
+        // quick fail: check if it's unique after clearing the plate
+        if scan.len() + 1 < mob.strong_count() {
+            return Err(())
+        }
+        // clear the plate
+        for (_, grid) in scan {
+            grid.mob = None;
+        }
+        // convert
+        mob.try_into_box(&self.angelos.pkey).map_err(|_|())
     }
 
     pub fn reset(&self, mob: Weak<MobBlock>, at: CrdI) -> Result<(), ()> {
         // lock() before upgrade(), as it can be take()-n between upgrade() and lock() otherwise
         let mut plate = self.plate.lock().unwrap();
-        if let Some(mob) = mob.upgrade() {
-            let new_at = mob.at();
-            for (_, grid) in plate.area(new_at) {
-                if let Some(pos_mob) = &grid.mob {
-                    if &mob != pos_mob {
-                        return Err(());
-                    }
-                }
-            }
-            for (pos, grid) in plate.area_mut(at) {
-                if !new_at.contains(&pos.try_into().unwrap()) {
-                    grid.mob = None;
-                }
-            }
-            for (_, grid) in plate.area_mut(new_at) {
-                if grid.mob.is_none() {
-                    grid.mob = Some(mob.clone());
-                }
-            }
-            Ok(())
-        } else {
-            Err(())
+        let mob = mob.upgrade().ok_or(())?;
+        let new_at = mob.at();
+        // check if there is another mob
+        if plate.area(at).scan().any(|(_, grid)| grid.mob.is_some_with(|pos_mob| pos_mob != &mob)) {
+            return Err(());
         }
+        // clear the old grids
+        for (pos, grid) in plate.area_mut(at) {
+            if !new_at.contains(&pos.try_into().unwrap()) {
+                grid.mob = None;
+            }
+        }
+        // set the new grids
+        for (_, grid) in plate.area_mut(new_at) {
+            if grid.mob.is_none() {
+                grid.mob = Some(mob.clone());
+            }
+        }
+        Ok(())
     }
 }
 

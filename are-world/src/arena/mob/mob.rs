@@ -8,7 +8,7 @@ pub trait Mob: Send + Sync {
 
     fn get_name(&self) -> SWord;
 
-    fn hear(&self, cosmos: &Cosmos, message: Vec<Msg>, this: P<MobBlock>, reader: &ReadGuard<PKey>);
+    fn hear(&self, cosmos: &Cosmos, message: Vec<Msg>, this: P<MobBlock>, guard: &ReadGuard<PKey>);
 
     fn order(&mut self, deamon: &Deamon, order: Vec<Order>, this: P<MobBlock>);
 }

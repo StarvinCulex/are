@@ -25,7 +25,7 @@ impl Mob for Bio {
         self.species.name[..].into()
     }
 
-    fn hear(&self, cosmos: &Cosmos, message: Vec<Msg>, this: P<MobBlock>, reader: &ReadGuard<PKey>) {
+    fn hear(&self, cosmos: &Cosmos, message: Vec<Msg>, this: P<MobBlock>, guard: &ReadGuard<PKey>) {
         todo!()
     }
 
