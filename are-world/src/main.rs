@@ -8,7 +8,6 @@
 #![feature(unsize)]
 #![feature(coerce_unsized)]
 // #![feature(dispatch_from_dyn)]
-#![feature(let_chains)]
 
 use crate::arena::conf::StaticConf;
 use crate::arena::mind::gods::plant::GodOfPlant;

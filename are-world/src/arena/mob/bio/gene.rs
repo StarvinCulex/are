@@ -5,6 +5,13 @@ use super::types::*;
 
 pub struct Gene {}
 
+pub enum Acid {
+    A,
+    T,
+    G,
+    C,
+}
+
 impl Gene {
     #[inline]
     pub fn max_hp(&self) -> HealthT {

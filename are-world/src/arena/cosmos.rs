@@ -12,7 +12,7 @@ use crate::msgpip::pipe::Output;
 use crate::msgpip::MPipe;
 
 pub use super::*;
-use super::{Weak, P, ReadGuard, WriteGuard};
+use super::{ReadGuard, Weak, WriteGuard, P};
 
 pub struct Cosmos {
     pub plate: Matrix<Block, 1, 1>,
@@ -93,7 +93,11 @@ impl Angelos {
 
 impl<'c> Deamon<'c> {
     #[inline]
-    fn with<F: FnOnce(&Self)>(angelos: &'c Angelos, plate: Matrix<Block, 1, 1>, f: F) -> Matrix<Block, 1, 1> {
+    fn with<F: FnOnce(&Self)>(
+        angelos: &'c Angelos,
+        plate: Matrix<Block, 1, 1>,
+        f: F,
+    ) -> Matrix<Block, 1, 1> {
         let instance = Self {
             angelos,
             plate: Mutex::from(plate),
@@ -111,7 +115,7 @@ impl<'c> Deamon<'c> {
         }
     }
 
-    pub fn set(&self, mob: Box<MobBlock>, at: CrdI) -> Result<(), Box<MobBlock>> {
+    pub fn set(&self, mob: P<MobBlock>, at: CrdI) -> Result<(), P<MobBlock>> {
         let mut plate = self.plate.lock().unwrap();
         for (_, grid) in plate.area(at) {
             if grid.mob.is_some() {
@@ -125,14 +129,18 @@ impl<'c> Deamon<'c> {
         Ok(())
     }
 
-    pub fn take(&self, mob: Weak<MobBlock>) -> Result<Box<MobBlock>, ()> {
+    pub fn take(&self, mob: Weak<MobBlock>) -> Result<P<MobBlock>, ()> {
         let mut plate = self.plate.lock().unwrap();
-        if let Some(mob) = mob.upgrade() && let at = mob.at() && Self::is_same_mob(&mob, &plate[at.from()].mob) {
-            for (_, grid) in plate.area_mut(at) {
-                grid.mob = None;
-            }
-            if let Some(boxed) = unsafe { mob.into_box_leaky() } {
-                return Ok(boxed);
+        if let Some(mob) = mob.upgrade() {
+            let at = mob.at();
+            if Self::is_same_mob(&mob, &plate[at.from()].mob) {
+                for (_, grid) in plate.area_mut(at) {
+                    grid.mob = None;
+                }
+                // if let Some(boxed) = unsafe { mob.into_box_leaky() } {
+                //     return Ok(boxed);
+                // }
+                return Ok(mob);
             }
         }
         Err(())
@@ -144,8 +152,10 @@ impl<'c> Deamon<'c> {
         if let Some(mob) = mob.upgrade() {
             let new_at = mob.at();
             for (_, grid) in plate.area(new_at) {
-                if let Some(pos_mob) = &grid.mob && &mob != pos_mob {
-                    return Err(());
+                if let Some(pos_mob) = &grid.mob {
+                    if &mob != pos_mob {
+                        return Err(());
+                    }
                 }
             }
             for (pos, grid) in plate.area_mut(at) {
