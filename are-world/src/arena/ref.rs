@@ -7,6 +7,8 @@ use crate::arena::cosmos::PKey;
 use core::marker::Unsize;
 use core::ops::{CoerceUnsized/*, DispatchFromDyn*/};
 
+use rc_box::ArcBox;
+
 pub struct P<Element, ReadKey = PKey, WriteKey = PKey>
 where
     Element: ?Sized,
@@ -44,7 +46,12 @@ where
     }
 }
 
-impl<Element, ReadKey, WriteKey> Eq for P<Element, ReadKey, WriteKey> where Element: ?Sized {}
+impl<Element, ReadKey, WriteKey> Eq for P<Element, ReadKey, WriteKey>
+where
+    Element: ?Sized,
+    ReadKey: ?Sized,
+    WriteKey: ?Sized,
+{}
 
 impl<Element, ReadKey, WriteKey> std::hash::Hash for P<Element, ReadKey, WriteKey>
 where
@@ -94,7 +101,12 @@ where
     }
 }
 
-impl<Element, ReadKey, WriteKey> Eq for Weak<Element, ReadKey, WriteKey> where Element: ?Sized {}
+impl<Element, ReadKey, WriteKey> Eq for Weak<Element, ReadKey, WriteKey>
+where
+    Element: ?Sized,
+    ReadKey: ?Sized,
+    WriteKey: ?Sized,
+{}
 
 impl<Element, ReadKey, WriteKey> std::hash::Hash for Weak<Element, ReadKey, WriteKey>
 where
@@ -109,7 +121,6 @@ where
 
 impl<Element, ReadKey, WriteKey> P<Element, ReadKey, WriteKey>
 where
-    Element: Sized,
     ReadKey: ?Sized,
     WriteKey: ?Sized,
 {
@@ -138,6 +149,7 @@ where
         }
     }
 }
+
 impl<Element, ReadKey, WriteKey> From<Box<Element>> for P<Element, ReadKey, WriteKey>
 where
     Element: ?Sized,
@@ -148,6 +160,38 @@ where
     fn from(b: Box<Element>) -> Self {
         Self {
             data: Arc::from(b),
+            _ak: PhantomData::default(),
+            _wk: PhantomData::default(),
+        }
+    }
+}
+
+impl<Element, ReadKey, WriteKey> From<Arc<Element>> for P<Element, ReadKey, WriteKey>
+where
+    Element: ?Sized,
+    ReadKey: ?Sized,
+    WriteKey: ?Sized,
+{
+    #[inline]
+    fn from(arc: Arc<Element>) -> Self {
+        Self {
+            data: arc,
+            _ak: PhantomData::default(),
+            _wk: PhantomData::default(),
+        }
+    }
+}
+
+impl<Element, ReadKey, WriteKey> From<ArcBox<Element>> for P<Element, ReadKey, WriteKey>
+where
+    Element: ?Sized,
+    ReadKey: ?Sized,
+    WriteKey: ?Sized,
+{
+    #[inline]
+    fn from(b: ArcBox<Element>) -> Self {
+        Self {
+            data: b.into(),
             _ak: PhantomData::default(),
             _wk: PhantomData::default(),
         }
@@ -180,19 +224,12 @@ where
         Arc::get_mut_unchecked(&mut self.data)
     }
 
-    // P<dyn Trait> -> Option<Box<dyn Trait>>
-    // can NOT used for zero-sized types
-    // https://users.rust-lang.org/t/arc-dyn-t-into-box-dyn-t/63841/9
     #[inline]
-    pub unsafe fn into_box_leaky(mut self) -> Option<Box<Element>> {
-        let src: *mut Element = Arc::get_mut(&mut self.data)?;
-        let dst = alloc(Layout::for_value(&*src));
-        let len = std::mem::size_of_val(&*src);
-        std::ptr::copy_nonoverlapping(src as *const Element as *const u8, dst, len);
-        std::mem::forget(self);
-        Some(Box::from_raw(src.set_ptr_value(dst)))
+    pub fn try_into_box(self, _key: &WriteKey) -> Result<ArcBox<Element>, Self> {
+        self.data.try_into().map_err(|arc| Self::from(arc))
     }
 
+    #[inline]
     pub fn downgrade(&self) -> Weak<Element, ReadKey, WriteKey> {
         Weak {
             data: Arc::downgrade(&self.data),
@@ -200,9 +237,23 @@ where
             _wk: PhantomData::default(),
         }
     }
+
+    #[inline]
+    pub fn strong_count(&self) -> usize {
+        Arc::strong_count(&self.data)
+    }
+
+    #[inline]
+    pub fn weak_count(&self) -> usize {
+        Arc::weak_count(&self.data)
+    }
 }
 
-impl<Element, ReadKey, WriteKey> Weak<Element, ReadKey, WriteKey> {
+impl<Element, ReadKey, WriteKey> Weak<Element, ReadKey, WriteKey>
+where
+    ReadKey: ?Sized,
+    WriteKey: ?Sized,
+{
     pub fn new() -> Self {
         Self {
             data: sync::Weak::new(),
@@ -218,24 +269,19 @@ where
     ReadKey: ?Sized,
     WriteKey: ?Sized,
 {
+    #[inline]
     pub fn upgrade(self) -> Option<P<Element, ReadKey, WriteKey>> {
-        self._upgrade()
+        self.data.upgrade().map(|arc| arc.into())
     }
 
+    #[inline]
     pub fn strong_count(&self) -> usize {
-        self.data.strong_count()
+        sync::Weak::strong_count(&self.data)
     }
 
+    #[inline]
     pub fn weak_count(&self) -> usize {
-        self.data.weak_count()
-    }
-
-    fn _upgrade(&self) -> Option<P<Element, ReadKey, WriteKey>> {
-        self.data.upgrade().map(|x| P {
-            data: x,
-            _ak: PhantomData::default(),
-            _wk: PhantomData::default(),
-        })
+        sync::Weak::weak_count(&self.data)
     }
 }
 

@@ -3,6 +3,7 @@ use std::sync::mpsc::channel;
 
 use duplicate::duplicate;
 use rayon::prelude::*;
+use rc_box::ArcBox;
 
 use crate::arena::conf::StaticConf;
 use crate::arena::defs::{Crd, CrdI, Tick};
@@ -115,7 +116,7 @@ impl<'c> Deamon<'c> {
         }
     }
 
-    pub fn set(&self, mob: P<MobBlock>, at: CrdI) -> Result<(), P<MobBlock>> {
+    pub fn set(&self, mob: ArcBox<MobBlock>, at: CrdI) -> Result<(), ArcBox<MobBlock>> {
         let mut plate = self.plate.lock().unwrap();
         for (_, grid) in plate.area(at) {
             if grid.mob.is_some() {
@@ -129,18 +130,18 @@ impl<'c> Deamon<'c> {
         Ok(())
     }
 
-    pub fn take(&self, mob: Weak<MobBlock>) -> Result<P<MobBlock>, ()> {
+    pub fn take(&self, mob: Weak<MobBlock>) -> Result<ArcBox<MobBlock>, ()> {
         let mut plate = self.plate.lock().unwrap();
         if let Some(mob) = mob.upgrade() {
             let at = mob.at();
             if Self::is_same_mob(&mob, &plate[at.from()].mob) {
+                if plate.area(at).scan().len() + 1 != mob.strong_count() {
+                    return Err(())
+                }
                 for (_, grid) in plate.area_mut(at) {
                     grid.mob = None;
                 }
-                // if let Some(boxed) = unsafe { mob.into_box_leaky() } {
-                //     return Ok(boxed);
-                // }
-                return Ok(mob);
+                return mob.try_into_box(&self.angelos.pkey).map_err(|_|());
             }
         }
         Err(())
