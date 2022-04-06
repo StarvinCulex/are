@@ -91,13 +91,13 @@ duplicate! {
         [ 'm, 'a ]  [ 'a ]         [ AreaMut ]  [ &'a mut T ];
     ]
 impl<lifetimes, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
-    Into<IntoType<into_lifetime, Element, CHUNK_WIDTH, CHUNK_HEIGHT>> for ref_life([AreaMut<'m, Element, CHUNK_WIDTH, CHUNK_HEIGHT>], [a])
+    From<ref_life([AreaMut<'m, Element, CHUNK_WIDTH, CHUNK_HEIGHT>], [a])> for IntoType<into_lifetime, Element, CHUNK_WIDTH, CHUNK_HEIGHT>
 {
     #[inline]
-    fn into(self) -> IntoType<into_lifetime, Element, CHUNK_WIDTH, CHUNK_HEIGHT> {
+    fn from(from: ref_life([AreaMut<'m, Element, CHUNK_WIDTH, CHUNK_HEIGHT>], [a])) -> Self {
         IntoType {
-            matrix: self.matrix,
-            area: self.area,
+            matrix: from.matrix,
+            area: from.area,
         }
     }
 }
