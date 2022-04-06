@@ -139,7 +139,7 @@ impl<'c> Deamon<'c> {
             grid.mob = None;
         }
         // convert
-        mob.try_into_box(&self.angelos.pkey).map_err(|_|())
+        mob.try_into_box(&self.angelos.pkey).map_err(|_| unreachable!())
     }
 
     pub fn reset(&self, mob: Weak<MobBlock>, at: CrdI) -> Result<(), ()> {

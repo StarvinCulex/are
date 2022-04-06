@@ -102,9 +102,10 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
         self: reference([Self]),
         a: Coord<Interval<Index>>,
     ) -> AreaType<Element, CHUNK_WIDTH, CHUNK_HEIGHT> {
+        let area = self.normalize_area(Coord(a.0.from.into(), a.1.from.into()) | Coord(a.0.to.into(), a.1.to.into()));
         AreaType {
             matrix: self,
-            area: Coord(a.0.from.into(), a.1.from.into()) | Coord(a.0.to.into(), a.1.to.into()),
+            area,
         }
     }
 
@@ -117,8 +118,7 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
     pub fn iter_fn<'m>(
         self: ref_life([Self], [m]),
     ) -> <AreaType<Element, CHUNK_WIDTH, CHUNK_HEIGHT> as std::iter::IntoIterator>::IntoIter {
-        let area: AreaType<'m, Element, CHUNK_WIDTH, CHUNK_HEIGHT> = self.into();
-        area.into_iter()
+        self.as_area_fn().into_iter()
     }
 }
 

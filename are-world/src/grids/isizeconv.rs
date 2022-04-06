@@ -24,6 +24,7 @@ where
     TypeTest<T, U>: TypeNe,
     T: Into<U>,
 {
+    #[inline]
     fn from(t: WrapperType<T>) -> Self {
         convert([t], [into()])
     }
@@ -34,6 +35,7 @@ where
     T: TryInto<U>,
 {
     type Error = <T as TryInto<U>>::Error;
+    #[inline]
     fn try_from(t: WrapperType<T>) -> Result<Self, Self::Error> {
         Ok(convert([t], [try_into()?]))
     }
