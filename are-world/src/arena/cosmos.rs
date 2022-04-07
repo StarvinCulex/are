@@ -94,17 +94,18 @@ impl Angelos {
 
 impl<'c> Deamon<'c> {
     #[inline]
-    fn with<F: FnOnce(&Self)>(
+    fn with<T, F: FnOnce(&Self) -> T>(
         angelos: &'c Angelos,
-        plate: Matrix<Block, 1, 1>,
+        plate: &'c mut Matrix<Block, 1, 1>,
         f: F,
-    ) -> Matrix<Block, 1, 1> {
+    ) -> T {
         let instance = Self {
             angelos,
-            plate: Mutex::from(plate),
+            plate: Mutex::from(std::mem::take(plate)),
         };
-        f(&instance);
-        instance.plate.into_inner().unwrap()
+        let ret = f(&instance);
+        *plate = instance.plate.into_inner().unwrap();
+        ret
     }
 
     pub fn set(&self, mob: ArcBox<MobBlock>, at: CrdI) -> Result<(), ArcBox<MobBlock>> {
@@ -293,7 +294,7 @@ impl Cosmos {
             || self.pos_to_weak_mob(mob_pos_orders, &mut mob_orders),
         );
 
-        self.plate = Deamon::with(&self.angelos, std::mem::take(&mut self.plate), |deamon| {
+        Deamon::with(&self.angelos, &mut self.plate, |deamon| {
             WriteGuard::with(&self.angelos.pkey, |guard| {
                 mob_orders.into_iter().par_bridge().for_each(|(m, orders)| {
                     if let Some(mob) = m.upgrade() {
