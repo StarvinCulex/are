@@ -1,1 +1,3 @@
-pub enum Order {}
+pub enum Order {
+    Wake,
+}
