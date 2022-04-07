@@ -56,7 +56,7 @@ pub struct Angelos {
 
 pub struct Deamon<'c> {
     pub angelos: &'c Angelos,
-    plate: Mutex<Matrix<Block, 1, 1>>,
+    plate: Mutex<&'c mut Matrix<Block, 1, 1>>,
 }
 
 pub trait Teller<Index, Letter> {
@@ -101,11 +101,9 @@ impl<'c> Deamon<'c> {
     ) -> T {
         let instance = Self {
             angelos,
-            plate: Mutex::from(std::mem::take(plate)),
+            plate: Mutex::from(plate),
         };
-        let ret = f(&instance);
-        *plate = instance.plate.into_inner().unwrap();
-        ret
+        f(&instance)
     }
 
     pub fn set(&self, mob: ArcBox<MobBlock>, at: CrdI) -> Result<(), ArcBox<MobBlock>> {
@@ -261,16 +259,17 @@ impl Cosmos {
                     .par_bridge()
                     .for_each(|(pos, msgs)| self.plate[pos].ground.hear(self, pos, msgs))
             },
-            || self.pos_to_weak_mob(mob_pos_messages, &mut mob_messages),
+            || {
+                self.pos_to_weak_mob(mob_pos_messages, &mut mob_messages);
+                ReadGuard::with(&self.angelos.pkey, |guard| {
+                    mob_messages.into_iter().par_bridge().for_each(|(m, msgs)| {
+                        if let Some(mob) = m.upgrade() {
+                            mob.get(guard).mob.hear(self, msgs, mob.clone(), guard)
+                        }
+                    })
+                });
+            },
         );
-
-        ReadGuard::with(&self.angelos.pkey, |guard| {
-            mob_messages.into_iter().par_bridge().for_each(|(m, msgs)| {
-                if let Some(mob) = m.upgrade() {
-                    mob.get(guard).mob.hear(self, msgs, mob.clone(), guard)
-                }
-            })
-        });
     }
 
     #[inline]
@@ -281,30 +280,36 @@ impl Cosmos {
 
         rayon::join(
             || {
+                // &mut plate[pos].ground only
                 gnd_orders
                     .into_iter()
                     .par_bridge()
                     .for_each(|(pos, orders)| {
+                        // pos are distinct, so ground is distinct
                         #![allow(mutable_transmutes)]
                         let mg: &mut gnd::Ground =
                             unsafe { std::mem::transmute(&self.plate[pos].ground) };
                         mg.order(pos, &self.angelos, orders);
                     })
             },
-            || self.pos_to_weak_mob(mob_pos_orders, &mut mob_orders),
+            || {
+                // &mut plate[pos].mob only
+                #![allow(mutable_transmutes)]
+                self.pos_to_weak_mob(mob_pos_orders, &mut mob_orders);
+                Deamon::with(&self.angelos, unsafe { std::mem::transmute(&self.plate) }, |deamon| {
+                    WriteGuard::with(&self.angelos.pkey, |guard| {
+                        mob_orders.into_iter().par_bridge().for_each(|(m, orders)| {
+                            if let Some(mob) = m.upgrade() {
+                                unsafe { mob.clone().get_mut_unchecked(guard) }
+                                    .mob
+                                    .order(&deamon, orders, mob)
+                            }
+                        })
+                    });
+                });
+            }
         );
 
-        Deamon::with(&self.angelos, &mut self.plate, |deamon| {
-            WriteGuard::with(&self.angelos.pkey, |guard| {
-                mob_orders.into_iter().par_bridge().for_each(|(m, orders)| {
-                    if let Some(mob) = m.upgrade() {
-                        unsafe { mob.clone().get_mut_unchecked(guard) }
-                            .mob
-                            .order(&deamon, orders, mob)
-                    }
-                })
-            });
-        });
     }
 
     // // TODO: move this away
