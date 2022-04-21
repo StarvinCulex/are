@@ -131,23 +131,29 @@ impl<'c> Deamon<'c> {
         let scan = plate.area_mut(at).scan();
         // quick fail: check if it's unique after clearing the plate
         if scan.len() + 1 < mob.strong_count() {
-            return Err(())
+            return Err(());
         }
         // clear the plate
         for (_, grid) in scan {
             grid.mob = None;
         }
         // convert
-        mob.try_into_box(&self.angelos.pkey).map_err(|_| unreachable!())
+        mob.try_into_box(&self.angelos.pkey)
+            .map_err(|_| unreachable!())
     }
 
-    pub fn reset(&self, mob: Weak<MobBlock>, at: CrdI) -> Result<(), ()> {
+    /// 尝试把[`mob`]移动到[`new_at`]的位置。
+    pub fn reset(&self, mob: Weak<MobBlock>, new_at: CrdI) -> Result<(), ()> {
         // lock() before upgrade(), as it can be take()-n between upgrade() and lock() otherwise
         let mut plate = self.plate.lock().unwrap();
-        let mob = mob.upgrade().ok_or(())?;
-        let new_at = mob.at();
+        let mut mob = mob.upgrade().ok_or(())?;
+        let at = mob.at();
         // check if there is another mob
-        if plate.area(at).scan().any(|(_, grid)| grid.mob.is_some_with(|pos_mob| pos_mob != &mob)) {
+        if plate
+            .area(at)
+            .scan()
+            .any(|(_, grid)| grid.mob.is_some_with(|pos_mob| pos_mob != &mob))
+        {
             return Err(());
         }
         // clear the old grids
@@ -162,6 +168,10 @@ impl<'c> Deamon<'c> {
                 grid.mob = Some(mob.clone());
             }
         }
+        // resetZ
+        WriteGuard::with(&self.angelos.pkey, |g| {
+            unsafe { mob.get_mut_unchecked(g) }.at = new_at
+        });
         Ok(())
     }
 }
@@ -302,14 +312,13 @@ impl Cosmos {
                             if let Some(mob) = m.upgrade() {
                                 unsafe { mob.clone().get_mut_unchecked(guard) }
                                     .mob
-                                    .order(&deamon, orders, mob)
+                                    .order(mob.at(), &deamon, orders, mob)
                             }
                         })
                     });
                 });
             }
         );
-
     }
 
     // // TODO: move this away

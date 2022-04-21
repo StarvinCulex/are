@@ -11,13 +11,18 @@
 #![feature(is_some_with)]
 
 use crate::arena::conf::StaticConf;
+use crate::arena::cosmos::*;
 use crate::arena::mind::gods::plant::GodOfPlant;
 use crate::arena::mind::online::Gate;
+use crate::arena::mob::mech::mech::Mech;
+use crate::arena::mob::Mob;
 use crate::arena::{RuntimeConf, P};
 use crate::conencode::ConEncoder;
 use crate::cui::Window;
 use crate::grids::*;
 use crate::sword::SWord;
+
+// cargo update -p crossbeam-epoch:0.9.8 --precise 0.9.7
 
 mod arena;
 mod conencode;
@@ -39,14 +44,24 @@ fn main() {
         },
     );
 
-    meta.cosmos
-        .angelos
-        .join(Box::new(Gate::listen("0.0.0.0:8964")));
-    meta.cosmos.angelos.join(Box::new(GodOfPlant::new()));
+    // meta.cosmos
+    //     .angelos
+    //     .join(Box::new(Gate::listen("0.0.0.0:8964")));
+    // meta.cosmos.angelos.join(Box::new(GodOfPlant::new()));
+
+    meta.cosmos.plate[Coord(0isize, 0)].mob = Some(Mech {}.into_block());
+    meta.cosmos.angelos.order(Coord(0, 0), mob::Order::Wake, 1);
+
     meta.step();
     loop {
         println!("=====");
-        println!("{}", meta.cosmos.plate.as_area().map(|b| b.ground.name()));
+        println!(
+            "{}",
+            meta.cosmos
+                .plate
+                .as_area()
+                .map(|b| if b.mob.is_some() { "x" } else { "" })
+        );
         meta.step();
         std::thread::sleep(std::time::Duration::from_millis(
             meta.cosmos.angelos.properties.runtime_conf.period,
