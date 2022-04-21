@@ -14,8 +14,8 @@ pub struct Bio {
 }
 
 impl Mob for Bio {
-    fn into_block(self) -> P<MobBlock> {
-        P::new(_MobBlock::<Bio> {
+    fn into_arc(self) -> Arc<MobBlock> {
+        Arc::new(_MobBlock {
             at: CrdI::default(),
             mob: self,
         })
