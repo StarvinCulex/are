@@ -39,29 +39,23 @@ fn main() {
         RuntimeConf {
             period: 10,
             fire_tick: 4,
-            plant_aging: 0.01,
-            plant_sow: 0.0005,
+            plant_aging: 0.1,
+            plant_sow: 0.05,
         },
     );
 
     // meta.cosmos
     //     .angelos
     //     .join(Box::new(Gate::listen("0.0.0.0:8964")));
-    // meta.cosmos.angelos.join(Box::new(GodOfPlant::new()));
+    meta.cosmos.angelos.join(Box::new(GodOfPlant::new()));
 
-    meta.cosmos.plate[Coord(0isize, 0)].mob = Some(Mech {}.into_block());
-    meta.cosmos.angelos.order(Coord(0, 0), mob::Order::Wake, 1);
+    // meta.cosmos.plate[Coord(0isize, 0)].mob = Some(Mech {}.into_block());
+    // meta.cosmos.angelos.order(Coord(0, 0), mob::Order::Wake, 1);
 
     meta.step();
     loop {
         println!("=====");
-        println!(
-            "{}",
-            meta.cosmos
-                .plate
-                .as_area()
-                .map(|b| if b.mob.is_some() { "x" } else { "" })
-        );
+        println!("{}", meta.cosmos.plate.as_area().map(|b| b.ground.name()));
         meta.step();
         std::thread::sleep(std::time::Duration::from_millis(
             meta.cosmos.angelos.properties.runtime_conf.period,

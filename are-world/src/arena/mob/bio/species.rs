@@ -85,7 +85,7 @@ impl Species {
 
 impl SpeciesPool {
     pub fn new() -> SpeciesPool {
-        todo!()
+        SpeciesPool {}
     }
 
     pub fn clone_species(&self, species: sync::Arc<Species>) -> Arc<Species> {
