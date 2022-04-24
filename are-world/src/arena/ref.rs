@@ -1,13 +1,12 @@
+use core::marker::Unsize;
+use core::ops::CoerceUnsized;
+use std::alloc::{alloc, Layout};
 use std::marker::PhantomData;
 use std::sync::{self, Arc};
-use std::alloc::{alloc, Layout};
-
-use crate::arena::cosmos::PKey;
-
-use core::marker::Unsize;
-use core::ops::{CoerceUnsized/*, DispatchFromDyn*/};
 
 use rc_box::ArcBox;
+
+use crate::arena::cosmos::PKey;
 
 pub struct P<Element, ReadKey = PKey, WriteKey = PKey>
 where
@@ -51,7 +50,8 @@ where
     Element: ?Sized,
     ReadKey: ?Sized,
     WriteKey: ?Sized,
-{}
+{
+}
 
 impl<Element, ReadKey, WriteKey> std::hash::Hash for P<Element, ReadKey, WriteKey>
 where
@@ -106,7 +106,8 @@ where
     Element: ?Sized,
     ReadKey: ?Sized,
     WriteKey: ?Sized,
-{}
+{
+}
 
 impl<Element, ReadKey, WriteKey> std::hash::Hash for Weak<Element, ReadKey, WriteKey>
 where
@@ -208,19 +209,25 @@ where
     pub fn get<'a>(&'a self, _read_guard: &'a ReadGuard<ReadKey>) -> &'a Element {
         self.data.as_ref()
     }
-    
+
     #[inline]
     pub fn get_const<'a>(&'a self, _write_guard: &'a WriteGuard<WriteKey>) -> &'a Element {
         self.data.as_ref()
     }
 
     #[inline]
-    pub fn get_mut<'a>(&'a mut self, _write_guard: &'a WriteGuard<WriteKey>) -> Option<&'a mut Element> {
+    pub fn get_mut<'a>(
+        &'a mut self,
+        _write_guard: &'a WriteGuard<WriteKey>,
+    ) -> Option<&'a mut Element> {
         Arc::get_mut(&mut self.data)
     }
 
     #[inline]
-    pub unsafe fn get_mut_unchecked<'a>(&'a mut self, _write_guard: &'a WriteGuard<WriteKey>) -> &'a mut Element {
+    pub unsafe fn get_mut_unchecked<'a>(
+        &'a mut self,
+        _write_guard: &'a WriteGuard<WriteKey>,
+    ) -> &'a mut Element {
         Arc::get_mut_unchecked(&mut self.data)
     }
 
@@ -286,9 +293,16 @@ where
 }
 
 // P<_MobBlock<Bio>> -> P<_MobBlock<dyn Mob>>
-impl<T: ?Sized + Unsize<U>, U: ?Sized, ReadKey, WriteKey> CoerceUnsized<P<U, ReadKey, WriteKey>> for P<T, ReadKey, WriteKey> {}
+impl<T: ?Sized + Unsize<U>, U: ?Sized, ReadKey, WriteKey> CoerceUnsized<P<U, ReadKey, WriteKey>>
+    for P<T, ReadKey, WriteKey>
+{
+}
+
 // impl<T: ?Sized + Unsize<U>, U: ?Sized, ReadKey, WriteKey> DispatchFromDyn<P<U, ReadKey, WriteKey>> for P<T, ReadKey, WriteKey> {}
-impl<T: ?Sized + Unsize<U>, U: ?Sized, ReadKey, WriteKey> CoerceUnsized<Weak<U, ReadKey, WriteKey>> for Weak<T, ReadKey, WriteKey> {}
+impl<T: ?Sized + Unsize<U>, U: ?Sized, ReadKey, WriteKey> CoerceUnsized<Weak<U, ReadKey, WriteKey>>
+    for Weak<T, ReadKey, WriteKey>
+{
+}
 // impl<T: ?Sized + Unsize<U>, U: ?Sized, ReadKey, WriteKey> DispatchFromDyn<Weak<U, ReadKey, WriteKey>> for Weak<T, ReadKey, WriteKey> {}
 
 // ReadGuard & WriteGuard can be explicitly drop()-ed, ensuring references' lifetime obtained from it shorter than itself.

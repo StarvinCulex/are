@@ -1,5 +1,4 @@
-mod atk;
-mod bio;
-mod gene;
-mod species;
-mod types;
+pub mod atk;
+pub mod bio;
+pub mod gene;
+pub mod species;

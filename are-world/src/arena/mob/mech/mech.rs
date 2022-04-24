@@ -1,3 +1,7 @@
+use std::sync::Arc;
+
+use rc_box::ArcBox;
+
 use crate::arena::cosmos::*;
 use crate::arena::cosmos::{Deamon, MobBlock, PKey, _MobBlock};
 use crate::arena::defs::CrdI;
@@ -8,11 +12,8 @@ use crate::{Interval, SWord, P};
 pub struct Mech {}
 
 impl Mob for Mech {
-    fn into_block(self) -> P<MobBlock> {
-        P::new(_MobBlock {
-            at: CrdI::default(),
-            mob: self,
-        })
+    fn into_arc(self) -> Arc<MobBlock> {
+        todo!()
     }
 
     fn get_name(&self) -> String {

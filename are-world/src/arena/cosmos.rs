@@ -9,6 +9,7 @@ use crate::arena::conf::StaticConf;
 use crate::arena::defs::{Crd, CrdI, Tick};
 use crate::arena::gnd;
 use crate::arena::mob::Mob;
+use crate::mob::bio::species::SpeciesPool;
 use crate::msgpip::pipe::Output;
 use crate::msgpip::MPipe;
 
@@ -39,7 +40,8 @@ pub type MobBlock = _MobBlock<dyn Mob>;
 
 pub struct Angelos {
     pub properties: Properties,
-    plate_size: Coord<usize>,
+
+    pub plate_size: Coord<usize>,
 
     gnd_messages: MPipe<Crd, gnd::Msg>,
     gnd_orders: MPipe<Crd, gnd::Order>,
@@ -52,6 +54,8 @@ pub struct Angelos {
     mind_waiting_queue: Mutex<VecDeque<Box<dyn mind::Mind>>>,
 
     pkey: PKey,
+
+    pub species_pool: mob::bio::species::SpeciesPool,
 }
 
 pub struct Deamon<'c> {
@@ -106,7 +110,7 @@ impl<'c> Deamon<'c> {
         f(&instance)
     }
 
-    pub fn set(&self, mob: ArcBox<MobBlock>, at: CrdI) -> Result<(), ArcBox<MobBlock>> {
+    pub fn set(&self, mob: ArcBox<MobBlock>, at: CrdI) -> Result<P<MobBlock>, ArcBox<MobBlock>> {
         let mut plate = self.plate.lock().unwrap();
         // check if the plate is empty
         if plate.area(at).scan().any(|(_, grid)| grid.mob.is_some()) {
@@ -117,7 +121,7 @@ impl<'c> Deamon<'c> {
         for (_, grid) in plate.area_mut(at) {
             grid.mob = Some(mob.clone());
         }
-        Ok(())
+        Ok(mob)
     }
 
     pub fn take(&self, mob: Weak<MobBlock>) -> Result<ArcBox<MobBlock>, ()> {
@@ -229,6 +233,7 @@ impl Cosmos {
                 mob_messages: MPipe::new(),
                 mob_orders: MPipe::new(),
                 pkey: PKey::new(),
+                species_pool: SpeciesPool::new(),
             },
         }
     }
@@ -306,18 +311,25 @@ impl Cosmos {
                 // &mut plate[pos].mob only
                 #![allow(mutable_transmutes)]
                 self.pos_to_weak_mob(mob_pos_orders, &mut mob_orders);
-                Deamon::with(&self.angelos, unsafe { std::mem::transmute(&self.plate) }, |deamon| {
-                    WriteGuard::with(&self.angelos.pkey, |guard| {
-                        mob_orders.into_iter().par_bridge().for_each(|(m, orders)| {
-                            if let Some(mob) = m.upgrade() {
-                                unsafe { mob.clone().get_mut_unchecked(guard) }
-                                    .mob
-                                    .order(mob.at(), &deamon, orders, mob)
-                            }
-                        })
-                    });
-                });
-            }
+                Deamon::with(
+                    &self.angelos,
+                    unsafe { std::mem::transmute(&self.plate) },
+                    |deamon| {
+                        WriteGuard::with(&self.angelos.pkey, |guard| {
+                            mob_orders.into_iter().par_bridge().for_each(|(m, orders)| {
+                                if let Some(mob) = m.upgrade() {
+                                    unsafe { mob.clone().get_mut_unchecked(guard) }.mob.order(
+                                        mob.at(),
+                                        &deamon,
+                                        orders,
+                                        mob,
+                                    )
+                                }
+                            })
+                        });
+                    },
+                );
+            },
         );
     }
 

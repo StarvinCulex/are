@@ -1,3 +1,5 @@
+use std::fmt::format;
+
 use crate::arena::cosmos::Deamon;
 use crate::arena::defs::Crd;
 use crate::arena::gnd::plant::{Kind, Plant};
@@ -38,6 +40,7 @@ impl Ground {
             Kind::None => "".to_string(),
             Kind::Grass => format!("Gr{:02}", self.plant.age),
             Kind::Tree => format!("T{:03}", self.plant.age),
+            Kind::Corpse => format!("Crps"),
         }
     }
 }

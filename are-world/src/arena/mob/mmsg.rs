@@ -1,1 +1,3 @@
-pub enum Msg {}
+pub enum Msg {
+    Wake,
+}

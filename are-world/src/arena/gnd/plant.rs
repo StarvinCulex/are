@@ -4,17 +4,19 @@ use std::sync::atomic::{AtomicU8, Ordering};
 
 use crate::arena::cosmos::Deamon;
 use crate::arena::defs::Crd;
+use crate::arena::types::*;
 use crate::arena::{gnd, Angelos, Cosmos, Orderer};
 use crate::Coord;
 
 pub struct Plant {
     pub kind: Kind,
-    pub age: u8,
+    pub age: EnergyT,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Kind {
     None,
+    Corpse,
     Grass,
     Tree,
 }
@@ -26,8 +28,18 @@ impl Plant {
     }
 
     #[inline]
+    pub fn new_corpse(age: EnergyT) -> Self {
+        Plant {
+            kind: Kind::Corpse,
+            age,
+        }
+    }
+
+    #[inline]
     pub fn aging(&mut self, at: Crd, angelos: &Angelos) {
-        if self.age >= self.kind.max_age() {
+        if self.kind == Kind::Corpse {
+            self.age.checked_sub(1);
+        } else if self.age >= self.kind.max_age() {
             self.age /= 2;
             for p in [Coord(-1, 0), Coord(0, -1), Coord(0, 1), Coord(1, 0)] {
                 angelos.order(at + p, gnd::Order::PlantSowing(self.kind), 0);
@@ -38,7 +50,7 @@ impl Plant {
     }
 
     #[inline]
-    pub fn mow(&mut self, value: u8) {
+    pub fn mow(&mut self, value: EnergyT) {
         if self.age.checked_sub(value).is_none() {
             self.age = 0
         }
@@ -53,9 +65,10 @@ impl Default for Plant {
 
 impl Kind {
     #[inline]
-    fn max_age(&self) -> u8 {
+    fn max_age(&self) -> EnergyT {
         match self {
             Kind::None => 0,
+            Kind::Corpse => 255,
             Kind::Grass => 16,
             Kind::Tree => 128,
         }

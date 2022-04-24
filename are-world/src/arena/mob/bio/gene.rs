@@ -1,7 +1,7 @@
 use crate::arena::cosmos;
+use crate::arena::types::*;
 
 use super::atk::ATK;
-use super::types::*;
 
 pub struct Gene {}
 
