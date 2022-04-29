@@ -51,7 +51,14 @@ impl Mob for Bio {
         self.species.name.clone()
     }
 
-    fn hear(&self, cosmos: &Cosmos, message: Vec<Msg>, this: P<MobBlock>, guard: &ReadGuard<PKey>) {
+    fn hear(
+        &self,
+        cosmos: &Cosmos,
+        angelos: &mut Angelos,
+        message: Vec<Msg>,
+        this: P<MobBlock>,
+        guard: &ReadGuard<PKey>,
+    ) {
         let mut wake = false;
         for msg in message {
             match msg {
@@ -63,12 +70,10 @@ impl Mob for Bio {
             return;
         }
 
-        cosmos
-            .angelos
-            .tell(this.downgrade(), Msg::Wake, self.species.wake_span());
+        angelos.tell(this.downgrade(), Msg::Wake, self.species.wake_span());
     }
 
-    fn order(&mut self, at: CrdI, deamon: &Deamon, orders: Vec<Order>, this: P<MobBlock>) {
+    fn order(&mut self, at: CrdI, deamon: &mut Deamon, orders: Vec<Order>, this: P<MobBlock>) {
         let mut wake = false;
         for odr in orders {
             match odr {

@@ -28,6 +28,7 @@ mod arena;
 mod conencode;
 mod cui;
 mod grids;
+mod jobs;
 mod msgpip;
 mod sword;
 

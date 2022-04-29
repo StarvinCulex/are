@@ -20,10 +20,17 @@ impl Mob for Mech {
         "delete this".to_string()
     }
 
-    fn hear(&self, cosmos: &Cosmos, message: Vec<Msg>, this: P<MobBlock>, guard: &ReadGuard<PKey>) {
+    fn hear(
+        &self,
+        cosmos: &Cosmos,
+        angelos: &mut Angelos,
+        message: Vec<Msg>,
+        this: P<MobBlock>,
+        guard: &ReadGuard<PKey>,
+    ) {
     }
 
-    fn order(&mut self, at: CrdI, deamon: &Deamon, order: Vec<Order>, this: P<MobBlock>) {
+    fn order(&mut self, at: CrdI, deamon: &mut Deamon, order: Vec<Order>, this: P<MobBlock>) {
         deamon
             .reset(
                 this.downgrade(),

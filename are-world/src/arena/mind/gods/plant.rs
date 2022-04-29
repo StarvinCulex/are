@@ -27,10 +27,7 @@ impl Mind for GodOfPlant {
     }
 
     fn make_move(&mut self, cosmos: &Cosmos) -> Result<(), ()> {
-        let plate_distributes = cosmos
-            .plate
-            .size()
-            .map(|x| Uniform::from(0..x));
+        let plate_distributes = cosmos.plate.size().map(|x| Uniform::from(0..x));
         let area = cosmos.plate.size().0 * cosmos.plate.size().1;
 
         let aging_count = cosmos.angelos.properties.runtime_conf.plant_aging * area as f64;
@@ -56,8 +53,7 @@ impl Mind for GodOfPlant {
             let p = self.rng.sample(sow_distributes);
             p <= sow_count
         } {
-            let kind_distributes =
-                Uniform::from(0..GodOfPlant::KIND_LIST.len());
+            let kind_distributes = Uniform::from(0..GodOfPlant::KIND_LIST.len());
             for _ in 0..sow_count as usize {
                 let p = Coord(
                     self.rng.sample(plate_distributes.0),
