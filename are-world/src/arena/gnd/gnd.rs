@@ -13,7 +13,7 @@ pub struct Ground {
 }
 
 impl Ground {
-    pub fn hear(&self, cosmos: &Cosmos, self_at: Crd, messages: Vec<Msg>) {
+    pub fn hear(&self, cosmos: &Cosmos, angelos: &Angelos, self_at: Crd, messages: Vec<Msg>) {
         for msg in messages {
             match msg {}
         }

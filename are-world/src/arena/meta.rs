@@ -22,7 +22,7 @@ impl MetaCosmos {
         self.cosmos.message_tick();
         self.cosmos.order_tick();
         self.mind_view_tick();
-        self.cosmos.angelos.properties.tick += 1;
+        self.cosmos.add_tick();
     }
 }
 
@@ -31,7 +31,7 @@ impl MetaCosmos {
 impl MetaCosmos {
     #[inline]
     fn mind_flush_queue(&mut self) {
-        let mind_queue = self.cosmos.angelos.flush_minds();
+        let mind_queue = self.cosmos.flush_minds();
         for mind in mind_queue {
             self.mind_list.push(mind);
         }

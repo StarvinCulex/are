@@ -38,7 +38,7 @@ pub struct Angelos<'m> {
 }
 
 impl MajorAngelos {
-    fn bunshin(&self) -> Angelos {
+    fn make_worker(&self) -> Angelos {
         Angelos {
             properties: &self.properties,
             plate_size: &self.plate_size,

@@ -11,6 +11,7 @@ pub struct StaticConf {
 pub struct RuntimeConf {
     pub period: Tick,
     pub fire_tick: Tick,
+    pub thread_count: usize,
 
     pub plant_aging: f64,
     pub plant_sow: f64,

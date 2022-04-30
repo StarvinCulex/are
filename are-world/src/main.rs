@@ -7,8 +7,9 @@
 #![feature(get_mut_unchecked)]
 #![feature(unsize)]
 #![feature(coerce_unsized)]
-// #![feature(dispatch_from_dyn)]
 #![feature(is_some_with)]
+#![feature(scoped_threads)]
+#![allow(mutable_transmutes)]
 
 use crate::arena::conf::StaticConf;
 use crate::arena::cosmos::*;
@@ -42,6 +43,7 @@ fn main() {
             fire_tick: 4,
             plant_aging: 0.1,
             plant_sow: 0.05,
+            thread_count: 1,
         },
     );
 
