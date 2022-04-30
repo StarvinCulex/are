@@ -52,6 +52,20 @@ where
         }
     }
 
+    /// 判断`interval`是否属于`self`表示的范围
+    pub fn contains_interval(&self, interval: &Self, size: T) -> bool where T: std::ops::Add<T> + From<bool> + Copy, <T as std::ops::Add<T>>::Output: Eq {
+        let self_closed_interval = self.from <= self.to;
+        let other_closed_interval = interval.from <= interval.to;
+
+        if self_closed_interval {
+            other_closed_interval && self.from <= interval.from && interval.to <= self.to || self.from == size.0 && self.to.add(true.into()) == size.add(false.into())
+        } else if other_closed_interval {
+            interval.to <= self.from || self.to <= interval.from || self.to.add(true.into()) == self.from.add(false.into())
+        } else {
+            interval.from <= self.from && self.to <= interval.to
+        }
+    }
+
     /// 返回`Interval{from: self.to, to: self.from}`
     #[inline]
     pub fn inverse(self) -> Self {

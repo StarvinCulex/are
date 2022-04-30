@@ -89,6 +89,6 @@ impl<'c> Deamon<'c> {
 
     #[inline]
     fn contains(&self, p: CrdI) -> bool {
-        todo!()
+        self.bound.contains_coord_interval(&p, self.angelos.major.plate_size.try_into().unwrap())
     }
 }
