@@ -36,9 +36,9 @@ impl Plant {
     }
 
     #[inline]
-    pub fn aging(&mut self, at: Crd, angelos: &Angelos) {
+    pub fn aging(&mut self, at: Crd, angelos: &mut Angelos) {
         if self.kind == Kind::Corpse {
-            self.age.checked_sub(1);
+            self.age = self.age.checked_sub(1).unwrap_or(0);
         } else if self.age >= self.kind.max_age() {
             self.age /= 2;
             for p in [Coord(-1, 0), Coord(0, -1), Coord(0, 1), Coord(1, 0)] {
@@ -51,9 +51,7 @@ impl Plant {
 
     #[inline]
     pub fn mow(&mut self, value: EnergyT) {
-        if self.age.checked_sub(value).is_none() {
-            self.age = 0
-        }
+        self.age = self.age.checked_sub(value).unwrap_or(0);
     }
 }
 

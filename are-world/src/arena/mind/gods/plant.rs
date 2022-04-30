@@ -27,6 +27,8 @@ impl Mind for GodOfPlant {
     }
 
     fn make_move(&mut self, cosmos: &Cosmos) -> Result<(), ()> {
+        let mut angelos = cosmos.angelos.make_worker();
+
         let plate_distributes = cosmos.plate.size().map(|x| Uniform::from(0..x));
         let area = cosmos.plate.size().0 * cosmos.plate.size().1;
 
@@ -41,9 +43,7 @@ impl Mind for GodOfPlant {
                     self.rng.sample(plate_distributes.0),
                     self.rng.sample(plate_distributes.1),
                 );
-                cosmos
-                    .angelos
-                    .order(p.try_into().unwrap(), gnd::Order::PlantAging, 0);
+                angelos.order(p.try_into().unwrap(), gnd::Order::PlantAging, 0);
             }
         }
 
@@ -60,9 +60,7 @@ impl Mind for GodOfPlant {
                     self.rng.sample(plate_distributes.1),
                 );
                 let kind = GodOfPlant::KIND_LIST[self.rng.sample(kind_distributes)];
-                cosmos
-                    .angelos
-                    .order(p.try_into().unwrap(), gnd::Order::PlantSowing(kind), 0);
+                angelos.order(p.try_into().unwrap(), gnd::Order::PlantSowing(kind), 0);
             }
         }
 

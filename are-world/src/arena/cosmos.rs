@@ -16,7 +16,7 @@ use super::{ReadGuard, Weak, WriteGuard, P};
 
 pub struct Cosmos {
     pub plate: Matrix<Block, 1, 1>,
-    angelos: MajorAngelos,
+    pub angelos: MajorAngelos,
 }
 
 pub struct PKey {
@@ -77,8 +77,8 @@ impl Cosmos {
                     mob_pos_orders: MPipe::new(),
                     mob_messages: MPipe::new(),
                     mob_orders: MPipe::new(),
-                    mind_waiting_queue: Default::default(),
                 }),
+                mind_waiting_queue: Default::default(),
             },
         }
     }
@@ -98,7 +98,7 @@ impl Cosmos {
         }
 
         let jobs = from.into_iter().collect();
-        jobs::work(workers.iter_mut().collect(), jobs, |worker, job| {
+        jobs::work(workers.iter_mut(), jobs, |worker, job| {
             if let Some(mob) = &self.plate[job.0].mob {
                 worker.push((mob.downgrade(), job.1))
             }
@@ -126,7 +126,7 @@ impl Cosmos {
             }
 
             jobs::work(
-                workers.iter_mut().collect(),
+                workers.iter_mut(),
                 gnd_messages.into_iter().collect(),
                 |angelos, (pos, msgs)| self.plate[pos].ground.hear(self, angelos, pos, msgs),
             );
@@ -134,11 +134,11 @@ impl Cosmos {
             self.pos_to_weak_mob(mob_pos_messages, &mut mob_messages);
             ReadGuard::with(&self.angelos.pkey, |guard| {
                 jobs::work(
-                    workers.iter_mut().collect(),
+                    workers.into_iter(),
                     mob_messages.into_iter().collect(),
                     |angelos, (mob, msgs)| {
                         if let Some(mob) = mob.upgrade() {
-                            mob.get(guard).mob.hear(self, angelos, msgs, mob, guard);
+                            mob.clone().get(guard).mob.hear(self, angelos, msgs, mob, guard);
                         }
                     },
                 );
@@ -149,27 +149,10 @@ impl Cosmos {
     #[inline]
     pub(crate) fn order_tick(&mut self) {
         let thread_count = self.angelos.properties.runtime_conf.thread_count;
-        let gnd_orders = self
-            .angelos
-            .async_data
-            .get_mut()
-            .unwrap()
-            .gnd_orders
-            .pop_this_turn();
-        let mob_pos_orders = self
-            .angelos
-            .async_data
-            .get_mut()
-            .unwrap()
-            .mob_pos_orders
-            .pop_this_turn();
-        let mut mob_orders = self
-            .angelos
-            .async_data
-            .get_mut()
-            .unwrap()
-            .mob_orders
-            .pop_this_turn();
+        let angelos_data = self.angelos.async_data.get_mut().unwrap();
+        let gnd_orders = angelos_data.gnd_orders.pop_this_turn();
+        let mob_pos_orders = angelos_data.mob_pos_orders.pop_this_turn();
+        let mut mob_orders = angelos_data.mob_orders.pop_this_turn();
 
         let mut workers = Vec::with_capacity(thread_count);
         for _ in 0..thread_count {
@@ -177,7 +160,7 @@ impl Cosmos {
         }
 
         jobs::work(
-            workers.iter_mut().collect(),
+            workers.iter_mut(),
             gnd_orders.into_iter().collect(),
             |angelos, (pos, orders)| {
                 let mg: &mut gnd::Ground = unsafe { std::mem::transmute(&self.plate[pos].ground) };
@@ -226,7 +209,6 @@ impl Cosmos {
         //         );
         //     },
         // );
-        todo!()
     }
 
     #[inline]

@@ -51,7 +51,7 @@ impl Mind for Gate {
                         Coord(0, 0) | Coord(x - 1, y - 1),
                         Coord(x as usize, y as usize),
                     ) {
-                        cosmos.angelos.join(Box::new(player))
+                        cosmos.angelos.join_lock(Box::new(player))
                     }
                 }
             }

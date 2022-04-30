@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::sync::Mutex;
 
 pub struct MPipe<K: std::cmp::Eq + std::hash::Hash, V> {
     data: HashMap<u64, HashMap<K, Vec<V>>>,

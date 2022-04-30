@@ -19,7 +19,7 @@ impl Ground {
         }
     }
 
-    pub fn order(&mut self, at: Crd, angelos: &Angelos, orders: Vec<Order>) {
+    pub fn order(&mut self, at: Crd, angelos: &mut Angelos, orders: Vec<Order>) {
         for order in orders {
             match order {
                 Order::PlantMow(value) => self.plant.mow(value),

@@ -110,6 +110,7 @@ impl Mob for Bio {
             if let Some(energy_remain) = self.energy.checked_sub(self.species.spawn_energy_cost()) {
                 let child_species = deamon
                     .angelos
+                    .major
                     .species_pool
                     .clone_species(self.species.clone());
                 let child_energy = self.species.spawn_energy();

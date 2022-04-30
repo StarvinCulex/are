@@ -47,7 +47,7 @@ impl<'c> Deamon<'c> {
             grid.mob = None;
         }
         // convert
-        mob.try_into_box(&self.angelos.pkey)
+        mob.try_into_box(&self.angelos.major.pkey)
             .map_err(|_| unreachable!())
     }
 
@@ -81,7 +81,7 @@ impl<'c> Deamon<'c> {
             }
         }
         // resetZ
-        WriteGuard::with(&self.angelos.pkey, |g| {
+        WriteGuard::with(&self.angelos.major.pkey, |g| {
             unsafe { mob.get_mut_unchecked(g) }.at = new_at
         });
         Ok(())
