@@ -2,7 +2,7 @@ use rc_box::ArcBox;
 use std::collections::VecDeque;
 
 use crate::arena::conf::StaticConf;
-use crate::arena::defs::{Crd, CrdI, Tick};
+use crate::arena::defs::{Idx, Crd, CrdI, Tick};
 use crate::arena::gnd;
 use crate::arena::mob::Mob;
 use crate::jobs;

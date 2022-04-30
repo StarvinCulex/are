@@ -6,6 +6,29 @@ pub struct Deamon<'c> {
 }
 
 impl<'c> Deamon<'c> {
+    pub fn new(cosmos: &'c Cosmos, bound: CrdI) -> Self {
+        Self {
+            angelos: cosmos.angelos.make_worker(),
+            plate: &cosmos.plate as *const _ as *mut _,
+            bound,
+        }
+    }
+
+    pub fn by_divide(cosmos: &'c Cosmos, divide: (Idx, Idx)) -> Vec<Self> {
+        let plate_size: Coord<Idx> = cosmos.angelos.plate_size.try_into().unwrap();
+        assert!(plate_size.0 % divide.0 == 0 && plate_size.1 % divide.1 == 0);
+        let divide = (plate_size.0 / divide.0, plate_size.1 / divide.1);
+        assert!(divide.0 >= 3 && divide.1 >= 3);
+        let chunks = Vec::with_capacity((divide.0 * divide.1) as usize);
+        for i in 0..divide.0 {
+            for j in 0..divide.1 {
+                let bound = Coord(i * divide.0, j * divide.1) | Coord((i + 1) * divide.0 - 1, (j + 1) * divide.1 - 1);
+                chunks.push(Self::new(cosmos, bound));
+            }
+        }
+        chunks
+    }
+
     pub fn set(
         &mut self,
         mob: ArcBox<MobBlock>,
