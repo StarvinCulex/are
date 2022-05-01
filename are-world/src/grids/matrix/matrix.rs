@@ -388,6 +388,11 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
     pub fn normalize_pos(size: Coord<isize>, pos: Coord<isize>) -> Coord<isize> {
         pos.reduce(size, isize::rem_euclid)
     }
+
+    #[inline]
+    pub fn normalize_area_with(size: Coord<isize>, area: Coord<Interval<isize>>) -> Coord<Interval<isize>> {
+        Self::normalize_pos(size, area.from()) | Self::normalize_pos(size, area.to())
+    }
 }
 
 // tests

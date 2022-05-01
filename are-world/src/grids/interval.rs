@@ -58,7 +58,7 @@ where
         let other_closed_interval = interval.from <= interval.to;
 
         if self_closed_interval {
-            other_closed_interval && self.from <= interval.from && interval.to <= self.to || self.from == size.0 && self.to.add(true.into()) == size.add(false.into())
+            other_closed_interval && self.from <= interval.from && interval.to <= self.to || self.from == size && self.to.add(true.into()) == size.add(false.into())
         } else if other_closed_interval {
             interval.to <= self.from || self.to <= interval.from || self.to.add(true.into()) == self.from.add(false.into())
         } else {
