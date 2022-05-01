@@ -116,9 +116,7 @@ impl<'c> Deamon<'c> {
 
     #[inline]
     fn contains(&self, mut p: CrdI) -> bool {
-        p = Matrix::<(), 1, 1>::normalize_area_with(self.angelos.major.plate_size.try_into().unwrap(), p.into())
-            .try_into()
-            .unwrap();
+        p = self.angelos.major.normalize_area(p);
         self.bound.contains_coord_interval(&p, self.angelos.major.plate_size.try_into().unwrap())
     }
 }

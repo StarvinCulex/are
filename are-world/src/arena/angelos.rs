@@ -43,6 +43,18 @@ impl MajorAngelos {
             mob_orders_buf: vec![],
         }
     }
+    pub fn normalize_pos(&self, pos: Crd) -> Crd {
+        Matrix::<(), 1, 1>::normalize_pos(
+            self.plate_size.try_into().unwrap(),
+            pos.into(),
+        ).try_into().unwrap()
+    }
+    pub fn normalize_area(&self, area: CrdI) -> CrdI {
+        Matrix::<(), 1, 1>::normalize_area_with(
+            self.plate_size.try_into().unwrap(),
+            area.into(),
+        ).try_into().unwrap()
+    }
 }
 
 impl<'m> Drop for Angelos<'m> {
@@ -69,9 +81,7 @@ pub trait Orderer<Index, Letter> {
 impl Teller<Crd, gnd::Msg> for Angelos<'_> {
     #[inline]
     fn tell(&mut self, mut k: Crd, v: gnd::Msg, delay: Tick) {
-        k = Matrix::<(), 1, 1>::normalize_pos(self.major.plate_size.try_into().unwrap(), k.into())
-            .try_into()
-            .unwrap();
+        k = self.major.normalize_pos(k);
         self.gnd_messages_buf.push((delay, k, v))
     }
 }
@@ -79,9 +89,7 @@ impl Teller<Crd, gnd::Msg> for Angelos<'_> {
 impl Orderer<Crd, gnd::Order> for Angelos<'_> {
     #[inline]
     fn order(&mut self, mut k: Crd, v: gnd::Order, delay: Tick) {
-        k = Matrix::<(), 1, 1>::normalize_pos(self.major.plate_size.try_into().unwrap(), k.into())
-            .try_into()
-            .unwrap();
+        k = self.major.normalize_pos(k);
         self.gnd_orders_buf.push((delay, k, v))
     }
 }
@@ -89,9 +97,7 @@ impl Orderer<Crd, gnd::Order> for Angelos<'_> {
 impl Teller<Crd, mob::Msg> for Angelos<'_> {
     #[inline]
     fn tell(&mut self, mut k: Crd, v: mob::Msg, delay: Tick) {
-        k = Matrix::<(), 1, 1>::normalize_pos(self.major.plate_size.try_into().unwrap(), k.into())
-            .try_into()
-            .unwrap();
+        k = self.major.normalize_pos(k);
         self.mob_pos_messages_buf.push((delay, k, v))
     }
 }
@@ -106,9 +112,7 @@ impl Teller<Weak<MobBlock>, mob::Msg> for Angelos<'_> {
 impl Orderer<Crd, mob::Order> for Angelos<'_> {
     #[inline]
     fn order(&mut self, mut k: Crd, v: mob::Order, delay: Tick) {
-        k = Matrix::<(), 1, 1>::normalize_pos(self.major.plate_size.try_into().unwrap(), k.into())
-            .try_into()
-            .unwrap();
+        k = self.major.normalize_pos(k);
         self.mob_pos_orders_buf.push((delay, k, v))
     }
 }
