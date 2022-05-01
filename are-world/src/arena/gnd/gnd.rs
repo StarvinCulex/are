@@ -19,11 +19,11 @@ impl Ground {
         }
     }
 
-    pub fn order(&mut self, at: Crd, angelos: &mut Angelos, orders: Vec<Order>) {
+    pub fn order(&mut self, at: Crd, deamon: &mut Deamon, orders: Vec<Order>) {
         for order in orders {
             match order {
                 Order::PlantMow(value) => self.plant.mow(value),
-                Order::PlantAging => self.plant.aging(at, angelos),
+                Order::PlantAging => self.plant.aging(at, deamon),
                 Order::PlantSowing(kind) => {
                     if self.plant.kind == plant::Kind::None {
                         self.plant = Plant::new(kind)

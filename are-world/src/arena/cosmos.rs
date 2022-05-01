@@ -60,7 +60,7 @@ impl<WriteKey: ?Sized> P<MobBlock, PKey, WriteKey> {
 
 impl Cosmos {
     pub fn new(static_conf: StaticConf, runtime_conf: RuntimeConf) -> Self {
-        let plate_size: Coord<usize> = static_conf.plate_size.try_into().unwrap();
+        let plate_size = static_conf.chunk_size * static_conf.chunk_count * Coord(3, 3);
         Cosmos {
             plate: Matrix::new(plate_size),
             angelos: MajorAngelos {
@@ -68,7 +68,7 @@ impl Cosmos {
                     tick: 0,
                     runtime_conf,
                 },
-                plate_size: static_conf.plate_size,
+                plate_size,
                 pkey: PKey::new(),
                 species_pool: SpeciesPool::new(),
                 async_data: Mutex::new(MajorAngelosAsyncData {

@@ -4,7 +4,8 @@ use crate::arena::defs::{Crd, Tick};
 use crate::Coord;
 
 pub struct StaticConf {
-    pub plate_size: Crd,
+    pub chunk_count: Coord<usize>,
+    pub chunk_size: Coord<usize>,
 }
 
 #[derive(Deserialize)]

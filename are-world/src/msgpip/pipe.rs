@@ -66,3 +66,9 @@ impl<K: std::cmp::Eq + std::hash::Hash, V> std::iter::IntoIterator for Output<K,
         self.data.into_iter()
     }
 }
+
+impl<K: std::cmp::Eq + std::hash::Hash, V> Default for MPipe<K, V> {
+    fn default() -> Self {
+        MPipe::new()
+    }
+}

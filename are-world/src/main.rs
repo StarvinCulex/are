@@ -36,7 +36,8 @@ mod sword;
 fn main() {
     let mut meta = arena::MetaCosmos::new(
         StaticConf {
-            plate_size: Coord(10, 9),
+            chunk_count: Coord(10, 9),
+            chunk_size: Coord(1024, 1024),
         },
         RuntimeConf {
             period: 10,
