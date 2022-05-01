@@ -16,6 +16,7 @@ impl<'c> Deamon<'c> {
 
     /// 把 cosmos 分成 divide.0 * divide.1 块
     pub fn by_divide(cosmos: &'c mut Cosmos, divide: (Idx, Idx)) -> Vec<Self> {
+        #![allow(mutable_transmutes)]
         let plate_size = cosmos.angelos.plate_size;
         debug_assert!(plate_size.0 % divide.0 == 0 && plate_size.1 % divide.1 == 0);
         debug_assert!(divide.0 >= 3 && divide.1 >= 3);

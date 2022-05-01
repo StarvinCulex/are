@@ -9,7 +9,6 @@
 #![feature(coerce_unsized)]
 #![feature(is_some_with)]
 #![feature(scoped_threads)]
-#![allow(mutable_transmutes)]
 #![feature(vec_into_raw_parts)]
 #![feature(maybe_uninit_slice)]
 

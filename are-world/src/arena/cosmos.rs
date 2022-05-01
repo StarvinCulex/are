@@ -164,6 +164,7 @@ impl Cosmos {
             workers.iter_mut(),
             gnd_orders.into_iter().collect(),
             |angelos, (pos, orders)| {
+                #![allow(mutable_transmutes)]
                 let mg: &mut gnd::Ground = unsafe { std::mem::transmute(&self.plate[pos].ground) };
                 mg.order(pos, angelos, orders);
             },

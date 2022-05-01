@@ -45,6 +45,7 @@ impl<Job> AtomicQueue<Job> {
 
     #[inline]
     pub fn pop(&self) -> Option<Job> {
+        #![allow(mutable_transmutes)]
         let ptr = self.ptr.fetch_add(1, Relaxed);
         if ptr >= self.data.len() {
             return None;
