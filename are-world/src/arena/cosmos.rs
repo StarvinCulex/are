@@ -60,8 +60,9 @@ impl<WriteKey: ?Sized> P<MobBlock, PKey, WriteKey> {
 
 impl Cosmos {
     pub fn new(static_conf: StaticConf, runtime_conf: RuntimeConf) -> Self {
+        let plate_size: Coord<usize> = static_conf.plate_size.try_into().unwrap();
         Cosmos {
-            plate: Matrix::new(static_conf.plate_size),
+            plate: Matrix::new(plate_size),
             angelos: MajorAngelos {
                 properties: Properties {
                     tick: 0,

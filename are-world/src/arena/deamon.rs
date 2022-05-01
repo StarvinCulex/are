@@ -16,7 +16,7 @@ impl<'c> Deamon<'c> {
 
     /// 把 cosmos 分成 divide.0 * divide.1 块
     pub fn by_divide(cosmos: &'c mut Cosmos, divide: (Idx, Idx)) -> Vec<Self> {
-        let plate_size: Coord<Idx> = cosmos.angelos.plate_size.try_into().unwrap();
+        let plate_size = cosmos.angelos.plate_size;
         debug_assert!(plate_size.0 % divide.0 == 0 && plate_size.1 % divide.1 == 0);
         debug_assert!(divide.0 >= 3 && divide.1 >= 3);
         let mut chunks = Vec::with_capacity((divide.0 * divide.1) as usize);
@@ -31,7 +31,7 @@ impl<'c> Deamon<'c> {
 
     /// 把 cosmos 以 chunk_size.0 * chunk_size.1 分块
     pub fn by_chunk_size(cosmos: &'c mut Cosmos, chunk_size: (Idx, Idx)) -> Vec<Self> {
-        let plate_size: Coord<Idx> = cosmos.angelos.plate_size.try_into().unwrap();
+        let plate_size = cosmos.angelos.plate_size;
         debug_assert!(plate_size.0 % chunk_size.0 == 0 && plate_size.1 % chunk_size.1 == 0);
         Self::by_divide(cosmos, (plate_size.0 / chunk_size.0, plate_size.1 / chunk_size.1))
     }
@@ -117,6 +117,6 @@ impl<'c> Deamon<'c> {
     #[inline]
     fn contains(&self, mut p: CrdI) -> bool {
         p = self.angelos.major.normalize_area(p);
-        self.bound.contains_coord_interval(&p, self.angelos.major.plate_size.try_into().unwrap())
+        self.bound.contains_coord_interval(&p, self.angelos.major.plate_size)
     }
 }

@@ -2,7 +2,7 @@
 
 pub struct MajorAngelos {
     pub properties: Properties,
-    pub plate_size: Coord<usize>,
+    pub plate_size: Coord<Idx>,
     pkey: PKey,
     pub species_pool: mob::bio::species::SpeciesPool,
 
@@ -45,13 +45,13 @@ impl MajorAngelos {
     }
     pub fn normalize_pos(&self, pos: Crd) -> Crd {
         Matrix::<(), 1, 1>::normalize_pos(
-            self.plate_size.try_into().unwrap(),
+            self.plate_size.into(),
             pos.into(),
         ).try_into().unwrap()
     }
     pub fn normalize_area(&self, area: CrdI) -> CrdI {
         Matrix::<(), 1, 1>::normalize_area_with(
-            self.plate_size.try_into().unwrap(),
+            self.plate_size.into(),
             area.into(),
         ).try_into().unwrap()
     }
