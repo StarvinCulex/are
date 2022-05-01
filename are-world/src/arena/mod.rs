@@ -20,6 +20,7 @@ pub mod conf;
 pub mod util;
 
 pub mod cosmos;
+mod cosmos_ripper;
 mod defs;
 pub mod gnd;
 pub mod meta;
