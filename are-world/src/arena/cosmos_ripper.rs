@@ -5,7 +5,6 @@ pub struct CosmosRipper {
     chunk_size: Crd, // 消息所在区间
     padding: Crd, // 区间周围可操作范围大小
     bound_size: Crd, // 可操作的范围大小
-    batch_count: Crd, // 分多少批执行
     batch_size: Crd, // 每批有多少个
 }
 
@@ -22,20 +21,19 @@ impl CosmosRipper {
         let bound_size = Coord(chunk_size.0 + 2 * padding.0, chunk_size.1 + 2 * padding.1);
         // 方便起见，要求 plate_size 必须是 chunk_size 的整数倍
         debug_assert!(plate_size.0 % bound_size.0 == 0 && plate_size.1 % bound_size.1 == 0);
-        let batch_count = Coord(bound_size.0 / chunk_size.0, bound_size.1 / chunk_size.1);
         let batch_size = Coord(plate_size.0 / bound_size.0, plate_size.1 / bound_size.1);
         Self {
             chunk_size,
             padding,
             bound_size,
-            batch_count,
             batch_size,
         }
     }
     #[inline]
-    pub fn with(&self, func: impl Fn(&mut CosmosRipperBatch)) {
-        for i in 0..self.batch_count.0 {
-            for j in 0..self.batch_count.1 {
+    pub fn with(&self, mut func: impl FnMut(&mut CosmosRipperBatch)) {
+        let batch_count = Coord(self.bound_size.0 / self.chunk_size.0, self.bound_size.1 / self.chunk_size.1); // 分多少批执行
+        for i in 0..batch_count.0 {
+            for j in 0..batch_count.1 {
                 let mut batch = CosmosRipperBatch {
                     ripper: self,
                     batch_offset: Coord(i, j),

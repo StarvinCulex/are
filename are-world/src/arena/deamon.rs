@@ -1,19 +1,11 @@
 //
-pub struct Deamon<'c> {
-    pub angelos: Angelos<'c>,
+pub struct Deamon<'c, 'a> {
+    pub angelos: &'a mut Angelos<'c>,
     plate: &'c mut Matrix<Block, 1, 1>,
     bound: CrdI,
 }
 
-impl<'c> Deamon<'c> {
-    pub fn new(cosmos: &'c mut Cosmos, bound: CrdI) -> Self {
-        Self {
-            angelos: cosmos.angelos.make_worker(),
-            plate: &mut cosmos.plate,
-            bound,
-        }
-    }
-
+impl<'c, 'a> Deamon<'c, 'a> {
     pub fn set(
         &mut self,
         mob: ArcBox<MobBlock>,

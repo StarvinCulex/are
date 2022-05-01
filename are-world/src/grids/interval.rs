@@ -17,7 +17,7 @@ use std::fmt::Formatter;
 /// - 区间表示：**(-∞, from] ∪ [to, +∞)**
 use serde::{Deserialize, Serialize};
 
-#[derive(Hash, Debug, Serialize, Deserialize)]
+#[derive(Hash, Debug, Serialize, Deserialize, Eq)]
 pub struct Interval<T>
 where
     T: Ord,

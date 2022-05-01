@@ -12,6 +12,8 @@ pub struct RuntimeConf {
     pub period: Tick,
     pub fire_tick: Tick,
     pub thread_count: usize,
+    pub chunk_size: Crd,
+    pub padding: Crd,
 
     pub plant_aging: f64,
     pub plant_sow: f64,

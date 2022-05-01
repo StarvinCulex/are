@@ -5,11 +5,13 @@ use crate::arena::conf::StaticConf;
 use crate::arena::defs::{Idx, Crd, CrdI, Tick};
 use crate::arena::gnd;
 use crate::arena::mob::Mob;
+use crate::arena::cosmos_ripper::CosmosRipper;
 use crate::jobs;
 use crate::mind::Mind;
 use crate::mob::bio::species::SpeciesPool;
 use crate::msgpip::pipe::Output;
 use crate::msgpip::MPipe;
+use std::collections::{HashMap, hash_map::Entry};
 
 pub use super::*;
 use super::{ReadGuard, Weak, WriteGuard, P};
@@ -17,6 +19,7 @@ use super::{ReadGuard, Weak, WriteGuard, P};
 pub struct Cosmos {
     pub plate: Matrix<Block, 1, 1>,
     pub angelos: MajorAngelos,
+    ripper: CosmosRipper,
 }
 
 pub struct PKey {
@@ -61,6 +64,7 @@ impl<WriteKey: ?Sized> P<MobBlock, PKey, WriteKey> {
 impl Cosmos {
     pub fn new(static_conf: StaticConf, runtime_conf: RuntimeConf) -> Self {
         let plate_size: Coord<usize> = static_conf.plate_size.try_into().unwrap();
+        let ripper = CosmosRipper::new(static_conf.plate_size, runtime_conf.chunk_size, runtime_conf.padding);
         Cosmos {
             plate: Matrix::new(plate_size),
             angelos: MajorAngelos {
@@ -81,6 +85,7 @@ impl Cosmos {
                 }),
                 mind_waiting_queue: Default::default(),
             },
+            ripper,
         }
     }
 }
@@ -110,6 +115,47 @@ impl Cosmos {
                 to.append(mob, data);
             }
         }
+    }
+
+    #[inline]
+    fn weak_mob_to_interval<T: Send + Sync>(
+        &self,
+        mobs: Output<Weak<MobBlock>, T>,
+        chunk_size: Crd,
+    ) -> HashMap<CrdI, Vec<(P<MobBlock>, Vec<T>)>> {
+        let thread_count = self.angelos.properties.runtime_conf.thread_count;
+        let mut workers: Vec<HashMap<CrdI, Vec<(P<MobBlock>, Vec<T>)>>> = Vec::with_capacity(thread_count);
+        for _ in 0..thread_count {
+            workers.push(HashMap::new());
+        }
+
+        let jobs = mobs.into_iter().collect();
+        jobs::work(workers.iter_mut(), jobs, |worker, mut job| {
+            if let Some(mob) = job.0.upgrade() {
+                let pos = mob.at();
+                let center = Coord((pos.0.from + pos.0.to) / 2, (pos.1.from + pos.1.to) / 2);
+                let center = self.angelos.normalize_pos(center);
+                let left_top = Coord(center.0 - center.0 % chunk_size.0, center.1 - center.1 % chunk_size.1);
+                let interval = left_top | (left_top + chunk_size);
+                worker.entry(interval)
+                    .or_default()
+                    .push((mob, job.1));
+            }
+        });
+
+        let mut worker_iter = workers.into_iter();
+
+        let mut result = worker_iter.next().unwrap_or_default();
+
+        for worker in worker_iter {
+            for (interval, mut data) in worker.into_iter() {
+                result.entry(interval)
+                    .or_default()
+                    .append(&mut data);
+            }
+        }
+
+        result
     }
 
     #[inline]
@@ -171,46 +217,38 @@ impl Cosmos {
         );
 
         self.pos_to_weak_mob(mob_pos_orders, &mut mob_orders);
-        todo!()
 
-        // rayon::join(
-        //     || {
-        //         // &mut plate[pos].ground only
-        //         gnd_orders
-        //             .into_iter()
-        //             .par_bridge()
-        //             .for_each(|(pos, orders)| {
-        //                 // pos are distinct, so ground is distinct
-        //                 #![allow(mutable_transmutes)]
-        //                 let mg: &mut gnd::Ground =
-        //                     unsafe { std::mem::transmute(&self.plate[pos].ground) };
-        //                 mg.order(pos, &self.angelos, orders);
-        //             })
-        //     },
-        //     || {
-        //         // &mut plate[pos].mob only
-        //         #![allow(mutable_transmutes)]
-        //         self.pos_to_weak_mob(mob_pos_orders, &mut mob_orders);
-        //         Deamon::with(
-        //             &self.angelos,
-        //             unsafe { std::mem::transmute(&self.plate) },
-        //             |deamon| {
-        //                 WriteGuard::with(&self.angelos.pkey, |guard| {
-        //                     mob_orders.into_iter().par_bridge().for_each(|(m, orders)| {
-        //                         if let Some(mob) = m.upgrade() {
-        //                             unsafe { mob.clone().get_mut_unchecked(guard) }.mob.order(
-        //                                 mob.at(),
-        //                                 &deamon,
-        //                                 orders,
-        //                                 mob,
-        //                             )
-        //                         }
-        //                     })
-        //                 });
-        //             },
-        //         );
-        //     },
-        // );
+        let mut chunked_orders = self.weak_mob_to_interval(mob_orders, self.angelos.properties.runtime_conf.chunk_size);
+        
+        WriteGuard::with(&self.angelos.pkey, |guard| {
+            self.ripper.with(|batch| {
+                let works: Vec<_> = batch.filter_map(|(chunk, bound)| {
+                    if let Entry::Occupied(o) = chunked_orders.entry(chunk) {
+                        Some((bound, o.remove_entry().1))
+                    } else {
+                        None
+                    }
+                }).collect();
+                jobs::work(
+                    workers.iter_mut(),
+                    works,
+                    |worker, (bound, local_mob_orders)| {
+                        #![allow(mutable_transmutes)]
+                        let mut deamon = Deamon {
+                            angelos: worker,
+                            plate: unsafe { std::mem::transmute(&self.plate) },
+                            bound
+                        };
+                        for (this, orders) in local_mob_orders.into_iter() {
+                            // bug: as clone lives, the this pointer can never convert into ArcBox
+                            let mut clone = this.clone();
+                            let mob = &mut unsafe { clone.get_mut_unchecked(guard) }.mob;
+                            mob.order(this.at(), &mut deamon, orders, this);
+                        }
+                    },
+                );
+            });
+        });
     }
 
     #[inline]
