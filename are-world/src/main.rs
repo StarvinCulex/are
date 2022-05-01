@@ -3,7 +3,6 @@
 #![feature(stmt_expr_attributes)]
 #![feature(auto_traits)]
 #![feature(negative_impls)]
-#![feature(set_ptr_value)]
 #![feature(get_mut_unchecked)]
 #![feature(unsize)]
 #![feature(coerce_unsized)]
