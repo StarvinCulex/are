@@ -14,29 +14,6 @@ impl<'c> Deamon<'c> {
         }
     }
 
-    /// 把 cosmos 分成 divide.0 * divide.1 块
-    pub fn by_divide(cosmos: &'c mut Cosmos, divide: (Idx, Idx)) -> Vec<Self> {
-        #![allow(mutable_transmutes)]
-        let plate_size = cosmos.angelos.plate_size;
-        debug_assert!(plate_size.0 % divide.0 == 0 && plate_size.1 % divide.1 == 0);
-        debug_assert!(divide.0 >= 3 && divide.1 >= 3);
-        let mut chunks = Vec::with_capacity((divide.0 * divide.1) as usize);
-        for i in 0..divide.0 {
-            for j in 0..divide.1 {
-                let bound = Coord(i * divide.0, j * divide.1) | Coord((i + 1) * divide.0 - 1, (j + 1) * divide.1 - 1);
-                chunks.push(Self::new(unsafe { std::mem::transmute(&cosmos) }, bound));
-            }
-        }
-        chunks
-    }
-
-    /// 把 cosmos 以 chunk_size.0 * chunk_size.1 分块
-    pub fn by_chunk_size(cosmos: &'c mut Cosmos, chunk_size: (Idx, Idx)) -> Vec<Self> {
-        let plate_size = cosmos.angelos.plate_size;
-        debug_assert!(plate_size.0 % chunk_size.0 == 0 && plate_size.1 % chunk_size.1 == 0);
-        Self::by_divide(cosmos, (plate_size.0 / chunk_size.0, plate_size.1 / chunk_size.1))
-    }
-
     pub fn set(
         &mut self,
         mob: ArcBox<MobBlock>,
@@ -85,7 +62,6 @@ impl<'c> Deamon<'c> {
         if !self.contains(new_at) {
             return Err(());
         }
-        // lock() before upgrade(), as it can be take()-n between upgrade() and lock() otherwise
         let mut mob = mob.upgrade().ok_or(())?;
         let at = mob.at();
         // check if there is another mob
