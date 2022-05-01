@@ -42,7 +42,8 @@ impl Plant {
         } else if self.age >= self.kind.max_age() {
             self.age /= 2;
             for p in [Coord(-1, 0), Coord(0, -1), Coord(0, 1), Coord(1, 0)] {
-                angelos.order(at + p, gnd::Order::PlantSowing(self.kind), 0);
+                angelos
+                    .order(at + p, gnd::Order::PlantSowing(self.kind), 0);
             }
         } else {
             self.age += 1;

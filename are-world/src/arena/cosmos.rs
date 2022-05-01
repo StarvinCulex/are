@@ -63,16 +63,16 @@ impl<WriteKey: ?Sized> P<MobBlock, PKey, WriteKey> {
 
 impl Cosmos {
     pub fn new(static_conf: StaticConf, runtime_conf: RuntimeConf) -> Self {
-        let plate_size: Coord<usize> = static_conf.plate_size.try_into().unwrap();
-        let ripper = CosmosRipper::new(static_conf.plate_size, runtime_conf.chunk_size, runtime_conf.padding);
+        let plate_size = static_conf.chunk_size * static_conf.chunk_count;
+        let plate_size_usize: Coord<usize> = plate_size.try_into().unwrap();
         Cosmos {
-            plate: Matrix::new(plate_size),
+            plate: Matrix::new(plate_size_usize),
             angelos: MajorAngelos {
                 properties: Properties {
                     tick: 0,
                     runtime_conf,
                 },
-                plate_size: static_conf.plate_size,
+                plate_size,
                 pkey: PKey::new(),
                 species_pool: SpeciesPool::new(),
                 async_data: Mutex::new(MajorAngelosAsyncData {
@@ -85,7 +85,7 @@ impl Cosmos {
                 }),
                 mind_waiting_queue: Default::default(),
             },
-            ripper,
+            ripper: CosmosRipper::new(plate_size, static_conf.chunk_size, static_conf.padding),
         }
     }
 }
@@ -218,7 +218,7 @@ impl Cosmos {
 
         self.pos_to_weak_mob(mob_pos_orders, &mut mob_orders);
 
-        let mut chunked_orders = self.weak_mob_to_interval(mob_orders, self.angelos.properties.runtime_conf.chunk_size);
+        let mut chunked_orders = self.weak_mob_to_interval(mob_orders, self.ripper.chunk_size);
         
         WriteGuard::with(&self.angelos.pkey, |guard| {
             self.ripper.with(|batch| {

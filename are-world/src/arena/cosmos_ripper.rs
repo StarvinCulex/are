@@ -2,10 +2,10 @@ use crate::arena::defs::{Crd, CrdI};
 use crate::grids::Coord;
 
 pub struct CosmosRipper {
-    chunk_size: Crd, // 消息所在区间
-    padding: Crd, // 区间周围可操作范围大小
-    bound_size: Crd, // 可操作的范围大小
-    batch_size: Crd, // 每批有多少个
+    pub chunk_size: Crd, // 消息所在区间大小
+    pub padding: Crd, // 消息所在区间周围可操作范围大小
+    pub bound_size: Crd, // 可操作的区间范围大小
+    pub batch_size: Crd, // 每批有多少个
 }
 
 pub struct CosmosRipperBatch<'c> {
