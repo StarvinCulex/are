@@ -81,6 +81,14 @@ impl Species {
     pub fn move_cost(&self) -> EnergyT {
         todo!()
     }
+
+    pub fn eat_starts(&self) -> EnergyT {
+        todo!()
+    }
+
+    pub fn eat_takes(&self) -> EnergyT {
+        todo!()
+    }
 }
 
 impl SpeciesPool {

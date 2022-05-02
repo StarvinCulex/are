@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::sync::Arc;
 
 use crate::arena::cosmos::*;
@@ -6,7 +7,7 @@ use crate::arena::defs::{Crd, CrdI};
 use crate::arena::mob::{Mob, Msg, Order};
 use crate::arena::types::*;
 use crate::arena::Weak;
-use crate::arena::{Cosmos, ReadGuard, P, MobRef, MobRefMut};
+use crate::arena::{Cosmos, MobRef, MobRefMut, ReadGuard, P};
 use crate::mob::bio::atk::ATK;
 use crate::{matrix, mob, Coord, Interval};
 
@@ -19,7 +20,7 @@ pub struct Bio {
     pub target: Target,
     /// 可能的值: (0, 0) (±1, 0) (0, ±1)
     /// 用于order tick里移动，记录移动的偏移量
-    pub facing: Crd,
+    pub path: VecDeque<Crd>,
 }
 
 #[derive(Clone)]
@@ -119,7 +120,7 @@ impl Mob for Bio {
                     energy: child_energy,
                     wake_tick: 0,
                     target: Target::None,
-                    facing: Coord(0, 0),
+                    path: VecDeque::new(),
                 };
                 let mut pchild = Some(child.into_box());
 
@@ -143,30 +144,35 @@ impl Mob for Bio {
                 /* then */
                 {
                     self.energy = energy_remain;
-                    deamon.angelos.tell(
-                        pchild.clone(),
-                        Msg::Wake,
-                        self.species.spawn_wake_at(),
-                    );
-                    deamon.angelos.order(
-                        pchild,
-                        Order::Wake,
-                        self.species.spawn_wake_at(),
-                    )
+                    deamon
+                        .angelos
+                        .tell(pchild.clone(), Msg::Wake, self.species.spawn_wake_at());
+                    deamon
+                        .angelos
+                        .order(pchild, Order::Wake, self.species.spawn_wake_at())
                 }
             }
         }
 
         // 移动
-        if self.facing != Coord(0, 0)
-            && self.wake_tick % self.species.move_period() == 0
         {
             let at = self.at();
-            let facing = self.facing;
-            // 尝试移动
-            if deamon.reset(self.handle(), at.offset(facing)).is_ok() {
-                self.facing = Coord(0, 0);
-                self.energy = self.energy.saturating_sub(self.species.move_cost())
+            let move_step = self.path.front().copied().unwrap_or_default();
+            if move_step != Coord(0, 0) && self.wake_tick % self.species.move_period() == 0
+                // 尝试移动
+                && deamon.reset(self.handle(), at.offset(move_step)).is_ok()
+            {
+                self.energy = self.energy.saturating_sub(self.species.move_cost());
+                self.path.pop_front();
+            } else {
+                // 吃草
+                let eat_starts = self.species.eat_starts();
+                let eat_takes = self.species.eat_takes();
+                for (_, g) in deamon.get_ground_iter_mut(at).unwrap() {
+                    if g.plant.age >= eat_starts {
+                        self.energy = self.energy.saturating_add(g.plant.mow(eat_takes));
+                    }
+                }
             }
         }
     }

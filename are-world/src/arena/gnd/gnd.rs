@@ -13,7 +13,7 @@ pub struct Ground {
 }
 
 impl Ground {
-    pub fn hear(&self, cosmos: &Cosmos, angelos: &Angelos, self_at: Crd, messages: Vec<Msg>) {
+    pub fn hear(&self, cosmos: &Cosmos, angelos: &mut Angelos, self_at: Crd, messages: Vec<Msg>) {
         for msg in messages {
             match msg {}
         }
@@ -22,7 +22,9 @@ impl Ground {
     pub fn order(&mut self, at: Crd, angelos: &mut Angelos, orders: Vec<Order>) {
         for order in orders {
             match order {
-                Order::PlantMow(value) => self.plant.mow(value),
+                Order::PlantMow(value) => {
+                    self.plant.mow(value);
+                }
                 Order::PlantAging => self.plant.aging(at, angelos),
                 Order::PlantSowing(kind) => {
                     if self.plant.kind == plant::Kind::None {

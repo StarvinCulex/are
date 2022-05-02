@@ -87,41 +87,59 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
         self.normalize(area.from()) | self.normalize(area.to())
     }
 }
-duplicate! {
-    [
-        AreaType     area_fn       as_area_fn       iter_fn       reference(T)  ref_life(T, a);
-        [ Area    ]  [ area     ]  [ as_area     ]  [ iter     ]  [ &    T ]    [ &'a     T ];
-        [ AreaMut ]  [ area_mut ]  [ as_area_mut ]  [ iter_mut ]  [ &mut T ]    [ &'a mut T ];
-    ]
 
 impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
     Matrix<Element, CHUNK_WIDTH, CHUNK_HEIGHT>
 {
     #[inline]
-    pub fn area_fn<Index: Into<isize> + Ord>(
-        self: reference([Self]),
+    pub fn area_mut<Index: Into<isize> + Ord>(
+        &mut self,
         a: Coord<Interval<Index>>,
-    ) -> AreaType<Element, CHUNK_WIDTH, CHUNK_HEIGHT> {
-        let area = self.normalize_area(Coord(a.0.from.into(), a.1.from.into()) | Coord(a.0.to.into(), a.1.to.into()));
-        AreaType {
-            matrix: self,
-            area,
-        }
+    ) -> AreaMut<Element, CHUNK_WIDTH, CHUNK_HEIGHT> {
+        let area = self.normalize_area(
+            Coord(a.0.from.into(), a.1.from.into()) | Coord(a.0.to.into(), a.1.to.into()),
+        );
+        AreaMut { matrix: self, area }
     }
 
     #[inline]
-    pub fn as_area_fn(self: reference([Self])) -> AreaType<Element, CHUNK_WIDTH, CHUNK_HEIGHT> {
-        self.area_fn(Coord(0, 0) | (*self.size() - Coord(1, 1)))
+    pub fn as_area_mut(&mut self) -> AreaMut<Element, CHUNK_WIDTH, CHUNK_HEIGHT> {
+        self.area_mut(Coord(0, 0) | (*self.size() - Coord(1, 1)))
     }
 
     #[inline]
-    pub fn iter_fn<'m>(
-        self: ref_life([Self], [m]),
-    ) -> <AreaType<Element, CHUNK_WIDTH, CHUNK_HEIGHT> as std::iter::IntoIterator>::IntoIter {
-        self.as_area_fn().into_iter()
+    pub fn iter_mut(
+        &mut self,
+    ) -> <AreaMut<Element, CHUNK_WIDTH, CHUNK_HEIGHT> as std::iter::IntoIterator>::IntoIter {
+        self.as_area_mut().into_iter()
     }
 }
 
+impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
+    Matrix<Element, CHUNK_WIDTH, CHUNK_HEIGHT>
+{
+    #[inline]
+    pub fn area<Index: Into<isize> + Ord>(
+        &self,
+        a: Coord<Interval<Index>>,
+    ) -> Area<Element, CHUNK_WIDTH, CHUNK_HEIGHT> {
+        let area = self.normalize_area(
+            Coord(a.0.from.into(), a.1.from.into()) | Coord(a.0.to.into(), a.1.to.into()),
+        );
+        Area { matrix: self, area }
+    }
+
+    #[inline]
+    pub fn as_area(&self) -> Area<Element, CHUNK_WIDTH, CHUNK_HEIGHT> {
+        self.area(Coord(0, 0) | (*self.size() - Coord(1, 1)))
+    }
+
+    #[inline]
+    pub fn iter(
+        &self,
+    ) -> <Area<Element, CHUNK_WIDTH, CHUNK_HEIGHT> as std::iter::IntoIterator>::IntoIter {
+        self.as_area().into_iter()
+    }
 }
 
 #[allow(dead_code)]
@@ -300,23 +318,24 @@ where
 {
 }
 
-duplicate! {
-    [
-        AreaType     ref_life(T, a)  as_area_fn;
-        [ Area    ]  [ &'a     T ]   [ as_area     ];
-        [ AreaMut ]  [ &'a mut T ]   [ as_area_mut ];
-    ]
-
 impl<'m, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
-    Into<AreaType<'m, Element, CHUNK_WIDTH, CHUNK_HEIGHT>>
-    for ref_life([Matrix<Element, CHUNK_WIDTH, CHUNK_HEIGHT>], [m])
+    Into<AreaMut<'m, Element, CHUNK_WIDTH, CHUNK_HEIGHT>>
+    for &'m mut Matrix<Element, CHUNK_WIDTH, CHUNK_HEIGHT>
 {
     #[inline]
-    fn into(self) -> AreaType<'m, Element, CHUNK_WIDTH, CHUNK_HEIGHT> {
-        self.as_area_fn()
+    fn into(self) -> AreaMut<'m, Element, CHUNK_WIDTH, CHUNK_HEIGHT> {
+        self.as_area_mut()
     }
 }
 
+impl<'m, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
+    Into<Area<'m, Element, CHUNK_WIDTH, CHUNK_HEIGHT>>
+    for &'m Matrix<Element, CHUNK_WIDTH, CHUNK_HEIGHT>
+{
+    #[inline]
+    fn into(self) -> Area<'m, Element, CHUNK_WIDTH, CHUNK_HEIGHT> {
+        self.as_area()
+    }
 }
 
 // private
@@ -390,7 +409,10 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
     }
 
     #[inline]
-    pub fn normalize_area_with(size: Coord<isize>, area: Coord<Interval<isize>>) -> Coord<Interval<isize>> {
+    pub fn normalize_area_with(
+        size: Coord<isize>,
+        area: Coord<Interval<isize>>,
+    ) -> Coord<Interval<isize>> {
         Self::normalize_pos(size, area.from()) | Self::normalize_pos(size, area.to())
     }
 }

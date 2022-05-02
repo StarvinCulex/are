@@ -1,3 +1,6 @@
+use crate::meta::gnd::Ground;
+use std::iter::Map;
+
 //
 pub struct Deamon<'c, 'a> {
     pub angelos: &'a mut Angelos<'c>,
@@ -6,17 +9,76 @@ pub struct Deamon<'c, 'a> {
 }
 
 impl<'c, 'a> Deamon<'c, 'a> {
-    pub fn set(
+    pub fn get_ground(&self, p: Crd) -> Result<&Ground, ()> {
+        let pos = self.plate.normalize(p.into());
+        let bound: Coord<Interval<isize>> = self.bound.into();
+        if !bound.contains(&pos) {
+            Err(())
+        } else {
+            Ok(&self.plate[pos].ground)
+        }
+    }
+    pub fn get_ground_mut(&mut self, p: Crd) -> Result<&mut Ground, ()> {
+        let pos = self.plate.normalize(p.into());
+        let bound: Coord<Interval<isize>> = self.bound.into();
+        if !bound.contains(&pos) {
+            Err(())
+        } else {
+            Ok(&mut self.plate[pos].ground)
+        }
+    }
+    pub fn get_ground_iter(
+        &self,
+        p: CrdI,
+    ) -> Result<
+        Map<
+            impl Iterator<Item = (Coord<isize>, &Block)>,
+            fn((Coord<isize>, &Block)) -> (Crd, &Ground),
+        >,
+        (),
+    > {
+        if !self.contains(p) {
+            return Err(());
+        }
+        Ok(self
+            .plate
+            .area(p)
+            .iter()
+            .map(|(p, g)| (p.try_into().unwrap(), &g.ground)))
+    }
+    pub fn get_ground_iter_mut(
         &mut self,
-        mob: ArcBox<MobBlock>,
-    ) -> Result<Weak<MobBlock>, ArcBox<MobBlock>> {
+        p: CrdI,
+    ) -> Result<
+        Map<
+            impl Iterator<Item = (Coord<isize>, &mut Block)>,
+            fn((Coord<isize>, &mut Block)) -> (Crd, &mut Ground),
+        >,
+        (),
+    > {
+        if !self.contains(p) {
+            return Err(());
+        }
+        Ok(self
+            .plate
+            .area_mut(p)
+            .iter()
+            .map(|(p, b)| (p.try_into().unwrap(), &mut b.ground)))
+    }
+
+    pub fn set(&mut self, mob: ArcBox<MobBlock>) -> Result<Weak<MobBlock>, ArcBox<MobBlock>> {
         let at = mob.at;
         if !self.contains(at) {
             return Err(mob);
         }
 
         // check if the plate is empty
-        if self.plate.area(at).scan().any(|(_, grid)| grid.mob.is_some()) {
+        if self
+            .plate
+            .area(at)
+            .scan()
+            .any(|(_, grid)| grid.mob.is_some())
+        {
             return Err(mob);
         }
         // set the plate
@@ -27,7 +89,10 @@ impl<'c, 'a> Deamon<'c, 'a> {
         Ok(mob.downgrade())
     }
 
-    pub fn take<'g, M: Mob + 'static>(&mut self, mob: MobRefMut<'g, M>) -> Result<ArcBox<MobBlock>, MobRefMut<'g, M>> {
+    pub fn take<'g, M: Mob + 'static>(
+        &mut self,
+        mob: MobRefMut<'g, M>,
+    ) -> Result<ArcBox<MobBlock>, MobRefMut<'g, M>> {
         let mob_p: P<MobBlock> = mob.get_inner(&self.angelos.major.pkey);
         let at = mob.at();
 
@@ -50,7 +115,8 @@ impl<'c, 'a> Deamon<'c, 'a> {
             grid.mob = None;
         }
         // convert
-        mob_p.try_into_box(&self.angelos.major.pkey)
+        mob_p
+            .try_into_box(&self.angelos.major.pkey)
             .map_err(|_| unreachable!())
     }
 
@@ -62,7 +128,8 @@ impl<'c, 'a> Deamon<'c, 'a> {
         let mut mob = mob.get_inner(&self.angelos.major.pkey);
         let at = mob.at();
         // check if there is another mob
-        if self.plate
+        if self
+            .plate
             .area(at)
             .scan()
             .any(|(_, grid)| grid.mob.is_some_with(|pos_mob| pos_mob != &mob))
@@ -91,6 +158,7 @@ impl<'c, 'a> Deamon<'c, 'a> {
     #[inline]
     fn contains(&self, mut p: CrdI) -> bool {
         p = self.angelos.major.normalize_area(p);
-        self.bound.contains_coord_interval(&p, self.angelos.major.plate_size)
+        self.bound
+            .contains_coord_interval(&p, self.angelos.major.plate_size)
     }
 }

@@ -11,6 +11,8 @@
 #![feature(scoped_threads)]
 #![feature(vec_into_raw_parts)]
 #![feature(maybe_uninit_slice)]
+#![feature(in_band_lifetimes)]
+#![feature(ptr_metadata)]
 #![feature(arbitrary_self_types)]
 
 use crate::arena::conf::StaticConf;
@@ -45,9 +47,10 @@ fn main() {
         RuntimeConf {
             period: 10,
             fire_tick: 4,
-            plant_aging: 0.1,
-            plant_sow: 0.05,
-            thread_count: 1,
+            plant_aging: 0.01,
+            plant_sow: 0.001,
+            corpse_rot: 1,
+            thread_count: 4,
         },
     );
 
@@ -67,7 +70,5 @@ fn main() {
         std::thread::sleep(std::time::Duration::from_millis(
             meta.cosmos.angelos.properties.runtime_conf.period,
         ));
-
-        meta.cosmos.angelos.properties.runtime_conf.plant_sow = 0.0;
     }
 }

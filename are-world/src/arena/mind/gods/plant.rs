@@ -38,7 +38,7 @@ impl Mind for GodOfPlant {
             let p = self.rng.sample(aging_distributes);
             p <= aging_count
         } {
-            for _ in 0..aging_count as usize {
+            for _ in 0..(aging_count.ceil()) as usize {
                 let p = Coord(
                     self.rng.sample(plate_distributes.0),
                     self.rng.sample(plate_distributes.1),
@@ -47,14 +47,14 @@ impl Mind for GodOfPlant {
             }
         }
 
-        let sow_count = (cosmos.angelos.properties.runtime_conf.plant_sow * area as f64).ceil();
+        let sow_count = cosmos.angelos.properties.runtime_conf.plant_sow * area as f64;
         if sow_count >= 1.0 || {
             let sow_distributes = Uniform::from(0.0..1.0);
             let p = self.rng.sample(sow_distributes);
             p <= sow_count
         } {
             let kind_distributes = Uniform::from(0..GodOfPlant::KIND_LIST.len());
-            for _ in 0..sow_count as usize {
+            for _ in 0..(sow_count.ceil() as usize) {
                 let p = Coord(
                     self.rng.sample(plate_distributes.0),
                     self.rng.sample(plate_distributes.1),

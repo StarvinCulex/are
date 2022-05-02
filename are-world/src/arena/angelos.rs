@@ -44,28 +44,38 @@ impl MajorAngelos {
         }
     }
     pub fn normalize_pos(&self, pos: Crd) -> Crd {
-        Matrix::<(), 1, 1>::normalize_pos(
-            self.plate_size.into(),
-            pos.into(),
-        ).try_into().unwrap()
+        Matrix::<(), 1, 1>::normalize_pos(self.plate_size.into(), pos.into())
+            .try_into()
+            .unwrap()
     }
     pub fn normalize_area(&self, area: CrdI) -> CrdI {
-        Matrix::<(), 1, 1>::normalize_area_with(
-            self.plate_size.into(),
-            area.into(),
-        ).try_into().unwrap()
+        Matrix::<(), 1, 1>::normalize_area_with(self.plate_size.into(), area.into())
+            .try_into()
+            .unwrap()
     }
 }
 
 impl<'m> Drop for Angelos<'m> {
     fn drop(&mut self) {
         let mut guard = self.major.async_data.lock().unwrap();
-        guard.gnd_orders.append(std::mem::take(&mut self.gnd_orders_buf));
-        guard.gnd_messages.append(std::mem::take(&mut self.gnd_messages_buf));
-        guard.mob_orders.append(std::mem::take(&mut self.mob_orders_buf));
-        guard.mob_messages.append(std::mem::take(&mut self.mob_messages_buf));
-        guard.mob_pos_orders.append(std::mem::take(&mut self.mob_pos_orders_buf));
-        guard.mob_pos_messages.append(std::mem::take(&mut self.mob_pos_messages_buf));
+        guard
+            .gnd_orders
+            .append(std::mem::take(&mut self.gnd_orders_buf));
+        guard
+            .gnd_messages
+            .append(std::mem::take(&mut self.gnd_messages_buf));
+        guard
+            .mob_orders
+            .append(std::mem::take(&mut self.mob_orders_buf));
+        guard
+            .mob_messages
+            .append(std::mem::take(&mut self.mob_messages_buf));
+        guard
+            .mob_pos_orders
+            .append(std::mem::take(&mut self.mob_pos_orders_buf));
+        guard
+            .mob_pos_messages
+            .append(std::mem::take(&mut self.mob_pos_messages_buf));
     }
 }
 

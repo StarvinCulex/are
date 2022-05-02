@@ -38,12 +38,13 @@ impl Plant {
     #[inline]
     pub fn aging(&mut self, at: Crd, angelos: &mut Angelos) {
         if self.kind == Kind::Corpse {
-            self.age = self.age.checked_sub(1).unwrap_or(0);
+            self.age = self
+                .age
+                .saturating_sub(angelos.major.properties.runtime_conf.corpse_rot);
         } else if self.age >= self.kind.max_age() {
             self.age /= 2;
             for p in [Coord(-1, 0), Coord(0, -1), Coord(0, 1), Coord(1, 0)] {
-                angelos
-                    .order(at + p, gnd::Order::PlantSowing(self.kind), 0);
+                angelos.order(at + p, gnd::Order::PlantSowing(self.kind), 0);
             }
         } else {
             self.age += 1;
@@ -51,8 +52,10 @@ impl Plant {
     }
 
     #[inline]
-    pub fn mow(&mut self, value: EnergyT) {
-        self.age = self.age.checked_sub(value).unwrap_or(0);
+    pub fn mow(&mut self, value: EnergyT) -> EnergyT {
+        let age_before = self.age;
+        self.age = self.age.saturating_sub(value);
+        age_before - self.age
     }
 }
 

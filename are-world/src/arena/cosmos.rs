@@ -2,16 +2,16 @@ use rc_box::ArcBox;
 use std::collections::VecDeque;
 
 use crate::arena::conf::StaticConf;
-use crate::arena::defs::{Idx, Crd, CrdI, Tick};
+use crate::arena::cosmos_ripper::CosmosRipper;
+use crate::arena::defs::{Crd, CrdI, Idx, Tick};
 use crate::arena::gnd;
 use crate::arena::mob::Mob;
-use crate::arena::cosmos_ripper::CosmosRipper;
 use crate::jobs;
 use crate::mind::Mind;
 use crate::mob::bio::species::SpeciesPool;
 use crate::msgpip::pipe::Output;
 use crate::msgpip::MPipe;
-use std::collections::{HashMap, hash_map::Entry};
+use std::collections::{hash_map::Entry, HashMap};
 
 pub use super::*;
 use super::{ReadGuard, Weak, WriteGuard, P};
@@ -124,7 +124,8 @@ impl Cosmos {
         chunk_size: Crd,
     ) -> HashMap<CrdI, Vec<(Weak<MobBlock>, Vec<T>)>> {
         let thread_count = self.angelos.properties.runtime_conf.thread_count;
-        let mut workers: Vec<HashMap<CrdI, Vec<(Weak<MobBlock>, Vec<T>)>>> = Vec::with_capacity(thread_count);
+        let mut workers: Vec<HashMap<CrdI, Vec<(Weak<MobBlock>, Vec<T>)>>> =
+            Vec::with_capacity(thread_count);
         for _ in 0..thread_count {
             workers.push(HashMap::new());
         }
@@ -136,11 +137,12 @@ impl Cosmos {
                     let pos = mob_ref.at();
                     let center = Coord((pos.0.from + pos.0.to) / 2, (pos.1.from + pos.1.to) / 2);
                     let center = self.angelos.normalize_pos(center);
-                    let left_top = Coord(center.0 - center.0 % chunk_size.0, center.1 - center.1 % chunk_size.1);
+                    let left_top = Coord(
+                        center.0 - center.0 % chunk_size.0,
+                        center.1 - center.1 % chunk_size.1,
+                    );
                     let interval = left_top | (left_top + chunk_size);
-                    worker.entry(interval)
-                        .or_default()
-                        .push(job);
+                    worker.entry(interval).or_default().push(job);
                 }
             });
         });
@@ -151,9 +153,7 @@ impl Cosmos {
 
         for worker in worker_iter {
             for (interval, mut data) in worker.into_iter() {
-                result.entry(interval)
-                    .or_default()
-                    .append(&mut data);
+                result.entry(interval).or_default().append(&mut data);
             }
         }
 
@@ -221,16 +221,18 @@ impl Cosmos {
         self.pos_to_weak_mob(mob_pos_orders, &mut mob_orders);
 
         let mut chunked_orders = self.weak_mob_to_interval(mob_orders, self.ripper.chunk_size);
-        
+
         WriteGuard::with(&self.angelos.pkey, |guard| {
             self.ripper.with(|batch| {
-                let works: Vec<_> = batch.filter_map(|(chunk, bound)| {
-                    if let Entry::Occupied(o) = chunked_orders.entry(chunk) {
-                        Some((bound, o.remove_entry().1))
-                    } else {
-                        None
-                    }
-                }).collect();
+                let works: Vec<_> = batch
+                    .filter_map(|(chunk, bound)| {
+                        if let Entry::Occupied(o) = chunked_orders.entry(chunk) {
+                            Some((bound, o.remove_entry().1))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
                 jobs::work(
                     workers.iter_mut(),
                     works,
@@ -239,7 +241,7 @@ impl Cosmos {
                         let mut deamon = Deamon {
                             angelos: worker,
                             plate: unsafe { std::mem::transmute(&self.plate) },
-                            bound
+                            bound,
                         };
                         for (mob, orders) in local_mob_orders.into_iter() {
                             if let Some(mob_ref_mut) = unsafe { guard.wrap_weak_mut(mob) } {

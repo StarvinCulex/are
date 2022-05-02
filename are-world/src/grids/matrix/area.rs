@@ -5,30 +5,27 @@ use super::*;
 
 use ::duplicate::duplicate;
 
-duplicate! {
-    [
-        AreaType     IterType         reference(T)  ref_life(T, a)  try_derive_clone   ref_or_val(T);
-        [ Area    ]  [ Iterator    ]  [ &    T ]    [ &'a     T ]   [ derive(Clone) ]  [ &T ];
-        [ AreaMut ]  [ IteratorMut ]  [ &mut T ]    [ &'a mut T ]   [ derive(     ) ]  [  T ];
-    ]
-
-// mutable reference can't be cloned
-#[try_derive_clone]
-pub struct AreaType<'m, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> {
-    pub matrix: ref_life([Matrix<Element, CHUNK_WIDTH, CHUNK_HEIGHT>], [m]),
+#[derive(Clone)]
+pub struct Area<'m, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> {
+    pub matrix: &'m Matrix<Element, CHUNK_WIDTH, CHUNK_HEIGHT>,
     pub area: Coord<Interval<isize>>,
 }
 
 impl<'m, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
-    AreaType<'m, Element, CHUNK_WIDTH, CHUNK_HEIGHT>
+    Area<'m, Element, CHUNK_WIDTH, CHUNK_HEIGHT>
 {
     // scan() will consume AreaMut but not Area, as Area derives Clone while AreaMut can't
     // another available choice is to make IteratorMut returned from scan() not outlive AreaMut
     #[inline]
     pub fn scan(
-        self: ref_or_val([Self]),
-    ) -> IterType<'m, Element, Scan<CHUNK_WIDTH, CHUNK_HEIGHT>, CHUNK_WIDTH, CHUNK_HEIGHT> {
-        IterType::new(self.matrix, Scan::new(self.matrix.size, self.area))
+        &self,
+    ) -> Iterator<'m, Element, Scan<CHUNK_WIDTH, CHUNK_HEIGHT>, CHUNK_WIDTH, CHUNK_HEIGHT> {
+        Iterator::new(self.matrix, Scan::new(self.matrix.size, self.area))
+    }
+
+    #[inline]
+    pub fn iter(&self) -> impl std::iter::Iterator<Item = (Coord<isize>, &'m Element)> {
+        self.scan()
     }
 
     #[inline]
@@ -38,11 +35,11 @@ impl<'m, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
 }
 
 impl<'m, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> std::iter::IntoIterator
-    for AreaType<'m, Element, CHUNK_WIDTH, CHUNK_HEIGHT>
+    for Area<'m, Element, CHUNK_WIDTH, CHUNK_HEIGHT>
 {
-    type Item = (Coord<isize>, ref_life([Element], [m]));
+    type Item = (Coord<isize>, &'m Element);
     type IntoIter =
-        IterType<'m, Element, Scan<CHUNK_WIDTH, CHUNK_HEIGHT>, CHUNK_WIDTH, CHUNK_HEIGHT>;
+        Iterator<'m, Element, Scan<CHUNK_WIDTH, CHUNK_HEIGHT>, CHUNK_WIDTH, CHUNK_HEIGHT>;
 
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
@@ -50,7 +47,48 @@ impl<'m, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> std::iter
     }
 }
 
+pub struct AreaMut<'m, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> {
+    pub matrix: &'m mut Matrix<Element, CHUNK_WIDTH, CHUNK_HEIGHT>,
+    pub area: Coord<Interval<isize>>,
 }
+
+impl<'m, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
+    AreaMut<'m, Element, CHUNK_WIDTH, CHUNK_HEIGHT>
+{
+    // scan() will consume AreaMut but not Area, as Area derives Clone while AreaMut can't
+    // another available choice is to make IteratorMut returned from scan() not outlive AreaMut
+    #[inline]
+    pub fn scan(
+        self,
+    ) -> IteratorMut<'m, Element, Scan<CHUNK_WIDTH, CHUNK_HEIGHT>, CHUNK_WIDTH, CHUNK_HEIGHT> {
+        IteratorMut::new(self.matrix, Scan::new(self.matrix.size, self.area))
+    }
+
+    #[inline]
+    pub fn iter(self) -> impl std::iter::Iterator<Item = (Coord<isize>, &'m mut Element)> {
+        self.scan()
+    }
+
+    #[inline]
+    pub fn size(&self) -> Coord<isize> {
+        measure_area(*self.matrix.size(), self.area)
+    }
+}
+
+impl<'m, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> std::iter::IntoIterator
+    for AreaMut<'m, Element, CHUNK_WIDTH, CHUNK_HEIGHT>
+{
+    type Item = (Coord<isize>, &'m mut Element);
+    type IntoIter =
+        IteratorMut<'m, Element, Scan<CHUNK_WIDTH, CHUNK_HEIGHT>, CHUNK_WIDTH, CHUNK_HEIGHT>;
+
+    #[inline]
+    fn into_iter(self) -> Self::IntoIter {
+        self.scan()
+    }
+}
+
+//
 
 impl<'m, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
     Area<'m, Element, CHUNK_WIDTH, CHUNK_HEIGHT>

@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
 use crate::arena::defs::{Crd, Tick};
-use crate::Coord;
+use crate::meta::types::*;
 
 pub struct StaticConf {
     pub chunk_count: Crd,
@@ -17,4 +17,5 @@ pub struct RuntimeConf {
 
     pub plant_aging: f64,
     pub plant_sow: f64,
+    pub corpse_rot: EnergyT,
 }
