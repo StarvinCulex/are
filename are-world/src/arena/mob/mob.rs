@@ -6,7 +6,7 @@ use crate::arena::cosmos::{Deamon, MobBlock, PKey};
 use crate::arena::mob::{Msg, Order};
 use crate::arena::{Cosmos, ReadGuard};
 use crate::cosmos::defs::CrdI;
-use crate::{Angelos, P};
+use crate::{Angelos, P, MobRef, MobRefMut};
 
 pub trait Mob: Send + Sync {
     fn into_arc(self) -> Arc<MobBlock>;
@@ -30,13 +30,12 @@ pub trait Mob: Send + Sync {
     fn get_name(&self) -> String;
 
     fn hear(
-        &self,
+        self: MobRef<Self>,
         cosmos: &Cosmos,
         angelos: &mut Angelos,
         message: Vec<Msg>,
-        this: P<MobBlock>,
         guard: &ReadGuard<PKey>,
     );
 
-    fn order(&mut self, at: CrdI, deamon: &mut Deamon, order: Vec<Order>, this: P<MobBlock>);
+    fn order(self: MobRefMut<Self>, deamon: &mut Deamon, order: Vec<Order>);
 }

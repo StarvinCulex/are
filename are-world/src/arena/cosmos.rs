@@ -185,7 +185,7 @@ impl Cosmos {
                     mob_messages.into_iter().collect(),
                     |angelos, (mob, msgs)| {
                         if let Some(mob) = mob.upgrade() {
-                            mob.clone().get(guard).mob.hear(self, angelos, msgs, mob, guard);
+                            guard.wrap(mob).hear(self, angelos, msgs, guard);
                         }
                     },
                 );
@@ -239,11 +239,8 @@ impl Cosmos {
                             plate: unsafe { std::mem::transmute(&self.plate) },
                             bound
                         };
-                        for (this, orders) in local_mob_orders.into_iter() {
-                            // bug: as clone lives, the this pointer can never convert into ArcBox
-                            let mut clone = this.clone();
-                            let mob = &mut unsafe { clone.get_mut_unchecked(guard) }.mob;
-                            mob.order(this.at(), &mut deamon, orders, this);
+                        for (mob, orders) in local_mob_orders.into_iter() {
+                            unsafe { guard.wrap_mut(mob) }.order(&mut deamon, orders);
                         }
                     },
                 );

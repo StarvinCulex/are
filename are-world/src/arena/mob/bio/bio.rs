@@ -6,7 +6,7 @@ use crate::arena::defs::{Crd, CrdI};
 use crate::arena::mob::{Mob, Msg, Order};
 use crate::arena::types::*;
 use crate::arena::Weak;
-use crate::arena::{Cosmos, ReadGuard, P};
+use crate::arena::{Cosmos, ReadGuard, P, MobRef, MobRefMut};
 use crate::mob::bio::atk::ATK;
 use crate::{matrix, mob, Coord, Interval};
 
@@ -52,11 +52,10 @@ impl Mob for Bio {
     }
 
     fn hear(
-        &self,
+        self: MobRef<Self>,
         cosmos: &Cosmos,
         angelos: &mut Angelos,
         message: Vec<Msg>,
-        this: P<MobBlock>,
         guard: &ReadGuard<PKey>,
     ) {
         let mut wake = false;
@@ -70,10 +69,10 @@ impl Mob for Bio {
             return;
         }
 
-        angelos.tell(this.downgrade(), Msg::Wake, self.species.wake_span());
+        angelos.tell(self.downgrade(), Msg::Wake, self.species.wake_span());
     }
 
-    fn order(&mut self, at: CrdI, deamon: &mut Deamon, orders: Vec<Order>, this: P<MobBlock>) {
+    fn order(mut self: MobRefMut<Self>, deamon: &mut Deamon, orders: Vec<Order>) {
         let mut wake = false;
         for odr in orders {
             match odr {
@@ -93,6 +92,7 @@ impl Mob for Bio {
                     self.energy = remain;
                 } else {
                     // 饿死
+                    let at = self.at();
                     self.suicide(at, deamon);
                     return;
                 }
@@ -101,7 +101,7 @@ impl Mob for Bio {
 
         deamon
             .angelos
-            .order(this.downgrade(), Order::Wake, self.species.wake_span());
+            .order(self.downgrade(), Order::Wake, self.species.wake_span());
 
         // 能生崽不？
         if self.wake_tick % self.species.breed_period() == 0
@@ -127,7 +127,7 @@ impl Mob for Bio {
                 if let Some(pchild) = {
                     let mut r = None;
                     for i in [Coord(0, -1), Coord(0, 1), Coord(1, 0), Coord(-1, 0)] {
-                        let child_at = at.offset(i * self.species.size());
+                        let child_at = self.at().offset(i * self.species.size());
                         match deamon.set(pchild.take().unwrap(), child_at) {
                             Err(pc) => pchild = Some(pc),
                             Ok(pc) => {
@@ -160,7 +160,7 @@ impl Mob for Bio {
             && self.wake_tick % self.species.move_period() == 0
             // 尝试移动
             && deamon
-            .reset(this.downgrade(), at.offset(self.facing))
+            .reset(self.downgrade(), self.at().offset(self.facing))
             .is_ok()
         {
             self.facing = Coord(0, 0);

@@ -1,12 +1,13 @@
 use core::marker::Unsize;
-use core::ops::CoerceUnsized;
-use std::alloc::{alloc, Layout};
+use core::ops::{CoerceUnsized, DispatchFromDyn};
 use std::marker::PhantomData;
 use std::sync::{self, Arc};
 
 use rc_box::ArcBox;
 
-use crate::arena::cosmos::PKey;
+use crate::arena::cosmos::{PKey, MobBlock, _MobBlock};
+use crate::arena::mob::Mob;
+use crate::arena::defs::CrdI;
 
 pub struct P<Element, ReadKey = PKey, WriteKey = PKey>
 where
@@ -292,54 +293,128 @@ where
     }
 }
 
-// P<_MobBlock<Bio>> -> P<_MobBlock<dyn Mob>>
-impl<T: ?Sized + Unsize<U>, U: ?Sized, ReadKey, WriteKey> CoerceUnsized<P<U, ReadKey, WriteKey>>
-    for P<T, ReadKey, WriteKey>
-{
-}
-
-// impl<T: ?Sized + Unsize<U>, U: ?Sized, ReadKey, WriteKey> DispatchFromDyn<P<U, ReadKey, WriteKey>> for P<T, ReadKey, WriteKey> {}
-impl<T: ?Sized + Unsize<U>, U: ?Sized, ReadKey, WriteKey> CoerceUnsized<Weak<U, ReadKey, WriteKey>>
-    for Weak<T, ReadKey, WriteKey>
-{
-}
-// impl<T: ?Sized + Unsize<U>, U: ?Sized, ReadKey, WriteKey> DispatchFromDyn<Weak<U, ReadKey, WriteKey>> for Weak<T, ReadKey, WriteKey> {}
-
 // ReadGuard & WriteGuard can be explicitly drop()-ed, ensuring references' lifetime obtained from it shorter than itself.
 // while ref obtained with just P + Key may live longer, causing copying ref and use it in next tick possible.
 // but ReadGuard & WriteGuard can still be moved in order to extend its lifetime, so pass fn to with() is recommended.
 // Pin<ReadGuard> / Pin<WriteGuard> will not solve anything, as the Pin itself can be moved to extend its lifetime.
 // NEVER pass ReadKey / WriteKey to code you don't trust, the ref of key can be copied & reused, then ruin everything.
-pub struct ReadGuard<'a, ReadKey: ?Sized>(PhantomData<&'a ReadKey>);
-pub struct WriteGuard<'a, WriteKey: ?Sized>(PhantomData<&'a WriteKey>);
+pub struct ReadGuard<ReadKey: ?Sized>(PhantomData<ReadKey>);
+pub struct WriteGuard<WriteKey: ?Sized>(PhantomData<WriteKey>);
 
-impl<'a, ReadKey: ?Sized> ReadGuard<'a, ReadKey> {
+impl<ReadKey: ?Sized> ReadGuard<ReadKey> {
     // unsafe, you should drop() it manually to terminate the lifetime of the references it returned
     #[inline]
-    pub unsafe fn new(_key: &'a ReadKey) -> Self {
+    pub unsafe fn new(_key: &ReadKey) -> Self {
         Self(PhantomData::default())
     }
 
     #[inline]
-    pub fn with<T, F: FnOnce(&Self) -> T>(key: &'a ReadKey, f: F) -> T {
+    pub fn with<T, F: FnOnce(&Self) -> T>(key: &ReadKey, f: F) -> T {
         let guard = unsafe { Self::new(key) };
         let ret = f(&guard);
         drop(guard); // useless, but a guarantee that it is not moved away(to extend its lifetime)
         ret
     }
+
+    #[inline]
+    pub fn wrap<'g, M: ?Sized, WriteKey: ?Sized>(&'g self, p: P<_MobBlock<M>, ReadKey, WriteKey>) -> MobRef<'g, M, ReadKey, WriteKey> {
+        MobRef(p, PhantomData::default())
+    }
 }
 
-impl<'a, WriteKey: ?Sized> WriteGuard<'a, WriteKey> {
+impl<WriteKey: ?Sized> WriteGuard<WriteKey> {
     #[inline]
-    pub unsafe fn new(_key: &'a WriteKey) -> Self {
+    pub unsafe fn new(_key: &WriteKey) -> Self {
         Self(PhantomData::default())
     }
 
     #[inline]
-    pub fn with<T, F: FnOnce(&Self) -> T>(key: &'a WriteKey, f: F) -> T {
+    pub fn with<T, F: FnOnce(&Self) -> T>(key: &WriteKey, f: F) -> T {
         let guard = unsafe { Self::new(key) };
         let ret = f(&guard);
         drop(guard); // useless, but a guarantee that it is not moved away(to extend its lifetime)
         ret
     }
+
+    #[inline]
+    pub fn wrap<'g, M: ?Sized, ReadKey: ?Sized>(&'g self, p: P<_MobBlock<M>, ReadKey, WriteKey>) -> MobRef<'g, M, ReadKey, WriteKey> {
+        MobRef(p, PhantomData::default())
+    }
+
+    #[inline]
+    pub unsafe fn wrap_mut<'g, M: ?Sized, ReadKey: ?Sized>(&'g self, p: P<_MobBlock<M>, ReadKey, WriteKey>) -> MobRefMut<'g, M, ReadKey, WriteKey> {
+        MobRefMut(p, PhantomData::default())
+    }
 }
+
+pub struct MobRef<'g, M: ?Sized, ReadKey: ?Sized = PKey, WriteKey: ?Sized = PKey>(P<_MobBlock<M>, ReadKey, WriteKey>, PhantomData<&'g ReadGuard<ReadKey>>);
+pub struct MobRefMut<'g, M: ?Sized, ReadKey: ?Sized = PKey, WriteKey: ?Sized = PKey>(P<_MobBlock<M>, ReadKey, WriteKey>, PhantomData<&'g WriteGuard<WriteKey>>);
+
+impl<'g, M: Mob + 'static, ReadKey: ?Sized, WriteKey: ?Sized> MobRef<'g, M, ReadKey, WriteKey> {
+    #[inline]
+    pub fn at(&self) -> CrdI {
+        self.0.data.as_ref().at
+    }
+
+    #[inline]
+    pub fn downgrade(&self) -> Weak<MobBlock, ReadKey, WriteKey> {
+        self.0.downgrade()
+    }
+}
+
+impl<'g, M: Mob + 'static, ReadKey: ?Sized, WriteKey: ?Sized> MobRefMut<'g, M, ReadKey, WriteKey> {
+    #[inline]
+    pub fn at(&self) -> CrdI {
+        self.0.data.as_ref().at
+    }
+    
+    #[inline]
+    pub fn downgrade(&self) -> Weak<MobBlock, ReadKey, WriteKey> {
+        self.0.downgrade()
+    }
+}
+
+impl<'g, M: ?Sized, ReadKey: ?Sized, WriteKey: ?Sized> std::ops::Deref for MobRef<'g, M, ReadKey, WriteKey> {
+    type Target = M;
+    #[inline]
+    fn deref(&self) -> &M {
+        &self.0.data.as_ref().mob
+    }
+}
+
+impl<'g, M: ?Sized, ReadKey: ?Sized, WriteKey: ?Sized> std::ops::Deref for MobRefMut<'g, M, ReadKey, WriteKey> {
+    type Target = M;
+    #[inline]
+    fn deref(&self) -> &M {
+        &self.0.data.as_ref().mob
+    }
+}
+
+impl<'g, M: ?Sized, ReadKey: ?Sized, WriteKey: ?Sized> std::ops::DerefMut for MobRefMut<'g, M, ReadKey, WriteKey> {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut M {
+        &mut unsafe { Arc::get_mut_unchecked(&mut self.0.data) }.mob
+    }
+}
+
+// CoerceUnsized
+// P<_MobBlock<Bio>> -> P<_MobBlock<dyn Mob>>
+impl<T: ?Sized + Unsize<U>, U: ?Sized, ReadKey: ?Sized, WriteKey: ?Sized> CoerceUnsized<P<U, ReadKey, WriteKey>> for P<T, ReadKey, WriteKey> {}
+impl<T: ?Sized + Unsize<U>, U: ?Sized, ReadKey: ?Sized, WriteKey: ?Sized> CoerceUnsized<Weak<U, ReadKey, WriteKey>> for Weak<T, ReadKey, WriteKey> {}
+impl<'g, T: ?Sized + Unsize<U>, U: ?Sized, ReadKey: ?Sized, WriteKey: ?Sized> CoerceUnsized<MobRef<'g, U, ReadKey, WriteKey>> for MobRef<'g, T, ReadKey, WriteKey> {}
+impl<'g, T: ?Sized + Unsize<U>, U: ?Sized, ReadKey: ?Sized, WriteKey: ?Sized> CoerceUnsized<MobRefMut<'g, U, ReadKey, WriteKey>> for MobRefMut<'g, T, ReadKey, WriteKey> {}
+
+// DispatchFromDyn
+// fn hear(self: MobRef<Self>, ...);
+// let mob: MobRef<dyn Mob> = ...;
+// mob.hear(...);
+impl<T: ?Sized + Unsize<U>, U: ?Sized, ReadKey: ?Sized, WriteKey: ?Sized> DispatchFromDyn<P<U, ReadKey, WriteKey>> for P<T, ReadKey, WriteKey> {}
+// impl<T: ?Sized + Unsize<U>, U: ?Sized, ReadKey: ?Sized, WriteKey: ?Sized> DispatchFromDyn<Weak<U, ReadKey, WriteKey>> for Weak<T, ReadKey, WriteKey> {}
+impl<'g, T: ?Sized + Unsize<U>, U: ?Sized, ReadKey: ?Sized, WriteKey: ?Sized> DispatchFromDyn<MobRef<'g, U, ReadKey, WriteKey>> for MobRef<'g, T, ReadKey, WriteKey> {}
+impl<'g, T: ?Sized + Unsize<U>, U: ?Sized, ReadKey: ?Sized, WriteKey: ?Sized> DispatchFromDyn<MobRefMut<'g, U, ReadKey, WriteKey>> for MobRefMut<'g, T, ReadKey, WriteKey> {}
+
+// prevent cloning
+impl<ReadKey: ?Sized> !Clone for ReadGuard<ReadKey> {}
+impl<WriteKey: ?Sized> !Clone for WriteGuard<WriteKey> {}
+impl<'g, M: ?Sized, ReadKey: ?Sized, WriteKey: ?Sized> !Clone for MobRef<'g, M, ReadKey, WriteKey> {}
+impl<'g, M: ?Sized, ReadKey: ?Sized, WriteKey: ?Sized> !Clone for MobRefMut<'g, M, ReadKey, WriteKey> {}

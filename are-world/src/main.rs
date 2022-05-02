@@ -6,10 +6,12 @@
 #![feature(get_mut_unchecked)]
 #![feature(unsize)]
 #![feature(coerce_unsized)]
+#![feature(dispatch_from_dyn)]
 #![feature(is_some_with)]
 #![feature(scoped_threads)]
 #![feature(vec_into_raw_parts)]
 #![feature(maybe_uninit_slice)]
+#![feature(arbitrary_self_types)]
 
 use crate::arena::conf::StaticConf;
 use crate::arena::cosmos::*;
