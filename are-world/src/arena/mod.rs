@@ -13,7 +13,6 @@ pub use r#ref::WriteGuard;
 pub use r#ref::P;
 pub use r#ref::MobRef;
 pub use r#ref::MobRefMut;
-pub use r#ref::MobMutHandle;
 
 //
 pub use crate::grids::{Coord, Interval, Matrix};
