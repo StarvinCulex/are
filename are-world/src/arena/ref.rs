@@ -278,7 +278,7 @@ where
     WriteKey: ?Sized,
 {
     #[inline]
-    pub fn upgrade(self) -> Option<P<Element, ReadKey, WriteKey>> {
+    pub fn upgrade(self, _read_key: &ReadKey) -> Option<P<Element, ReadKey, WriteKey>> {
         self.data.upgrade().map(|arc| arc.into())
     }
 
@@ -320,6 +320,11 @@ impl<ReadKey: ?Sized> ReadGuard<ReadKey> {
     pub fn wrap<'g, M: ?Sized, WriteKey: ?Sized>(&'g self, p: P<_MobBlock<M>, ReadKey, WriteKey>) -> MobRef<'g, M, ReadKey, WriteKey> {
         MobRef(p, PhantomData::default())
     }
+
+    #[inline]
+    pub fn wrap_weak<'g, M: ?Sized, WriteKey: ?Sized>(&'g self, weak: Weak<_MobBlock<M>, ReadKey, WriteKey>) -> Option<MobRef<'g, M, ReadKey, WriteKey>> {
+        Some(MobRef(weak.data.upgrade().unwrap().into(), PhantomData::default()))
+    }
 }
 
 impl<WriteKey: ?Sized> WriteGuard<WriteKey> {
@@ -342,20 +347,45 @@ impl<WriteKey: ?Sized> WriteGuard<WriteKey> {
     }
 
     #[inline]
+    pub fn wrap_weak<'g, M: ?Sized, ReadKey: ?Sized>(&'g self, weak: Weak<_MobBlock<M>, ReadKey, WriteKey>) -> Option<MobRef<'g, M, ReadKey, WriteKey>> {
+        Some(MobRef(weak.data.upgrade().unwrap().into(), PhantomData::default()))
+    }
+
+    #[inline]
     pub unsafe fn wrap_mut<'g, M: ?Sized, ReadKey: ?Sized>(&'g self, p: P<_MobBlock<M>, ReadKey, WriteKey>) -> MobRefMut<'g, M, ReadKey, WriteKey> {
         MobRefMut(p, PhantomData::default())
+    }
+
+    #[inline]
+    pub unsafe fn wrap_weak_mut<'g, M: ?Sized, ReadKey: ?Sized>(&'g self, weak: Weak<_MobBlock<M>, ReadKey, WriteKey>) -> Option<MobRefMut<'g, M, ReadKey, WriteKey>> {
+        Some(MobRefMut(weak.data.upgrade().unwrap().into(), PhantomData::default()))
     }
 }
 
 pub struct MobRef<'g, M: ?Sized, ReadKey: ?Sized = PKey, WriteKey: ?Sized = PKey>(P<_MobBlock<M>, ReadKey, WriteKey>, PhantomData<&'g ReadGuard<ReadKey>>);
 pub struct MobRefMut<'g, M: ?Sized, ReadKey: ?Sized = PKey, WriteKey: ?Sized = PKey>(P<_MobBlock<M>, ReadKey, WriteKey>, PhantomData<&'g WriteGuard<WriteKey>>);
+pub struct MobMutHandle<'r, ReadKey: ?Sized = PKey, WriteKey: ?Sized = PKey>(P<MobBlock, ReadKey, WriteKey>, PhantomData<&'r i32>);
 
-impl<'g, M: Mob + 'static, ReadKey: ?Sized, WriteKey: ?Sized> MobRef<'g, M, ReadKey, WriteKey> {
+impl<'g, M: ?Sized, ReadKey: ?Sized, WriteKey: ?Sized> MobRef<'g, M, ReadKey, WriteKey> {
+    #[inline]
+    pub fn at(&self) -> CrdI {
+        self.0.data.as_ref().at
+    }
+}
+
+impl<'g, M: ?Sized + Mob, ReadKey: ?Sized, WriteKey: ?Sized> MobRefMut<'g, M, ReadKey, WriteKey> {
     #[inline]
     pub fn at(&self) -> CrdI {
         self.0.data.as_ref().at
     }
 
+    #[inline]
+    pub fn get_inner(&self, _write_key: &WriteKey) -> P<_MobBlock<M>, ReadKey, WriteKey> {
+        self.0.clone()
+    }
+}
+
+impl<'g, M: Mob + 'static, ReadKey: ?Sized, WriteKey: ?Sized> MobRef<'g, M, ReadKey, WriteKey> {
     #[inline]
     pub fn downgrade(&self) -> Weak<MobBlock, ReadKey, WriteKey> {
         self.0.downgrade()
@@ -364,13 +394,19 @@ impl<'g, M: Mob + 'static, ReadKey: ?Sized, WriteKey: ?Sized> MobRef<'g, M, Read
 
 impl<'g, M: Mob + 'static, ReadKey: ?Sized, WriteKey: ?Sized> MobRefMut<'g, M, ReadKey, WriteKey> {
     #[inline]
-    pub fn at(&self) -> CrdI {
-        self.0.data.as_ref().at
+    pub fn downgrade(&self) -> Weak<MobBlock, ReadKey, WriteKey> {
+        self.0.downgrade()
     }
     
     #[inline]
-    pub fn downgrade(&self) -> Weak<MobBlock, ReadKey, WriteKey> {
-        self.0.downgrade()
+    pub fn handle<'r>(&'r mut self) -> MobMutHandle<'r, ReadKey, WriteKey> {
+        MobMutHandle(self.0.clone(), PhantomData::default())
+    }
+}
+
+impl<'r, ReadKey: ?Sized, WriteKey: ?Sized> MobMutHandle<'r, ReadKey, WriteKey> {
+    pub fn get_inner(&self, _write_key: &WriteKey) -> P<MobBlock, ReadKey, WriteKey> {
+        self.0.clone()
     }
 }
 
@@ -418,3 +454,5 @@ impl<ReadKey: ?Sized> !Clone for ReadGuard<ReadKey> {}
 impl<WriteKey: ?Sized> !Clone for WriteGuard<WriteKey> {}
 impl<'g, M: ?Sized, ReadKey: ?Sized, WriteKey: ?Sized> !Clone for MobRef<'g, M, ReadKey, WriteKey> {}
 impl<'g, M: ?Sized, ReadKey: ?Sized, WriteKey: ?Sized> !Clone for MobRefMut<'g, M, ReadKey, WriteKey> {}
+impl<'r, ReadKey: ?Sized, WriteKey: ?Sized> !Clone for MobMutHandle<'r, ReadKey, WriteKey> {}
+

@@ -29,11 +29,12 @@ impl Mob for Mech {
     ) {
     }
 
-    fn order(self: MobRefMut<Self>, deamon: &mut Deamon, order: Vec<Order>) {
+    fn order(mut self: MobRefMut<Self>, deamon: &mut Deamon, order: Vec<Order>) {
+        let at = self.at();
         deamon
             .reset(
-                self.downgrade(),
-                self.at().map(|x| Interval::new(x.from + 1, x.from + 1)),
+                self.handle(),
+                at.map(|x| Interval::new(x.from + 1, x.from + 1)),
             )
             .unwrap();
         deamon.angelos.order(self.downgrade(), mob::Order::Wake, 1);

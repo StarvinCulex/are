@@ -122,25 +122,27 @@ impl Cosmos {
         &self,
         mobs: Output<Weak<MobBlock>, T>,
         chunk_size: Crd,
-    ) -> HashMap<CrdI, Vec<(P<MobBlock>, Vec<T>)>> {
+    ) -> HashMap<CrdI, Vec<(Weak<MobBlock>, Vec<T>)>> {
         let thread_count = self.angelos.properties.runtime_conf.thread_count;
-        let mut workers: Vec<HashMap<CrdI, Vec<(P<MobBlock>, Vec<T>)>>> = Vec::with_capacity(thread_count);
+        let mut workers: Vec<HashMap<CrdI, Vec<(Weak<MobBlock>, Vec<T>)>>> = Vec::with_capacity(thread_count);
         for _ in 0..thread_count {
             workers.push(HashMap::new());
         }
 
         let jobs = mobs.into_iter().collect();
-        jobs::work(workers.iter_mut(), jobs, |worker, mut job| {
-            if let Some(mob) = job.0.upgrade() {
-                let pos = mob.at();
-                let center = Coord((pos.0.from + pos.0.to) / 2, (pos.1.from + pos.1.to) / 2);
-                let center = self.angelos.normalize_pos(center);
-                let left_top = Coord(center.0 - center.0 % chunk_size.0, center.1 - center.1 % chunk_size.1);
-                let interval = left_top | (left_top + chunk_size);
-                worker.entry(interval)
-                    .or_default()
-                    .push((mob, job.1));
-            }
+        ReadGuard::with(&self.angelos.pkey, |guard| {
+            jobs::work(workers.iter_mut(), jobs, |worker, mut job| {
+                if let Some(mob_ref) = guard.wrap_weak(job.0.clone()) {
+                    let pos = mob_ref.at();
+                    let center = Coord((pos.0.from + pos.0.to) / 2, (pos.1.from + pos.1.to) / 2);
+                    let center = self.angelos.normalize_pos(center);
+                    let left_top = Coord(center.0 - center.0 % chunk_size.0, center.1 - center.1 % chunk_size.1);
+                    let interval = left_top | (left_top + chunk_size);
+                    worker.entry(interval)
+                        .or_default()
+                        .push(job);
+                }
+            });
         });
 
         let mut worker_iter = workers.into_iter();
@@ -184,8 +186,8 @@ impl Cosmos {
                     workers.into_iter(),
                     mob_messages.into_iter().collect(),
                     |angelos, (mob, msgs)| {
-                        if let Some(mob) = mob.upgrade() {
-                            guard.wrap(mob).hear(self, angelos, msgs, guard);
+                        if let Some(mob_ref) = guard.wrap_weak(mob) {
+                            mob_ref.hear(self, angelos, msgs, guard);
                         }
                     },
                 );
@@ -240,7 +242,9 @@ impl Cosmos {
                             bound
                         };
                         for (mob, orders) in local_mob_orders.into_iter() {
-                            unsafe { guard.wrap_mut(mob) }.order(&mut deamon, orders);
+                            if let Some(mob_ref_mut) = unsafe { guard.wrap_weak_mut(mob) } {
+                                mob_ref_mut.order(&mut deamon, orders);
+                            }
                         }
                     },
                 );

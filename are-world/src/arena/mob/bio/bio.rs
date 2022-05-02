@@ -127,8 +127,10 @@ impl Mob for Bio {
                 if let Some(pchild) = {
                     let mut r = None;
                     for i in [Coord(0, -1), Coord(0, 1), Coord(1, 0), Coord(-1, 0)] {
+                        let mut child_mob = pchild.take().unwrap();
                         let child_at = self.at().offset(i * self.species.size());
-                        match deamon.set(pchild.take().unwrap(), child_at) {
+                        child_mob.at = child_at;
+                        match deamon.set(child_mob) {
                             Err(pc) => pchild = Some(pc),
                             Ok(pc) => {
                                 r = Some(pc);
@@ -142,12 +144,12 @@ impl Mob for Bio {
                 {
                     self.energy = energy_remain;
                     deamon.angelos.tell(
-                        pchild.downgrade(),
+                        pchild.clone(),
                         Msg::Wake,
                         self.species.spawn_wake_at(),
                     );
                     deamon.angelos.order(
-                        pchild.downgrade(),
+                        pchild,
                         Order::Wake,
                         self.species.spawn_wake_at(),
                     )
@@ -158,13 +160,14 @@ impl Mob for Bio {
         // 移动
         if self.facing != Coord(0, 0)
             && self.wake_tick % self.species.move_period() == 0
-            // 尝试移动
-            && deamon
-            .reset(self.downgrade(), self.at().offset(self.facing))
-            .is_ok()
         {
-            self.facing = Coord(0, 0);
-            self.energy = self.energy.saturating_sub(self.species.move_cost())
+            let at = self.at();
+            let facing = self.facing;
+            // 尝试移动
+            if deamon.reset(self.handle(), at.offset(facing)).is_ok() {
+                self.facing = Coord(0, 0);
+                self.energy = self.energy.saturating_sub(self.species.move_cost())
+            }
         }
     }
 }
