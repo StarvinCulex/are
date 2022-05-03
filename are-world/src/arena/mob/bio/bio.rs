@@ -175,7 +175,7 @@ impl Mob for Bio {
             let move_step = self.path.pop_front().unwrap_or_default();
             if move_step != Coord(0, 0) && self.wake_tick % self.species.move_period() == 0
                 // 尝试移动
-                && deamon.reset(self.handle(), at.offset(move_step)).is_ok()
+                && deamon.reset(&mut self, at.offset(move_step)).is_ok()
             {
                 self.energy = self.energy.saturating_sub(self.species.move_cost());
             } else {

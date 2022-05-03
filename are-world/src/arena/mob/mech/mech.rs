@@ -33,7 +33,7 @@ impl Mob for Mech {
         let at = self.at();
         deamon
             .reset(
-                self.handle(),
+                &mut self,
                 at.map(|x| Interval::new(x.from + 1, x.from + 1)),
             )
             .unwrap();

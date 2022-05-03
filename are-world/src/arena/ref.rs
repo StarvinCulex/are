@@ -364,7 +364,6 @@ impl<WriteKey: ?Sized> WriteGuard<WriteKey> {
 
 pub struct MobRef<'g, M: ?Sized, ReadKey: ?Sized = PKey, WriteKey: ?Sized = PKey>(P<_MobBlock<M>, ReadKey, WriteKey>, PhantomData<&'g ReadGuard<ReadKey>>);
 pub struct MobRefMut<'g, M: ?Sized, ReadKey: ?Sized = PKey, WriteKey: ?Sized = PKey>(P<_MobBlock<M>, ReadKey, WriteKey>, PhantomData<&'g WriteGuard<WriteKey>>);
-pub struct MobMutHandle<'r, ReadKey: ?Sized = PKey, WriteKey: ?Sized = PKey>(P<MobBlock, ReadKey, WriteKey>, PhantomData<&'r i32>);
 
 impl<'g, M: ?Sized, ReadKey: ?Sized, WriteKey: ?Sized> MobRef<'g, M, ReadKey, WriteKey> {
     #[inline]
@@ -396,17 +395,6 @@ impl<'g, M: Mob + 'static, ReadKey: ?Sized, WriteKey: ?Sized> MobRefMut<'g, M, R
     #[inline]
     pub fn downgrade(&self) -> Weak<MobBlock, ReadKey, WriteKey> {
         self.0.downgrade()
-    }
-    
-    #[inline]
-    pub fn handle<'r>(&'r mut self) -> MobMutHandle<'r, ReadKey, WriteKey> {
-        MobMutHandle(self.0.clone(), PhantomData::default())
-    }
-}
-
-impl<'r, ReadKey: ?Sized, WriteKey: ?Sized> MobMutHandle<'r, ReadKey, WriteKey> {
-    pub fn get_inner(&self, _write_key: &WriteKey) -> P<MobBlock, ReadKey, WriteKey> {
-        self.0.clone()
     }
 }
 
@@ -454,5 +442,4 @@ impl<ReadKey: ?Sized> !Clone for ReadGuard<ReadKey> {}
 impl<WriteKey: ?Sized> !Clone for WriteGuard<WriteKey> {}
 impl<'g, M: ?Sized, ReadKey: ?Sized, WriteKey: ?Sized> !Clone for MobRef<'g, M, ReadKey, WriteKey> {}
 impl<'g, M: ?Sized, ReadKey: ?Sized, WriteKey: ?Sized> !Clone for MobRefMut<'g, M, ReadKey, WriteKey> {}
-impl<'r, ReadKey: ?Sized, WriteKey: ?Sized> !Clone for MobMutHandle<'r, ReadKey, WriteKey> {}
 

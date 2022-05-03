@@ -121,11 +121,11 @@ impl<'c, 'a> Deamon<'c, 'a> {
     }
 
     /// 尝试把[`mob`]移动到[`new_at`]的位置。
-    pub fn reset(&mut self, mob: MobMutHandle, new_at: CrdI) -> Result<(), ()> {
+    pub fn reset<'g, M: Mob + 'static>(&mut self, mob: &mut MobRefMut<'g, M>, new_at: CrdI) -> Result<(), ()> {
         if !self.contains(new_at) {
             return Err(());
         }
-        let mut mob = mob.get_inner(&self.angelos.major.pkey);
+        let mut mob: P<MobBlock> = mob.get_inner(&self.angelos.major.pkey);
         let at = mob.at();
         // check if there is another mob
         if self
