@@ -9,7 +9,7 @@ use crate::arena::types::*;
 use crate::arena::Weak;
 use crate::arena::{Cosmos, MobRef, MobRefMut, ReadGuard, P};
 use crate::mob::bio::atk::ATK;
-use crate::{matrix, mob, Coord, Interval};
+use crate::{measure_area, mob, Coord, Interval};
 
 use super::species::Species;
 
@@ -37,7 +37,23 @@ pub enum Target {
 }
 
 impl Bio {
-    fn suicide(&mut self, at: CrdI, deamon: &Deamon) {}
+    fn suicide(mut self: MobRefMut<Self>, deamon: &mut Deamon) {
+        let energy: f64 = self.energy.into();
+        let size = measure_area(deamon.angelos.major.plate_size.into(), self.at().into());
+        let energy_per_grid: EnergyT = (energy
+            * deamon
+                .angelos
+                .major
+                .properties
+                .runtime_conf
+                .corpse_convert_cost
+            / (size.0 * size.1) as f64) as EnergyT;
+        for (_, g) in deamon.get_ground_iter_mut(self.at()).unwrap() {
+            g.plant.add_corpse(energy_per_grid);
+        }
+
+        deamon.take(self);
+    }
 }
 
 impl Mob for Bio {
@@ -69,18 +85,23 @@ impl Mob for Bio {
         if !wake {
             return;
         }
-
-        angelos.tell(self.downgrade(), Msg::Wake, self.species.wake_span());
+        angelos.tell(self.downgrade(), Msg::Wake, self.species.wake_period());
+        angelos.order(
+            self.downgrade(),
+            Order::MobMainTick,
+            self.species.act_delay(),
+        );
     }
 
     fn order(mut self: MobRefMut<Self>, deamon: &mut Deamon, orders: Vec<Order>) {
-        let mut wake = false;
+        let mut main_tick = false;
         for odr in orders {
             match odr {
-                Order::Wake => wake = true,
+                Order::MobMainTick => main_tick = true,
             }
         }
-        if !wake {
+
+        if !main_tick {
             return;
         }
         self.wake_tick = self.wake_tick.overflowing_add(1).0;
@@ -94,15 +115,11 @@ impl Mob for Bio {
                 } else {
                     // 饿死
                     let at = self.at();
-                    self.suicide(at, deamon);
+                    self.suicide(deamon);
                     return;
                 }
             }
         }
-
-        deamon
-            .angelos
-            .order(self.downgrade(), Order::Wake, self.species.wake_span());
 
         // 能生崽不？
         if self.wake_tick % self.species.breed_period() == 0
@@ -125,6 +142,7 @@ impl Mob for Bio {
                 let mut pchild = Some(child.into_box());
 
                 // 是否放下了幼崽
+                // todo 幼崽的初始大小可能不同
                 if let Some(pchild) = {
                     let mut r = None;
                     for i in [Coord(0, -1), Coord(0, 1), Coord(1, 0), Coord(-1, 0)] {
@@ -147,9 +165,6 @@ impl Mob for Bio {
                     deamon
                         .angelos
                         .tell(pchild.clone(), Msg::Wake, self.species.spawn_wake_at());
-                    deamon
-                        .angelos
-                        .order(pchild, Order::Wake, self.species.spawn_wake_at())
                 }
             }
         }
@@ -157,14 +172,14 @@ impl Mob for Bio {
         // 移动
         {
             let at = self.at();
-            let move_step = self.path.front().copied().unwrap_or_default();
+            let move_step = self.path.pop_front().unwrap_or_default();
             if move_step != Coord(0, 0) && self.wake_tick % self.species.move_period() == 0
                 // 尝试移动
                 && deamon.reset(self.handle(), at.offset(move_step)).is_ok()
             {
                 self.energy = self.energy.saturating_sub(self.species.move_cost());
-                self.path.pop_front();
             } else {
+                self.path.clear();
                 // 吃草
                 let eat_starts = self.species.eat_starts();
                 let eat_takes = self.species.eat_takes();

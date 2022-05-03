@@ -7,7 +7,7 @@ use crate::arena::cosmos::{Deamon, MobBlock, PKey, _MobBlock};
 use crate::arena::defs::CrdI;
 use crate::arena::mob::{Mob, Msg, Order};
 use crate::arena::{mob, Cosmos, ReadGuard};
-use crate::{Interval, SWord, P, MobRef, MobRefMut};
+use crate::{Interval, MobRef, MobRefMut, SWord, P};
 
 pub struct Mech {}
 
@@ -37,6 +37,8 @@ impl Mob for Mech {
                 at.map(|x| Interval::new(x.from + 1, x.from + 1)),
             )
             .unwrap();
-        deamon.angelos.order(self.downgrade(), mob::Order::Wake, 1);
+        deamon
+            .angelos
+            .order(self.downgrade(), mob::Order::MobMainTick, 1);
     }
 }

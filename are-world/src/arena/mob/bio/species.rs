@@ -25,7 +25,11 @@ impl Species {
         todo!()
     }
 
-    pub fn wake_span(&self) -> Tick {
+    pub fn wake_period(&self) -> Tick {
+        todo!()
+    }
+
+    pub fn act_delay(&self) -> Tick {
         todo!()
     }
 
@@ -46,11 +50,7 @@ impl Species {
         todo!()
     }
 
-    pub fn spawn_wake_at(&self) -> u64 {
-        todo!()
-    }
-
-    pub fn speed(&self) -> SpeedT {
+    pub fn spawn_wake_at(&self) -> Tick {
         todo!()
     }
 

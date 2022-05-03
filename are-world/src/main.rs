@@ -45,12 +45,13 @@ fn main() {
             padding: Coord(1, 1),
         },
         RuntimeConf {
-            period: 10,
+            period: 100,
             fire_tick: 4,
             plant_aging: 0.01,
             plant_sow: 0.001,
             corpse_rot: 1,
             thread_count: 4,
+            corpse_convert_cost: 1.0,
         },
     );
 

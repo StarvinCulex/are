@@ -1,3 +1,3 @@
 pub enum Order {
-    Wake,
+    MobMainTick,
 }

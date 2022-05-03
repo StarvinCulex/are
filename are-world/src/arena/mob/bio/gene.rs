@@ -33,8 +33,4 @@ impl Gene {
     pub fn select(&self, block: cosmos::Block) -> i32 {
         todo!()
     }
-    #[inline]
-    pub fn speed(&self) -> SpeedT {
-        todo!()
-    }
 }

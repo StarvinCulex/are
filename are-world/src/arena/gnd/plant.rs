@@ -57,6 +57,14 @@ impl Plant {
         self.age = self.age.saturating_sub(value);
         age_before - self.age
     }
+
+    #[inline]
+    pub fn add_corpse(&mut self, value: EnergyT) {
+        if value > self.age {
+            self.kind = Kind::Corpse;
+        }
+        self.age = self.age.saturating_add(value);
+    }
 }
 
 impl Default for Plant {
