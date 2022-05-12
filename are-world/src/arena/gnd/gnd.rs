@@ -13,6 +13,11 @@ pub struct Ground {
 }
 
 impl Ground {
+    /// 生物不会**认为**此位置是可以站立的地方
+    pub fn mob_placable(&self) -> bool {
+        true
+    }
+
     pub fn hear(&self, cosmos: &Cosmos, angelos: &mut Angelos, self_at: Crd, messages: Vec<Msg>) {
         for msg in messages {
             match msg {}

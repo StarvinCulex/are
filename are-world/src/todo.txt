@@ -1,4 +1,5 @@
 使用 std::mem::MaybeUninit 优化crate::grids::matrix::Matrix
 优化 crate::grids::matrix::Scan ，加快遍历速度
 优化 crate::grids::matrix::Matrix 寻址速度(通过unsafe)
-植物具有寿命，到点就死
+植物具有寿命
+deamon的set、reset会归一化mob.at

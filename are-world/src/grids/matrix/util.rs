@@ -1,13 +1,18 @@
+use std::ops::{Add, Sub};
+
 /// by *StarvinCulex @2021/11/27*
 use super::{Coord, Interval};
 
 /// 计算区间[`interval`]包含范围0..[`size`]中多少个元素
 #[inline]
-pub fn measure_length(size: isize, interval: Interval<isize>) -> isize {
+pub fn measure_length<I>(size: I, interval: Interval<I>) -> I
+where
+    I: Ord + Sub<Output = I> + Add<Output = I> + From<u8>,
+{
     if interval.to >= interval.from {
-        interval.to - interval.from + 1
+        interval.to - interval.from + 1u8.into()
     } else {
-        size + interval.to - interval.from + 1
+        size + interval.to - interval.from + 1u8.into()
     }
 }
 
@@ -15,8 +20,11 @@ pub fn measure_length(size: isize, interval: Interval<isize>) -> isize {
 /// ```rust
 /// matrix_size.reduce(area, measure_length)
 #[inline]
-pub fn measure_area(matrix_size: Coord<isize>, area: Coord<Interval<isize>>) -> Coord<isize> {
-    matrix_size.reduce(area, measure_length)
+pub fn measure_area<I>(matrix_size: Coord<I>, area: Coord<Interval<I>>) -> Coord<I>
+where
+    I: Ord + Sub<Output = I> + Add<Output = I> + From<u8>,
+{
+    matrix_size.reduce(area, measure_length::<I>)
 }
 
 /// 计算int1和int2在长度是size的环形空间的距离

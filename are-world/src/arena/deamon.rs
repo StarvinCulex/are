@@ -1,5 +1,6 @@
-use crate::meta::gnd::Ground;
 use std::iter::Map;
+
+use crate::meta::gnd::Ground;
 
 //
 pub struct Deamon<'c, 'a> {
@@ -83,6 +84,7 @@ impl<'c, 'a> Deamon<'c, 'a> {
         }
         // set the plate
         let mob: P<MobBlock> = mob.into();
+
         for (_, grid) in self.plate.area_mut(at) {
             grid.mob = Some(mob.clone());
         }
@@ -121,7 +123,11 @@ impl<'c, 'a> Deamon<'c, 'a> {
     }
 
     /// 尝试把[`mob`]移动到[`new_at`]的位置。
-    pub fn reset<'g, M: Mob + 'static>(&mut self, mob: &mut MobRefMut<'g, M>, new_at: CrdI) -> Result<(), ()> {
+    pub fn reset<'g, M: Mob + 'static>(
+        &mut self,
+        mob: &mut MobRefMut<'g, M>,
+        new_at: CrdI,
+    ) -> Result<(), ()> {
         if !self.contains(new_at) {
             return Err(());
         }

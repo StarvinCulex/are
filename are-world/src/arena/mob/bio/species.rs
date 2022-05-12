@@ -5,6 +5,8 @@ use crate::arena::conf;
 use crate::arena::defs::Crd;
 use crate::arena::types::*;
 use crate::meta::defs::{Idx, Tick};
+use crate::mob::bio::bio::Target;
+use crate::Block;
 
 use super::gene::Gene;
 
@@ -16,6 +18,11 @@ pub struct Species {
 pub struct SpeciesPool {}
 
 impl Species {
+    /// 返回值：负数表示逃离，正数表示接近
+    pub fn watching_choice(&self, block: &Block) -> (Target, i8) {
+        todo!()
+    }
+
     /// 在醒来的第[`u8`]次消耗[`EnergyT`]的能量
     pub fn wake_energy_consume(&self) -> (EnergyT, WakeTickT) {
         todo!()

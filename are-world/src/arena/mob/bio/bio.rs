@@ -1,15 +1,15 @@
-use std::collections::VecDeque;
 use std::sync::Arc;
 
 use crate::arena::cosmos::*;
 use crate::arena::cosmos::{Deamon, MobBlock, PKey, _MobBlock};
-use crate::arena::defs::{Crd, CrdI};
+use crate::arena::defs::{Crd, CrdI, Idx};
 use crate::arena::mob::{Mob, Msg, Order};
 use crate::arena::types::*;
 use crate::arena::Weak;
 use crate::arena::{Cosmos, MobRef, MobRefMut, ReadGuard, P};
 use crate::mob::bio::atk::ATK;
-use crate::{measure_area, mob, Coord, Interval};
+use crate::mob::common::bfs::manhattan_carpet_bomb_search;
+use crate::{measure_area, measure_length, mob, Coord, Interval};
 
 use super::species::Species;
 
@@ -17,26 +17,33 @@ pub struct Bio {
     pub species: Arc<Species>,
     pub wake_tick: WakeTickT,
     pub energy: EnergyT,
-    pub target: Target,
-    /// 可能的值: (0, 0) (±1, 0) (0, ±1)
-    /// 用于order tick里移动，记录移动的偏移量
-    pub path: VecDeque<Crd>,
+    pub mutex: Mutex<BioMutex>,
 }
 
-#[derive(Clone)]
+pub struct BioMutex {
+    pub target_weight: i8,
+    pub target: Target,
+}
+
 pub enum Target {
     None,
-    Pos {
-        weight: TargetWeightT,
-        to: Crd,
-    },
-    Bio {
-        weight: TargetWeightT,
-        to: Weak<MobBlock>,
-    },
+    Pos(Crd),
+    Mob(Weak<MobBlock>),
 }
 
 impl Bio {
+    pub fn new(species: Arc<Species>, energy: EnergyT) -> Bio {
+        Bio {
+            species,
+            energy,
+            wake_tick: 0,
+            mutex: Mutex::new(BioMutex {
+                target_weight: 0,
+                target: Target::None,
+            }),
+        }
+    }
+
     fn suicide(mut self: MobRefMut<Self>, deamon: &mut Deamon) {
         let energy: f64 = self.energy.into();
         let size = measure_area(deamon.angelos.major.plate_size.into(), self.at().into());
@@ -85,15 +92,42 @@ impl Mob for Bio {
         if !wake {
             return;
         }
+        // 维持心跳
         angelos.tell(self.downgrade(), Msg::Wake, self.species.wake_period());
         angelos.order(
             self.downgrade(),
             Order::MobMainTick,
             self.species.act_delay(),
         );
+
+        // 观察周围
+        let mut lock = self.mutex.lock().unwrap();
+        if self.wake_tick % self.species.watch_period() == 0 {
+            manhattan_carpet_bomb_search(
+                self.at().from(),
+                self.species.watch_range() as u16,
+                |p| {
+                    let (target, weight) = self.species.watching_choice(&cosmos.plate[p]);
+                    if weight == i8::MIN || weight == i8::MAX {
+                        lock.target_weight = weight;
+                        lock.target = target;
+                        return Some(());
+                    }
+                    if weight.abs() > lock.target_weight.abs() {
+                        lock.target_weight = weight;
+                        lock.target = target;
+                    }
+                    None
+                },
+            );
+
+            todo!()
+        }
     }
 
     fn order(mut self: MobRefMut<Self>, deamon: &mut Deamon, orders: Vec<Order>) {
+        let matrix_size = deamon.angelos.major.plate_size;
+
         let mut main_tick = false;
         for odr in orders {
             match odr {
@@ -132,22 +166,24 @@ impl Mob for Bio {
                     .species_pool
                     .clone_species(self.species.clone());
                 let child_energy = self.species.spawn_energy();
-                let child = Bio {
-                    species: child_species,
-                    energy: child_energy,
-                    wake_tick: 0,
-                    target: Target::None,
-                    path: VecDeque::new(),
-                };
+                let child_size = Coord(0, 0) | child_species.size();
+                let child = Bio::new(child_species, child_energy);
                 let mut pchild = Some(child.into_box());
 
                 // 是否放下了幼崽
                 // todo 幼崽的初始大小可能不同
                 if let Some(pchild) = {
                     let mut r = None;
-                    for i in [Coord(0, -1), Coord(0, 1), Coord(1, 0), Coord(-1, 0)] {
+                    for child_at in [
+                        Coord(-measure_length(matrix_size.0, child_size.0), 0),
+                        Coord(0, -measure_length(matrix_size.1, child_size.1)),
+                        Coord(measure_length(matrix_size.0, self.at().0), 0),
+                        Coord(0, measure_length(matrix_size.1, self.at().1)),
+                    ]
+                    .into_iter()
+                    .map(|x| child_size.offset(self.at().from() + x))
+                    {
                         let mut child_mob = pchild.take().unwrap();
-                        let child_at = self.at().offset(i * self.species.size());
                         child_mob.at = child_at;
                         match deamon.set(child_mob) {
                             Err(pc) => pchild = Some(pc),
@@ -171,24 +207,25 @@ impl Mob for Bio {
 
         // 移动
         {
-            let at = self.at();
-            let move_step = self.path.pop_front().unwrap_or_default();
-            if move_step != Coord(0, 0) && self.wake_tick % self.species.move_period() == 0
-                // 尝试移动
-                && deamon.reset(&mut self, at.offset(move_step)).is_ok()
-            {
-                self.energy = self.energy.saturating_sub(self.species.move_cost());
-            } else {
-                self.path.clear();
-                // 吃草
-                let eat_starts = self.species.eat_starts();
-                let eat_takes = self.species.eat_takes();
-                for (_, g) in deamon.get_ground_iter_mut(at).unwrap() {
-                    if g.plant.age >= eat_starts {
-                        self.energy = self.energy.saturating_add(g.plant.mow(eat_takes));
-                    }
-                }
-            }
+            todo!()
+            // let at = self.at();
+            // let move_step = self.path.pop_front().unwrap_or_default();
+            // if move_step != Coord(0, 0) && self.wake_tick % self.species.move_period() == 0
+            //     // 尝试移动
+            //     && deamon.reset(&mut self, at.offset(move_step)).is_ok()
+            // {
+            //     self.energy = self.energy.saturating_sub(self.species.move_cost());
+            // } else {
+            //     self.path.clear();
+            //     // 吃草
+            //     let eat_starts = self.species.eat_starts();
+            //     let eat_takes = self.species.eat_takes();
+            //     for (_, g) in deamon.get_ground_iter_mut(at).unwrap() {
+            //         if g.plant.age >= eat_starts {
+            //             self.energy = self.energy.saturating_add(g.plant.mow(eat_takes));
+            //         }
+            //     }
+            // }
         }
     }
 }
