@@ -34,6 +34,7 @@ mod conencode;
 mod cui;
 mod grids;
 mod jobs;
+mod lock;
 mod msgpip;
 mod sword;
 
