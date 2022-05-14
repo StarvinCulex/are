@@ -71,7 +71,7 @@ impl<'c, 'a> Deamon<'c, 'a> {
     pub fn set<M: Mob + Unsize<dyn Mob> + ?Sized>(
         &mut self,
         mut mob: ArcBox<_MobBlock<M>>,
-    ) -> Result<Weak<_MobBlock<M>>, ArcBox<_MobBlock<M>>> {
+    ) -> Result<Weak<MobBlock>, ArcBox<_MobBlock<M>>> {
         let at = mob.at;
         if !self.contains(at) {
             return Err(mob);
@@ -89,6 +89,7 @@ impl<'c, 'a> Deamon<'c, 'a> {
         // set the plate
         mob.at = self.angelos.major.normalize_area(at);
         let mob: Arc<_MobBlock<M>> = mob.into();
+        let mob: Arc<MobBlock> = mob;
 
         for (_, grid) in self.plate.area_mut(at) {
             grid.mob = Some(mob.clone());
@@ -100,7 +101,6 @@ impl<'c, 'a> Deamon<'c, 'a> {
         &mut self,
         mob: MobRefMut<'g, M>,
     ) -> Result<ArcBox<_MobBlock<M>>, MobRefMut<'g, M>> {
-        let mob_p = mob.get_inner(&self.angelos.major.pkey);
         let at = mob.at();
 
         // check if the mob.at() is valid
@@ -114,7 +114,7 @@ impl<'c, 'a> Deamon<'c, 'a> {
         // }
         let scan = self.plate.area_mut(at).scan();
         // quick fail: check if it's unique after clearing the plate
-        if scan.len() + 1 < Arc::strong_count(&mob_p) {
+        if scan.len() + 1 < mob.strong_count() {
             return Err(mob);
         }
         // clear the plate
@@ -122,7 +122,8 @@ impl<'c, 'a> Deamon<'c, 'a> {
             grid.mob = None;
         }
         // convert
-        mob_p
+        mob
+            .into_inner(&self.angelos.major.pkey)
             .try_into()
             .map_err(|_| unreachable!())
     }

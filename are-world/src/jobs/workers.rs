@@ -59,7 +59,7 @@ impl<Job> AtomicQueue<Job> {
 
 impl<Job> Drop for AtomicQueue<Job> {
     fn drop(&mut self) {
-        let ptr = self.ptr.load(Relaxed);
+        let ptr = *self.ptr.get_mut();
         if ptr < self.data.len() {
             unsafe {
                 let need_drop: &mut [Job] = std::mem::transmute(&mut self.data[ptr..]);

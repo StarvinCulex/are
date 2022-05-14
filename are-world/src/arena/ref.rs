@@ -186,6 +186,16 @@ impl<'g, M: ?Sized, AccessKey: ?Sized> MobRef<'g, M, AccessKey> {
     pub fn at(&self) -> CrdI {
         self.0.as_ref().at
     }
+
+    #[inline]
+    pub fn strong_count(&self) -> usize {
+        Arc::strong_count(&self.0)
+    }
+
+    #[inline]
+    pub fn weak_count(&self) -> usize {
+        Arc::weak_count(&self.0)
+    }
 }
 
 impl<'g, M: ?Sized + Mob, AccessKey: ?Sized> MobRefMut<'g, M, AccessKey> {
@@ -197,6 +207,21 @@ impl<'g, M: ?Sized + Mob, AccessKey: ?Sized> MobRefMut<'g, M, AccessKey> {
     #[inline]
     pub fn get_inner(&self, _key: &AccessKey) -> Arc<_MobBlock<M>> {
         self.0.clone()
+    }
+
+    #[inline]
+    pub fn into_inner(self, _key: &AccessKey) -> Arc<_MobBlock<M>> {
+        self.0
+    }
+
+    #[inline]
+    pub fn strong_count(&self) -> usize {
+        Arc::strong_count(&self.0)
+    }
+
+    #[inline]
+    pub fn weak_count(&self) -> usize {
+        Arc::weak_count(&self.0)
     }
 }
 
