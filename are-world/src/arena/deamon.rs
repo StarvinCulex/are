@@ -1,6 +1,7 @@
 use std::iter::Map;
 
 use crate::meta::gnd::Ground;
+use core::marker::Unsize;
 
 //
 pub struct Deamon<'c, 'a> {
@@ -67,7 +68,10 @@ impl<'c, 'a> Deamon<'c, 'a> {
             .map(|(p, b)| (p.try_into().unwrap(), &mut b.ground)))
     }
 
-    pub fn set(&mut self, mob: ArcBox<MobBlock>) -> Result<Weak<MobBlock>, ArcBox<MobBlock>> {
+    pub fn set<M: Mob + Unsize<dyn Mob> + ?Sized>(
+        &mut self,
+        mut mob: ArcBox<_MobBlock<M>>,
+    ) -> Result<Weak<_MobBlock<M>>, ArcBox<_MobBlock<M>>> {
         let at = mob.at;
         if !self.contains(at) {
             return Err(mob);
@@ -83,7 +87,8 @@ impl<'c, 'a> Deamon<'c, 'a> {
             return Err(mob);
         }
         // set the plate
-        let mob: Arc<MobBlock> = mob.into();
+        mob.at = self.angelos.major.normalize_area(at);
+        let mob: Arc<_MobBlock<M>> = mob.into();
 
         for (_, grid) in self.plate.area_mut(at) {
             grid.mob = Some(mob.clone());
@@ -91,11 +96,11 @@ impl<'c, 'a> Deamon<'c, 'a> {
         Ok(Weak::from(&mob))
     }
 
-    pub fn take<'g, M: Mob + 'static>(
+    pub fn take<'g, M: Mob + ?Sized>(
         &mut self,
         mob: MobRefMut<'g, M>,
-    ) -> Result<ArcBox<MobBlock>, MobRefMut<'g, M>> {
-        let mob_p: Arc<MobBlock> = mob.get_inner(&self.angelos.major.pkey);
+    ) -> Result<ArcBox<_MobBlock<M>>, MobRefMut<'g, M>> {
+        let mob_p = mob.get_inner(&self.angelos.major.pkey);
         let at = mob.at();
 
         // check if the mob.at() is valid
@@ -123,7 +128,7 @@ impl<'c, 'a> Deamon<'c, 'a> {
     }
 
     /// 尝试把[`mob`]移动到[`new_at`]的位置。
-    pub fn reset<'g, M: Mob + 'static>(
+    pub fn reset<'g, M: Mob + Unsize<dyn Mob> + ?Sized>(
         &mut self,
         mob: &mut MobRefMut<'g, M>,
         new_at: CrdI,
@@ -155,7 +160,7 @@ impl<'c, 'a> Deamon<'c, 'a> {
             }
         }
         // resetZ
-        unsafe { Arc::get_mut_unchecked(&mut mob) }.at = new_at;
+        unsafe { Arc::get_mut_unchecked(&mut mob) }.at = self.angelos.major.normalize_area(new_at);
         Ok(())
     }
 

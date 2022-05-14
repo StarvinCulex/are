@@ -195,19 +195,19 @@ impl<'g, M: ?Sized + Mob, AccessKey: ?Sized> MobRefMut<'g, M, AccessKey> {
     }
 
     #[inline]
-    pub fn get_inner(&self, _write_key: &AccessKey) -> Arc<_MobBlock<M>> {
+    pub fn get_inner(&self, _key: &AccessKey) -> Arc<_MobBlock<M>> {
         self.0.clone()
     }
 }
 
-impl<'g, M: Mob + 'static, AccessKey: ?Sized> MobRef<'g, M, AccessKey> {
+impl<'g, M: Mob + Unsize<dyn Mob> + ?Sized, AccessKey: ?Sized> MobRef<'g, M, AccessKey> {
     #[inline]
     pub fn downgrade(&self) -> Weak<MobBlock, AccessKey> {
         Weak::<_MobBlock<M>, _>::from(&self.0)
     }
 }
 
-impl<'g, M: Mob + 'static, AccessKey: ?Sized> MobRefMut<'g, M, AccessKey> {
+impl<'g, M: Mob + Unsize<dyn Mob> + ?Sized, AccessKey: ?Sized> MobRefMut<'g, M, AccessKey> {
     #[inline]
     pub fn downgrade(&self) -> Weak<MobBlock, AccessKey> {
         Weak::<_MobBlock<M>, _>::from(&self.0)
