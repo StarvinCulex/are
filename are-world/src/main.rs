@@ -14,6 +14,11 @@
 #![feature(in_band_lifetimes)]
 #![feature(ptr_metadata)]
 #![feature(arbitrary_self_types)]
+#![allow(
+    dead_code,
+    unused_imports,
+    unused_variables,
+)]
 
 use crate::arena::conf::StaticConf;
 use crate::arena::cosmos::*;

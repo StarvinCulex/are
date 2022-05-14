@@ -133,7 +133,7 @@ impl Cosmos {
 
         let jobs = mobs.into_iter().collect();
         ReadGuard::with(&self.angelos.pkey, |guard| {
-            jobs::work(workers.iter_mut(), jobs, |worker, mut job| {
+            jobs::work(workers.iter_mut(), jobs, |worker, job| {
                 if let Some(mob_ref) = guard.wrap_weak(job.0.clone()) {
                     let pos = mob_ref.at();
                     let center = Coord((pos.0.from + pos.0.to) / 2, (pos.1.from + pos.1.to) / 2);

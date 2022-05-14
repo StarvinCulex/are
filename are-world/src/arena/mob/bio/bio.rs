@@ -44,7 +44,7 @@ impl Bio {
         }
     }
 
-    fn suicide(mut self: MobRefMut<Self>, deamon: &mut Deamon) {
+    fn suicide(self: MobRefMut<Self>, deamon: &mut Deamon) {
         let energy: f64 = self.energy.into();
         let size = measure_area(deamon.angelos.major.plate_size.into(), self.at().into());
         let energy_per_grid: EnergyT = (energy
@@ -59,7 +59,7 @@ impl Bio {
             g.plant.add_corpse(energy_per_grid);
         }
 
-        deamon.take(self);
+        deamon.take(self).unwrap_or_else(|_| unreachable!());
     }
 }
 
