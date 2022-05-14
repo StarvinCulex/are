@@ -6,7 +6,7 @@ use crate::arena::cosmos::{Deamon, MobBlock, PKey};
 use crate::arena::mob::{Msg, Order};
 use crate::arena::{Cosmos, ReadGuard};
 use crate::cosmos::defs::CrdI;
-use crate::{Angelos, P, MobRef, MobRefMut};
+use crate::{Angelos, MobRef, MobRefMut};
 
 pub trait Mob: Send + Sync {
     fn into_arc(self) -> Arc<MobBlock>;
@@ -18,13 +18,6 @@ pub trait Mob: Send + Sync {
         self.into_arc()
             .try_into()
             .unwrap_or_else(|_| unreachable!())
-    }
-
-    fn into_block(self) -> P<MobBlock>
-    where
-        Self: Sized,
-    {
-        self.into_arc().into()
     }
 
     fn get_name(&self) -> String;

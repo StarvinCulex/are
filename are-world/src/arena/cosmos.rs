@@ -14,7 +14,8 @@ use crate::msgpip::MPipe;
 use std::collections::{hash_map::Entry, HashMap};
 
 pub use super::*;
-use super::{ReadGuard, Weak, WriteGuard, P};
+use std::sync::Arc;
+use super::{ReadGuard, Weak, WriteGuard};
 
 pub struct Cosmos {
     pub plate: Matrix<Block, 1, 1>,
@@ -29,7 +30,7 @@ pub struct PKey {
 #[derive(Default)]
 pub struct Block {
     pub ground: gnd::Ground,
-    pub mob: Option<P<MobBlock>>,
+    mob: Option<Arc<MobBlock>>,
 }
 
 pub struct _MobBlock<M: ?Sized> {
@@ -54,10 +55,10 @@ impl PKey {
     }
 }
 
-impl<WriteKey: ?Sized> P<MobBlock, PKey, WriteKey> {
+impl Block {
     #[inline]
-    pub fn at(&self) -> CrdI {
-        ReadGuard::with(&PKey::new(), |guard| self.get(guard).at)
+    pub fn mob(&self) -> Option<(CrdI, Weak<MobBlock>)> {
+        self.mob.as_ref().and_then(|mob| Some((mob.as_ref().at, mob.into())))
     }
 }
 
@@ -105,8 +106,8 @@ impl Cosmos {
 
         let jobs = from.into_iter().collect();
         jobs::work(workers.iter_mut(), jobs, |worker, job| {
-            if let Some(mob) = &self.plate[job.0].mob {
-                worker.push((mob.downgrade(), job.1))
+            if let Some((_pos, weak_mob)) = self.plate[job.0].mob() {
+                worker.push((weak_mob, job.1))
             }
         });
 

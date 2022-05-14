@@ -6,7 +6,7 @@ use crate::arena::defs::{Crd, CrdI, Idx};
 use crate::arena::mob::{Mob, Msg, Order};
 use crate::arena::types::*;
 use crate::arena::Weak;
-use crate::arena::{Cosmos, MobRef, MobRefMut, ReadGuard, P};
+use crate::arena::{Cosmos, MobRef, MobRefMut, ReadGuard};
 use crate::mob::bio::atk::ATK;
 use crate::mob::common::bfs::manhattan_carpet_bomb_search;
 use crate::{measure_area, measure_length, mob, Coord, Interval};

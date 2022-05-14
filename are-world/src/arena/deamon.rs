@@ -83,19 +83,19 @@ impl<'c, 'a> Deamon<'c, 'a> {
             return Err(mob);
         }
         // set the plate
-        let mob: P<MobBlock> = mob.into();
+        let mob: Arc<MobBlock> = mob.into();
 
         for (_, grid) in self.plate.area_mut(at) {
             grid.mob = Some(mob.clone());
         }
-        Ok(mob.downgrade())
+        Ok(Weak::from(&mob))
     }
 
     pub fn take<'g, M: Mob + 'static>(
         &mut self,
         mob: MobRefMut<'g, M>,
     ) -> Result<ArcBox<MobBlock>, MobRefMut<'g, M>> {
-        let mob_p: P<MobBlock> = mob.get_inner(&self.angelos.major.pkey);
+        let mob_p: Arc<MobBlock> = mob.get_inner(&self.angelos.major.pkey);
         let at = mob.at();
 
         // check if the mob.at() is valid
@@ -109,7 +109,7 @@ impl<'c, 'a> Deamon<'c, 'a> {
         // }
         let scan = self.plate.area_mut(at).scan();
         // quick fail: check if it's unique after clearing the plate
-        if scan.len() + 1 < mob_p.strong_count() {
+        if scan.len() + 1 < Arc::strong_count(&mob_p) {
             return Err(mob);
         }
         // clear the plate
@@ -118,7 +118,7 @@ impl<'c, 'a> Deamon<'c, 'a> {
         }
         // convert
         mob_p
-            .try_into_box(&self.angelos.major.pkey)
+            .try_into()
             .map_err(|_| unreachable!())
     }
 
@@ -131,14 +131,14 @@ impl<'c, 'a> Deamon<'c, 'a> {
         if !self.contains(new_at) {
             return Err(());
         }
-        let mut mob: P<MobBlock> = mob.get_inner(&self.angelos.major.pkey);
         let at = mob.at();
+        let mut mob: Arc<MobBlock> = mob.get_inner(&self.angelos.major.pkey);
         // check if there is another mob
         if self
             .plate
             .area(at)
             .scan()
-            .any(|(_, grid)| grid.mob.is_some_with(|pos_mob| pos_mob != &mob))
+            .any(|(_, grid)| grid.mob.is_some_with(|pos_mob| Arc::as_ptr(&pos_mob) != Arc::as_ptr(&mob)))
         {
             return Err(());
         }
@@ -155,9 +155,7 @@ impl<'c, 'a> Deamon<'c, 'a> {
             }
         }
         // resetZ
-        WriteGuard::with(&self.angelos.major.pkey, |g| {
-            unsafe { mob.get_mut_unchecked(g) }.at = new_at
-        });
+        unsafe { Arc::get_mut_unchecked(&mut mob) }.at = new_at;
         Ok(())
     }
 

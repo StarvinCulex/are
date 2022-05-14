@@ -21,7 +21,7 @@ use crate::arena::mind::gods::plant::GodOfPlant;
 use crate::arena::mind::online::Gate;
 use crate::arena::mob::mech::mech::Mech;
 use crate::arena::mob::Mob;
-use crate::arena::{RuntimeConf, P};
+use crate::arena::{RuntimeConf};
 use crate::conencode::ConEncoder;
 use crate::cui::Window;
 use crate::grids::*;

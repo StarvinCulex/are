@@ -7,7 +7,7 @@ use crate::arena::cosmos::{Deamon, MobBlock, PKey, _MobBlock};
 use crate::arena::defs::CrdI;
 use crate::arena::mob::{Mob, Msg, Order};
 use crate::arena::{mob, Cosmos, ReadGuard};
-use crate::{Interval, MobRef, MobRefMut, SWord, P};
+use crate::{Interval, MobRef, MobRefMut, SWord};
 
 pub struct Mech {}
 

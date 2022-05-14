@@ -10,7 +10,6 @@ pub use meta::MetaCosmos;
 pub use r#ref::ReadGuard;
 pub use r#ref::Weak;
 pub use r#ref::WriteGuard;
-pub use r#ref::P;
 pub use r#ref::MobRef;
 pub use r#ref::MobRefMut;
 
