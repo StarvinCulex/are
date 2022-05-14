@@ -28,11 +28,12 @@ impl<T: ?Sized> SpinLock<T> {
     pub fn lock(&self) -> LockResult<Guard<'_, T>> {
         loop {
             let r = self.lock.fetch_or(LOCK_FLAG, AcqRel);
-            if r & POISON_FLAG != 0 {
-                return Err(PoisonError::new(Guard::new(self)));
-            }
             if r & LOCK_FLAG == 0 {
-                return Ok(Guard::new(self));
+                // return `PoisonError` only when holding the lock, as it can be recovered into `Guard`
+                if r & POISON_FLAG != 0 {
+                    return Err(PoisonError::new(unsafe { Guard::new(self) }));
+                }
+                return Ok(unsafe { Guard::new(self) });
             }
             hint::spin_loop()
         }
@@ -40,13 +41,14 @@ impl<T: ?Sized> SpinLock<T> {
 
     pub fn try_lock(&self) -> TryLockResult<Guard<'_, T>> {
         let r = self.lock.fetch_or(LOCK_FLAG, AcqRel);
-        if r & POISON_FLAG != 0 {
-            return Err(TryLockError::Poisoned(PoisonError::new(Guard::new(self))));
-        }
         if r & LOCK_FLAG != 0 {
             return Err(TryLockError::WouldBlock);
         }
-        Ok(Guard::new(self))
+        // return `PoisonError` only when holding the lock, as it can be recovered into `Guard`
+        if r & POISON_FLAG != 0 {
+            return Err(TryLockError::Poisoned(PoisonError::new(unsafe { Guard::new(self) })));
+        }
+        Ok(unsafe { Guard::new(self) })
     }
 
     pub fn is_poisioned(&self) -> bool {
@@ -72,7 +74,9 @@ impl<T: ?Sized> SpinLock<T> {
 }
 
 impl<'l, T: ?Sized> Guard<'l, T> {
-    fn new(lock: &'l SpinLock<T>) -> Guard<'l, T> {
+    // user-call of `Guard::new()` should be unsafe
+    // or users can use `Guard::new(lock).deref_mut()` to get `&mut T` manually
+    unsafe fn new(lock: &'l SpinLock<T>) -> Guard<'l, T> {
         Self { spinlock: lock }
     }
 }
@@ -115,8 +119,15 @@ unsafe impl<T: ?Sized + Send> Sync for SpinLock<T> {}
 
 unsafe impl<T: ?Sized + Sync> Sync for Guard<'_, T> {}
 
-impl<T: ?Sized> !Send for Guard<'_, T> {}
+// `MutexGuard` is `!Send` because it uses library (libc::pthread_mutex_t) requiring to release a lock in the same thread acquiring it
+// but `SpinLock` just uses `AtomicU8`, so it can be released in another thread, and thus can be `Send`
+// see: https://doc.rust-lang.org/nomicon/send-and-sync.html
+// see: https://github.com/rust-lang/rust/issues/23465#issuecomment-82730326
+// Nomicon: A nice example where this does not happen is with a MutexGuard: notice how it is not Send. The implementation of MutexGuard uses libraries that require you to ensure you don't try to free a lock that you acquired in a different thread.
+// impl<T: ?Sized> !Send for Guard<'_, T> {}
+unsafe impl<T: ?Sized + Sync> Send for Guard<'_, T> {}
 
-const INIT: u8 = 0;
-const LOCK_FLAG: u8 = 1;
-const POISON_FLAG: u8 = 2;
+// bitmasks
+const INIT: u8 = 0b00;
+const LOCK_FLAG: u8 = 0b01;
+const POISON_FLAG: u8 = 0b10;
