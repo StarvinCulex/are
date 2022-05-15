@@ -46,7 +46,9 @@ impl<T: ?Sized> SpinLock<T> {
         }
         // return `PoisonError` only when holding the lock, as it can be recovered into `Guard`
         if r & POISON_FLAG != 0 {
-            return Err(TryLockError::Poisoned(PoisonError::new(unsafe { Guard::new(self) })));
+            return Err(TryLockError::Poisoned(PoisonError::new(unsafe {
+                Guard::new(self)
+            })));
         }
         Ok(unsafe { Guard::new(self) })
     }
@@ -76,6 +78,7 @@ impl<T: ?Sized> SpinLock<T> {
 impl<'l, T: ?Sized> Guard<'l, T> {
     // user-call of `Guard::new()` should be unsafe
     // or users can use `Guard::new(lock).deref_mut()` to get `&mut T` manually
+    // -- THIS IS A PRIVATE FUNCTION -- by Starvin'Culex
     unsafe fn new(lock: &'l SpinLock<T>) -> Guard<'l, T> {
         Self { spinlock: lock }
     }

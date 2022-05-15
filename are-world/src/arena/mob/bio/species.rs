@@ -5,7 +5,7 @@ use crate::arena::conf;
 use crate::arena::defs::Crd;
 use crate::arena::types::*;
 use crate::meta::defs::{Idx, Tick};
-use crate::mob::bio::bio::Target;
+use crate::mob::bio::bio::BioTarget;
 use crate::Block;
 
 use super::gene::Gene;
@@ -19,7 +19,15 @@ pub struct SpeciesPool {}
 
 impl Species {
     /// 返回值：负数表示逃离，正数表示接近
-    pub fn watching_choice(&self, block: &Block) -> (Target, i8) {
+    pub fn watching_choice(&self, block: &Block) -> BioTarget {
+        todo!()
+    }
+
+    pub fn stroll_period(&self) -> WakeTickT {
+        todo!()
+    }
+
+    pub fn stroll_range(&self) -> Idx {
         todo!()
     }
 

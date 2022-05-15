@@ -18,6 +18,10 @@ impl<T> Coord<Interval<T>>
 where
     T: Ord,
 {
+    #[inline]
+    pub fn with_intervals(from: Coord<T>, to: Coord<T>) -> Self {
+        from | to
+    }
     /// ```rust
     /// return Coord(self.0.from, self.1.from);
     #[inline]
@@ -37,8 +41,13 @@ where
     }
     /// 判断`coord_interval`是否属于`self`表示的范围
     #[inline]
-    pub fn contains_coord_interval(&self, coord_interval: &Self, size: Coord<T>) -> bool where T: std::ops::Add<T> + From<bool> + Copy, <T as std::ops::Add<T>>::Output: Eq {
-        self.0.contains_interval(&coord_interval.0, size.0) && self.1.contains_interval(&coord_interval.1, size.1)
+    pub fn contains_coord_interval(&self, coord_interval: &Self, size: Coord<T>) -> bool
+    where
+        T: std::ops::Add<T> + From<bool> + Copy,
+        <T as std::ops::Add<T>>::Output: Eq,
+    {
+        self.0.contains_interval(&coord_interval.0, size.0)
+            && self.1.contains_interval(&coord_interval.1, size.1)
     }
 }
 

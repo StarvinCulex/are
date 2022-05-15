@@ -1,6 +1,6 @@
 use access::Accessor;
 pub use area::{Area, AreaMut};
-pub use util::{measure_area, measure_distance, measure_distances, measure_length};
+pub use util::*;
 
 use super::{coord::Coord, interval::Interval};
 

@@ -1,5 +1,8 @@
 use std::sync::Arc;
 
+use rand::distributions::Uniform;
+use rand::Rng;
+
 use crate::arena::cosmos::*;
 use crate::arena::cosmos::{Deamon, MobBlock, PKey, _MobBlock};
 use crate::arena::defs::{Crd, CrdI, Idx};
@@ -7,8 +10,10 @@ use crate::arena::mob::{Mob, Msg, Order};
 use crate::arena::types::*;
 use crate::arena::Weak;
 use crate::arena::{Cosmos, MobRef, MobRefMut, ReadGuard};
+use crate::lock::spinlock::SpinLock;
 use crate::mob::bio::atk::ATK;
 use crate::mob::common::bfs::manhattan_carpet_bomb_search;
+use crate::mob::common::pathfind::silly_facing;
 use crate::{measure_area, measure_length, mob, Coord, Interval};
 
 use super::species::Species;
@@ -17,18 +22,13 @@ pub struct Bio {
     pub species: Arc<Species>,
     pub wake_tick: WakeTickT,
     pub energy: EnergyT,
-    pub mutex: Mutex<BioMutex>,
+    pub mutex: SpinLock<BioTarget>,
 }
 
-pub struct BioMutex {
-    pub target_weight: i8,
-    pub target: Target,
-}
-
-pub enum Target {
-    None,
-    Pos(Crd),
-    Mob(Weak<MobBlock>),
+pub struct BioTarget {
+    pub weight: i8,
+    pub target: Option<CrdI>,
+    pub target_mob: Option<Weak<MobBlock>>,
 }
 
 impl Bio {
@@ -37,9 +37,10 @@ impl Bio {
             species,
             energy,
             wake_tick: 0,
-            mutex: Mutex::new(BioMutex {
-                target_weight: 0,
-                target: Target::None,
+            mutex: SpinLock::new(BioTarget {
+                weight: 0,
+                target: None,
+                target_mob: None,
             }),
         }
     }
@@ -101,27 +102,52 @@ impl Mob for Bio {
         );
 
         // 观察周围
-        let mut lock = self.mutex.lock().unwrap();
-        if self.wake_tick % self.species.watch_period() == 0 {
-            manhattan_carpet_bomb_search(
-                self.at().from(),
-                self.species.watch_range() as u16,
-                |p| {
-                    let (target, weight) = self.species.watching_choice(&cosmos.plate[p]);
-                    if weight == i8::MIN || weight == i8::MAX {
-                        lock.target_weight = weight;
-                        lock.target = target;
-                        return Some(());
+        let mut self_target = self.mutex.lock().unwrap();
+        if self_target.target.is_none() {
+            if let Some(target_mob_weak) = self_target.target_mob.clone() {
+                self_target.target = guard.wrap_weak(target_mob_weak).map(|m| m.at());
+                if self_target.target.is_none() {
+                    self_target.target_mob = None;
+                }
+            } else {
+                let set_move_target = {
+                    // 观察周围方格
+                    self.wake_tick % self.species.watch_period() == 0 &&
+                        manhattan_carpet_bomb_search(
+                            self.at().from(),
+                            self.species.watch_range() as u16,
+                            |p| {
+                                let target = self.species.watching_choice(&cosmos.plate[p]);
+                                if target.weight == i8::MIN || target.weight == i8::MAX {
+                                    *self_target = target;
+                                    return Some(());
+                                }
+                                if target.weight.abs() > self_target.weight.abs() {
+                                    *self_target = target;
+                                }
+                                None
+                            },
+                        )
+                            .is_some()
+                }
+                    // 闲逛
+                    || {
+                    self.wake_tick % self.species.stroll_period() == 0 && {
+                        let distribute = Uniform::from(-self.species.stroll_range()..self.species.stroll_range() + 1);
+                        let relative_target = Coord(
+                            angelos.random.sample(distribute),
+                            angelos.random.sample(distribute),
+                        );
+                        let target = angelos.major.normalize_area(self.at().offset(relative_target));
+                        *self_target = BioTarget {
+                            weight: 0,
+                            target: Some(target),
+                            target_mob: None,
+                        };
+                        true
                     }
-                    if weight.abs() > lock.target_weight.abs() {
-                        lock.target_weight = weight;
-                        lock.target = target;
-                    }
-                    None
-                },
-            );
-
-            todo!()
+                };
+            }
         }
     }
 
@@ -184,7 +210,7 @@ impl Mob for Bio {
                     .map(|x| child_size.offset(self.at().from() + x))
                     {
                         let mut child_mob = pchild.take().unwrap();
-                        child_mob.at = child_at;
+                        child_mob.at = deamon.angelos.major.normalize_area(child_at);
                         match deamon.set(child_mob) {
                             Err(pc) => pchild = Some(pc),
                             Ok(pc) => {
@@ -206,26 +232,39 @@ impl Mob for Bio {
         }
 
         // 移动
-        {
-            todo!()
-            // let at = self.at();
-            // let move_step = self.path.pop_front().unwrap_or_default();
-            // if move_step != Coord(0, 0) && self.wake_tick % self.species.move_period() == 0
-            //     // 尝试移动
-            //     && deamon.reset(&mut self, at.offset(move_step)).is_ok()
-            // {
-            //     self.energy = self.energy.saturating_sub(self.species.move_cost());
-            // } else {
-            //     self.path.clear();
-            //     // 吃草
-            //     let eat_starts = self.species.eat_starts();
-            //     let eat_takes = self.species.eat_takes();
-            //     for (_, g) in deamon.get_ground_iter_mut(at).unwrap() {
-            //         if g.plant.age >= eat_starts {
-            //             self.energy = self.energy.saturating_add(g.plant.mow(eat_takes));
-            //         }
-            //     }
-            // }
+        if self.wake_tick % self.species.move_period() == 0 {
+            if let Some(target) = self.mutex.get_mut().unwrap().target {
+                debug_assert_eq!(self.at(), deamon.angelos.major.normalize_area(self.at()));
+                let facings = silly_facing(
+                    self.at(), // 截至2022/05/15，确定self.at()是归一化的
+                    deamon.angelos.major.normalize_area(target),
+                    deamon.angelos.major.plate_size,
+                );
+                let mut move_success = false;
+                for facing in facings {
+                    let move_target = self.at().offset(
+                        facing
+                            * if self.mutex.get_mut().unwrap().weight < 0 {
+                                Coord(-1, -1)
+                            } else {
+                                Coord(1, 1)
+                            },
+                    );
+                    if deamon.reset(&mut self, move_target).is_ok() {
+                        move_success = true;
+                        break;
+                    }
+                }
+                if move_success {
+                    self.energy.saturating_sub(self.species.move_cost());
+                } else {
+                    *self.mutex.get_mut().unwrap() = BioTarget {
+                        weight: 0,
+                        target: None,
+                        target_mob: None,
+                    };
+                }
+            }
         }
     }
 }

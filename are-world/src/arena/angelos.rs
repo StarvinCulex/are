@@ -1,5 +1,8 @@
 //
 
+use rand::rngs::StdRng;
+use rand::SeedableRng;
+
 pub struct MajorAngelos {
     pub properties: Properties,
     pub plate_size: Coord<Idx>,
@@ -22,6 +25,7 @@ pub struct MajorAngelosAsyncData {
 
 pub struct Angelos<'m> {
     pub major: &'m MajorAngelos,
+    pub random: StdRng,
 
     gnd_messages_buf: Vec<(Tick, Crd, gnd::Msg)>,
     gnd_orders_buf: Vec<(Tick, Crd, gnd::Order)>,
@@ -35,6 +39,7 @@ impl MajorAngelos {
     pub fn make_worker(&self) -> Angelos {
         Angelos {
             major: self,
+            random: StdRng::from_entropy(),
             gnd_messages_buf: vec![],
             gnd_orders_buf: vec![],
             mob_pos_messages_buf: vec![],
