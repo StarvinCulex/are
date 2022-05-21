@@ -5,8 +5,8 @@ use crate::arena::conf;
 use crate::arena::defs::Crd;
 use crate::arena::types::*;
 use crate::meta::defs::{Idx, Tick};
-use crate::mob::bio::bio::BioTarget;
-use crate::Block;
+use crate::mob::bio::bio::{BioAction, BioTarget};
+use crate::{Block, Coord};
 
 use super::gene::Gene;
 
@@ -19,90 +19,120 @@ pub struct SpeciesPool {}
 
 impl Species {
     /// 返回值：负数表示逃离，正数表示接近
-    pub fn watching_choice(&self, block: &Block) -> BioTarget {
-        todo!()
+    pub fn watching_choice(&self, at: Crd, block: &Block) -> BioTarget {
+        if block.ground.plant.age >= self.eat_starts() {
+            BioTarget {
+                action_weight: 1,
+                action: BioAction::Eat,
+                action_range: Coord(0, 0),
+                target: Some(Coord::with_intervals(at, at)),
+                target_mob: None,
+            }
+        } else {
+            BioTarget {
+                action_weight: 0,
+                action: BioAction::Nothing,
+                action_range: Default::default(),
+                target: None,
+                target_mob: None,
+            }
+        }
     }
 
-    pub fn stroll_period(&self) -> WakeTickT {
-        todo!()
+    #[inline]
+    pub fn stroll_period(&self) -> AgeT {
+        1
     }
 
+    #[inline]
     pub fn stroll_range(&self) -> Idx {
-        todo!()
+        50
     }
 
     /// 在醒来的第[`u8`]次消耗[`EnergyT`]的能量
-    pub fn wake_energy_consume(&self) -> (EnergyT, WakeTickT) {
-        todo!()
+    #[inline]
+    pub fn wake_energy_consume(&self) -> EnergyT {
+        1
     }
 
-    pub fn breed_period(&self) -> WakeTickT {
-        todo!()
+    #[inline]
+    pub fn breed_period(&self) -> AgeT {
+        10
     }
 
+    #[inline]
     pub fn wake_period(&self) -> Tick {
-        todo!()
+        3
     }
 
+    #[inline]
     pub fn act_delay(&self) -> Tick {
-        todo!()
+        0
     }
 
+    #[inline]
     pub fn spawn_energy_cost(&self) -> EnergyT {
-        todo!()
+        150
     }
 
     #[inline]
     pub fn spawn_energy(&self) -> EnergyT {
-        self.spawn_energy_cost() - self.energy_cost()
+        self.spawn_energy_cost() - self.species_energy_value()
     }
 
-    pub fn energy_cost(&self) -> EnergyT {
-        todo!()
+    #[inline]
+    pub fn species_energy_value(&self) -> EnergyT {
+        100
     }
 
+    #[inline]
     pub fn spawn_when(&self) -> EnergyT {
-        todo!()
+        200
     }
 
+    #[inline]
     pub fn spawn_wake_at(&self) -> Tick {
-        todo!()
+        1
     }
 
+    #[inline]
     pub fn size(&self) -> Crd {
-        todo!()
+        Coord(1, 1)
     }
 
-    pub fn watch_period(&self) -> WakeTickT {
-        todo!()
+    #[inline]
+    pub fn watch_period(&self) -> AgeT {
+        10
     }
 
-    pub fn watch_cost(&self) -> EnergyT {
-        todo!()
-    }
-
+    #[inline]
     pub fn watch_range(&self) -> Idx {
-        todo!()
+        5
     }
 
-    pub fn track_range(&self) -> Idx {
-        todo!()
+    #[inline]
+    pub fn move_period(&self) -> AgeT {
+        1
     }
 
-    pub fn move_period(&self) -> WakeTickT {
-        todo!()
-    }
-
+    #[inline]
     pub fn move_cost(&self) -> EnergyT {
-        todo!()
+        1
     }
 
+    #[inline]
     pub fn eat_starts(&self) -> EnergyT {
-        todo!()
+        1000
     }
 
     pub fn eat_takes(&self) -> EnergyT {
-        todo!()
+        100
+    }
+}
+
+impl ToString for Species {
+    fn to_string(&self) -> String {
+        "species".to_string()
     }
 }
 
@@ -112,6 +142,6 @@ impl SpeciesPool {
     }
 
     pub fn clone_species(&self, species: sync::Arc<Species>) -> Arc<Species> {
-        todo!()
+        species
     }
 }

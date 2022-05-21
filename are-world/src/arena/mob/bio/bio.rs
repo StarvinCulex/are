@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 
 use rand::distributions::Uniform;
@@ -14,21 +15,47 @@ use crate::lock::spinlock::SpinLock;
 use crate::mob::bio::atk::ATK;
 use crate::mob::common::bfs::manhattan_carpet_bomb_search;
 use crate::mob::common::pathfind::silly_facing;
-use crate::{measure_area, measure_length, mob, Coord, Interval};
+use crate::{displacement, measure_area, measure_length, mob, Coord, Interval};
 
 use super::species::Species;
 
 pub struct Bio {
     pub species: Arc<Species>,
-    pub wake_tick: WakeTickT,
+    pub age: AgeT,
     pub energy: EnergyT,
-    pub mutex: SpinLock<BioTarget>,
+    pub target: SpinLock<BioMutex>,
+}
+
+pub struct BioMutex {
+    pub target: BioTarget,
 }
 
 pub struct BioTarget {
-    pub weight: i8,
+    pub action_weight: i8,
+    pub action: BioAction,
+    // 切比雪夫距离
+    pub action_range: Crd,
     pub target: Option<CrdI>,
     pub target_mob: Option<Weak<MobBlock>>,
+}
+
+#[derive(Debug)]
+pub enum BioAction {
+    Nothing,
+    Stroll,
+    Eat,
+}
+
+impl BioTarget {
+    pub const fn new() -> BioTarget {
+        BioTarget {
+            action_weight: 0,
+            action: BioAction::Nothing,
+            action_range: Coord(0, 0),
+            target: None,
+            target_mob: None,
+        }
+    }
 }
 
 impl Bio {
@@ -36,18 +63,16 @@ impl Bio {
         Bio {
             species,
             energy,
-            wake_tick: 0,
-            mutex: SpinLock::new(BioTarget {
-                weight: 0,
-                target: None,
-                target_mob: None,
+            age: 0,
+            target: SpinLock::new(BioMutex {
+                target: BioTarget::new(),
             }),
         }
     }
 
     fn suicide(self: MobRefMut<Self>, deamon: &mut Deamon) {
         let energy: f64 = self.energy.into();
-        let size = measure_area(deamon.angelos.major.plate_size.into(), self.at().into());
+        let size = measure_area(deamon.angelos.major.plate_size, self.at());
         let energy_per_grid: EnergyT = (energy
             * deamon
                 .angelos
@@ -102,7 +127,8 @@ impl Mob for Bio {
         );
 
         // 观察周围
-        let mut self_target = self.mutex.lock().unwrap();
+        let mut self_mutex = self.target.lock().unwrap();
+        let self_target = &mut self_mutex.target;
         if self_target.target.is_none() {
             if let Some(target_mob_weak) = self_target.target_mob.clone() {
                 self_target.target = guard.wrap_weak(target_mob_weak).map(|m| m.at());
@@ -110,37 +136,45 @@ impl Mob for Bio {
                     self_target.target_mob = None;
                 }
             } else {
-                let set_move_target = {
+                let _: bool = {
                     // 观察周围方格
-                    self.wake_tick % self.species.watch_period() == 0 &&
-                        manhattan_carpet_bomb_search(
+                    self.age % self.species.watch_period() == 0
+                        && manhattan_carpet_bomb_search(
                             self.at().from(),
                             self.species.watch_range() as u16,
                             |p| {
-                                let target = self.species.watching_choice(&cosmos.plate[p]);
-                                if target.weight == i8::MIN || target.weight == i8::MAX {
+                                let target = self.species.watching_choice(p, &cosmos.plate[p]);
+                                if target.action_weight == i8::MIN
+                                    || target.action_weight == i8::MAX
+                                {
                                     *self_target = target;
                                     return Some(());
                                 }
-                                if target.weight.abs() > self_target.weight.abs() {
+                                if target.action_weight.abs() > self_target.action_weight.abs() {
                                     *self_target = target;
                                 }
                                 None
                             },
                         )
-                            .is_some()
-                }
+                        .is_some()
+                } || {
+                    // 这是运算符[`or`]
                     // 闲逛
-                    || {
-                    self.wake_tick % self.species.stroll_period() == 0 && {
-                        let distribute = Uniform::from(-self.species.stroll_range()..self.species.stroll_range() + 1);
+                    self.age % self.species.stroll_period() == 0 && {
+                        let distribute = Uniform::from(
+                            -self.species.stroll_range()..self.species.stroll_range() + 1,
+                        );
                         let relative_target = Coord(
                             angelos.random.sample(distribute),
                             angelos.random.sample(distribute),
                         );
-                        let target = angelos.major.normalize_area(self.at().offset(relative_target));
+                        let target = angelos
+                            .major
+                            .normalize_area(self.at().offset(relative_target));
                         *self_target = BioTarget {
-                            weight: 0,
+                            action_weight: 0,
+                            action: BioAction::Stroll,
+                            action_range: Coord(0, 0),
                             target: Some(target),
                             target_mob: None,
                         };
@@ -164,31 +198,27 @@ impl Mob for Bio {
         if !main_tick {
             return;
         }
-        self.wake_tick = self.wake_tick.overflowing_add(1).0;
+        self.age = self.age.overflowing_add(1).0;
 
         // 挨饿
         {
-            let energy_consume = self.species.wake_energy_consume();
-            if self.wake_tick % energy_consume.1 == 0 {
-                if let Some(remain) = self.energy.checked_sub(energy_consume.0) {
-                    self.energy = remain;
-                } else {
-                    // 饿死
-                    let at = self.at();
-                    self.suicide(deamon);
-                    return;
-                }
+            if let Some(remain) = self.energy.checked_sub(self.species.wake_energy_consume()) {
+                self.energy = remain;
+            } else {
+                // 饿死
+                let at = self.at();
+                self.suicide(deamon);
+                return;
             }
         }
 
         // 能生崽不？
-        if self.wake_tick % self.species.breed_period() == 0
-            && self.species.spawn_when() <= self.energy
-        {
+        if self.age % self.species.breed_period() == 0 && self.species.spawn_when() <= self.energy {
             if let Some(energy_remain) = self.energy.checked_sub(self.species.spawn_energy_cost()) {
                 let child_species = deamon
                     .angelos
                     .major
+                    .singletons
                     .species_pool
                     .clone_species(self.species.clone());
                 let child_energy = self.species.spawn_energy();
@@ -197,7 +227,6 @@ impl Mob for Bio {
                 let mut pchild = Some(child.into_box());
 
                 // 是否放下了幼崽
-                // todo 幼崽的初始大小可能不同
                 if let Some(pchild) = {
                     let mut r = None;
                     for child_at in [
@@ -231,47 +260,98 @@ impl Mob for Bio {
             }
         }
 
-        // 移动
-        if self.wake_tick % self.species.move_period() == 0 {
-            if let Some(target) = self.mutex.get_mut().unwrap().target {
-                debug_assert_eq!(self.at(), deamon.angelos.major.normalize_area(self.at()));
-                let facings = silly_facing(
-                    self.at(), // 截至2022/05/15，确定self.at()是归一化的
-                    deamon.angelos.major.normalize_area(target),
-                    deamon.angelos.major.plate_size,
-                );
-                let mut move_success = false;
-                for facing in facings {
-                    let move_target = self.at().offset(
-                        facing
-                            * if self.mutex.get_mut().unwrap().weight < 0 {
-                                Coord(-1, -1)
-                            } else {
-                                Coord(1, 1)
-                            },
-                    );
-                    if deamon.reset(&mut self, move_target).is_ok() {
-                        move_success = true;
-                        break;
+        let at = self.at();
+        let species = self.species.clone();
+        let age = self.age;
+        let self_mutex = self.target.get_mut().unwrap();
+        let target = &mut self_mutex.target;
+        if let Some(target_pos) = target.target {
+            debug_assert_eq!(at, deamon.angelos.major.normalize_area(at));
+            // 是否可以做动作
+            if displacement(deamon.angelos.major.plate_size, at, target_pos).map(Idx::abs)
+                <= target.action_range
+            {
+                // 做动作
+                match target.action {
+                    // 吃
+                    BioAction::Eat => {
+                        let mut takes: EnergyT = 0;
+                        if let Ok(grounds) = deamon.get_ground_iter_mut(target_pos) {
+                            for (p, g) in grounds {
+                                takes = takes.saturating_add(g.plant.mow(species.eat_takes()));
+                            }
+                        }
+                        if takes == 0 {
+                            *target = BioTarget::new();
+                        } else {
+                            self.energy = self.energy.saturating_add(takes);
+                        }
+                    }
+                    BioAction::Nothing | BioAction::Stroll => {
+                        *target = BioTarget::new();
                     }
                 }
-                if move_success {
-                    self.energy.saturating_sub(self.species.move_cost());
-                } else {
-                    *self.mutex.get_mut().unwrap() = BioTarget {
-                        weight: 0,
-                        target: None,
-                        target_mob: None,
-                    };
+            } else if age % species.move_period() == 0 {
+                {
+                    // 移动
+                    let facings = silly_facing(
+                        at, // 截至2022/05/15，确定self.at()是归一化的
+                        deamon.angelos.major.normalize_area(target_pos),
+                        deamon.angelos.major.plate_size,
+                    );
+                    let mut move_success = false;
+                    let action_weight = target.action_weight;
+                    for facing in facings {
+                        let move_target = at.offset(
+                            facing
+                                * if action_weight < 0 {
+                                    Coord(-1, -1)
+                                } else {
+                                    Coord(1, 1)
+                                },
+                        );
+                        if deamon.reset(&mut self, move_target).is_ok() {
+                            move_success = true;
+                            break;
+                        }
+                    }
+                    if move_success {
+                        self.energy = self.energy.saturating_sub(self.species.move_cost());
+                    } else {
+                        // 移动失败就取消目标
+                        self.target.get_mut().unwrap().target = BioTarget::new();
+                    }
                 }
             }
         }
     }
 }
 
-impl Bio {
-    #[inline]
-    fn get_atk(&self) -> ATK {
-        todo!()
+impl ToString for Bio {
+    fn to_string(&self) -> String {
+        format!(
+            "{species}#{ptr:p} A{age} E{energy} T{target}",
+            species = self.species.to_string(),
+            ptr = self,
+            age = self.age,
+            energy = self.energy,
+            target = self.target.lock().unwrap().target,
+        )
+    }
+}
+
+impl Display for BioTarget {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{{W{weight} A{action:?} R{range} T{target}}}",
+            weight = self.action_weight,
+            action = self.action,
+            range = self.action_range,
+            target = self
+                .target
+                .map(|x| x.to_string())
+                .unwrap_or_else(|| "-".to_string()),
+        )
     }
 }

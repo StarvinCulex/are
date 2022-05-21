@@ -41,22 +41,26 @@ impl MetaCosmos {
     fn mind_view_tick(&mut self) {
         let cap = self.mind_list.len();
         let old_mind_list = std::mem::replace(&mut self.mind_list, Vec::with_capacity(cap));
-        for mut mind in old_mind_list {
-            if mind.observe(&self.cosmos).is_ok() {
-                self.mind_list.push(mind);
+        self.cosmos.pk(|cosmos, pkey| {
+            for mut mind in old_mind_list {
+                if mind.observe(cosmos, pkey).is_ok() {
+                    self.mind_list.push(mind);
+                }
             }
-        }
+        })
     }
 
     #[inline]
     fn mind_move_tick(&mut self) {
         let cap = self.mind_list.len();
         let old_mind_list = std::mem::replace(&mut self.mind_list, Vec::with_capacity(cap));
-        for mut mind in old_mind_list {
-            if mind.make_move(&self.cosmos).is_ok() {
-                self.mind_list.push(mind);
+        self.cosmos.pk(|cosmos, pkey| {
+            for mut mind in old_mind_list {
+                if mind.make_move(cosmos, pkey).is_ok() {
+                    self.mind_list.push(mind);
+                }
             }
-        }
+        })
     }
 
     #[inline]

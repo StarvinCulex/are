@@ -32,13 +32,16 @@ impl Mob for Mech {
     fn order(mut self: MobRefMut<Self>, deamon: &mut Deamon, order: Vec<Order>) {
         let at = self.at();
         deamon
-            .reset(
-                &mut self,
-                at.map(|x| Interval::new(x.from + 1, x.from + 1)),
-            )
+            .reset(&mut self, at.map(|x| Interval::new(x.from + 1, x.from + 1)))
             .unwrap();
         deamon
             .angelos
             .order(self.downgrade(), mob::Order::MobMainTick, 1);
+    }
+}
+
+impl ToString for Mech {
+    fn to_string(&self) -> String {
+        todo!()
     }
 }

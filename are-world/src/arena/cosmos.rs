@@ -1,5 +1,8 @@
-use rc_box::ArcBox;
 use std::collections::VecDeque;
+use std::collections::{hash_map::Entry, HashMap};
+use std::sync::Arc;
+
+use rc_box::ArcBox;
 
 use crate::arena::conf::StaticConf;
 use crate::arena::cosmos_ripper::CosmosRipper;
@@ -11,10 +14,8 @@ use crate::mind::Mind;
 use crate::mob::bio::species::SpeciesPool;
 use crate::msgpip::pipe::Output;
 use crate::msgpip::MPipe;
-use std::collections::{hash_map::Entry, HashMap};
 
 pub use super::*;
-use std::sync::Arc;
 use super::{ReadGuard, Weak, WriteGuard};
 
 pub struct Cosmos {
@@ -58,7 +59,7 @@ impl PKey {
 impl Block {
     #[inline]
     pub fn mob(&self) -> Option<(CrdI, Weak<MobBlock>)> {
-        self.mob.as_ref().and_then(|mob| Some((mob.as_ref().at, mob.into())))
+        self.mob.as_ref().map(|mob| (mob.as_ref().at, mob.into()))
     }
 }
 
@@ -69,13 +70,13 @@ impl Cosmos {
         Cosmos {
             plate: Matrix::new(plate_size_usize),
             angelos: MajorAngelos {
+                singletons: Singletons::new(&static_conf),
                 properties: Properties {
                     tick: 0,
                     runtime_conf,
                 },
                 plate_size,
                 pkey: PKey::new(),
-                species_pool: SpeciesPool::new(),
                 async_data: Mutex::new(MajorAngelosAsyncData {
                     gnd_messages: MPipe::new(),
                     gnd_orders: MPipe::new(),
@@ -88,6 +89,33 @@ impl Cosmos {
             },
             ripper: CosmosRipper::new(plate_size, static_conf.chunk_size, static_conf.padding),
         }
+    }
+
+    pub fn pk<F: FnMut(&mut Cosmos, &PKey)>(&mut self, mut f: F) {
+        let pkey = PKey::new();
+        f(self, &pkey);
+    }
+
+    pub fn set<M: Mob + Unsize<dyn Mob> + ?Sized>(
+        &mut self,
+        mob: ArcBox<_MobBlock<M>>,
+    ) -> Result<Weak<MobBlock>, ArcBox<_MobBlock<M>>> {
+        Deamon::set_plate(&mut self.plate, &self.angelos, mob)
+    }
+
+    pub fn take<'g, M: Mob + ?Sized>(
+        &mut self,
+        mob: MobRefMut<'g, M>,
+    ) -> Result<ArcBox<_MobBlock<M>>, MobRefMut<'g, M>> {
+        Deamon::take_plate(&mut self.plate, &self.angelos, mob)
+    }
+
+    pub fn reset<'g, M: Mob + Unsize<dyn Mob> + ?Sized>(
+        &mut self,
+        mob: &mut MobRefMut<M>,
+        new_at: CrdI,
+    ) -> Result<(), ()> {
+        Deamon::reset_plate(&mut self.plate, &self.angelos, mob, new_at)
     }
 }
 
@@ -264,9 +292,4 @@ impl Cosmos {
     pub fn flush_minds(&mut self) -> VecDeque<Box<dyn Mind>> {
         self.angelos.flush_minds()
     }
-
-    // // TODO: move this away
-    // pub fn burn(&mut self, at: Coord<isize>) {
-    //     self.plate[at].ground.element.ignite(self, at);
-    // }
 }

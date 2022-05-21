@@ -3,9 +3,9 @@ use core::ops::{CoerceUnsized, DispatchFromDyn};
 use std::marker::PhantomData;
 use std::sync::{self, Arc};
 
-use crate::arena::cosmos::{PKey, MobBlock, _MobBlock};
-use crate::arena::mob::Mob;
+use crate::arena::cosmos::{MobBlock, PKey, _MobBlock};
 use crate::arena::defs::CrdI;
+use crate::arena::mob::Mob;
 
 pub struct Weak<Element, AccessKey = PKey>
 where
@@ -93,10 +93,10 @@ where
     Element: ?Sized,
     AccessKey: ?Sized,
 {
-    #[inline]
-    pub fn upgrade(self, _key: &AccessKey) -> Option<Arc<Element>> {
-        self.data.upgrade()
-    }
+    // #[inline]
+    // pub fn upgrade(self, _key: &AccessKey) -> Option<Arc<Element>> {
+    //     self.data.upgrade()
+    // }
 
     #[inline]
     pub fn strong_count(&self) -> usize {
@@ -138,8 +138,14 @@ impl<AccessKey: ?Sized> ReadGuard<AccessKey> {
     }
 
     #[inline]
-    pub fn wrap_weak<'g, M: ?Sized>(&'g self, weak: Weak<_MobBlock<M>, AccessKey>) -> Option<MobRef<'g, M, AccessKey>> {
-        Some(MobRef(weak.data.upgrade().unwrap().into(), PhantomData::default()))
+    pub fn wrap_weak<'g, M: ?Sized>(
+        &'g self,
+        weak: Weak<_MobBlock<M>, AccessKey>,
+    ) -> Option<MobRef<'g, M, AccessKey>> {
+        Some(MobRef(
+            weak.data.upgrade().unwrap().into(),
+            PhantomData::default(),
+        ))
     }
 }
 
@@ -163,23 +169,45 @@ impl<AccessKey: ?Sized> WriteGuard<AccessKey> {
     }
 
     #[inline]
-    pub fn wrap_weak<'g, M: ?Sized>(&'g self, weak: Weak<_MobBlock<M>, AccessKey>) -> Option<MobRef<'g, M, AccessKey>> {
-        Some(MobRef(weak.data.upgrade().unwrap().into(), PhantomData::default()))
+    pub fn wrap_weak<'g, M: ?Sized>(
+        &'g self,
+        weak: Weak<_MobBlock<M>, AccessKey>,
+    ) -> Option<MobRef<'g, M, AccessKey>> {
+        Some(MobRef(
+            weak.data.upgrade().unwrap().into(),
+            PhantomData::default(),
+        ))
     }
 
     #[inline]
-    pub unsafe fn wrap_mut<'g, M: ?Sized>(&'g self, p: Arc<_MobBlock<M>>) -> MobRefMut<'g, M, AccessKey> {
+    pub unsafe fn wrap_mut<'g, M: ?Sized>(
+        &'g self,
+        p: Arc<_MobBlock<M>>,
+    ) -> MobRefMut<'g, M, AccessKey> {
         MobRefMut(p, PhantomData::default())
     }
 
     #[inline]
-    pub unsafe fn wrap_weak_mut<'g, M: ?Sized>(&'g self, weak: Weak<_MobBlock<M>, AccessKey>) -> Option<MobRefMut<'g, M, AccessKey>> {
-        Some(MobRefMut(weak.data.upgrade().unwrap().into(), PhantomData::default()))
+    pub unsafe fn wrap_weak_mut<'g, M: ?Sized>(
+        &'g self,
+        weak: Weak<_MobBlock<M>, AccessKey>,
+    ) -> Option<MobRefMut<'g, M, AccessKey>> {
+        Some(MobRefMut(
+            weak.data.upgrade().unwrap().into(),
+            PhantomData::default(),
+        ))
     }
 }
 
-pub struct MobRef<'g, M: ?Sized, AccessKey: ?Sized = PKey>(Arc<_MobBlock<M>>, PhantomData<&'g ReadGuard<AccessKey>>);
-pub struct MobRefMut<'g, M: ?Sized, AccessKey: ?Sized = PKey>(Arc<_MobBlock<M>>, PhantomData<&'g WriteGuard<AccessKey>>);
+pub struct MobRef<'g, M: ?Sized, AccessKey: ?Sized = PKey>(
+    Arc<_MobBlock<M>>,
+    PhantomData<&'g ReadGuard<AccessKey>>,
+);
+
+pub struct MobRefMut<'g, M: ?Sized, AccessKey: ?Sized = PKey>(
+    Arc<_MobBlock<M>>,
+    PhantomData<&'g WriteGuard<AccessKey>>,
+);
 
 impl<'g, M: ?Sized, AccessKey: ?Sized> MobRef<'g, M, AccessKey> {
     #[inline]
@@ -264,21 +292,41 @@ impl<'g, M: ?Sized, AccessKey: ?Sized> std::ops::DerefMut for MobRefMut<'g, M, A
 
 // CoerceUnsized
 // Weak<_MobBlock<Bio>> -> Weak<_MobBlock<dyn Mob>>
-impl<T: ?Sized + Unsize<U>, U: ?Sized, AccessKey: ?Sized> CoerceUnsized<Weak<U, AccessKey>> for Weak<T, AccessKey> {}
-impl<'g, T: ?Sized + Unsize<U>, U: ?Sized, AccessKey: ?Sized> CoerceUnsized<MobRef<'g, U, AccessKey>> for MobRef<'g, T, AccessKey> {}
-impl<'g, T: ?Sized + Unsize<U>, U: ?Sized, AccessKey: ?Sized> CoerceUnsized<MobRefMut<'g, U, AccessKey>> for MobRefMut<'g, T, AccessKey> {}
+impl<T: ?Sized + Unsize<U>, U: ?Sized, AccessKey: ?Sized> CoerceUnsized<Weak<U, AccessKey>>
+    for Weak<T, AccessKey>
+{
+}
+
+impl<'g, T: ?Sized + Unsize<U>, U: ?Sized, AccessKey: ?Sized>
+    CoerceUnsized<MobRef<'g, U, AccessKey>> for MobRef<'g, T, AccessKey>
+{
+}
+
+impl<'g, T: ?Sized + Unsize<U>, U: ?Sized, AccessKey: ?Sized>
+    CoerceUnsized<MobRefMut<'g, U, AccessKey>> for MobRefMut<'g, T, AccessKey>
+{
+}
 
 // DispatchFromDyn
 // fn hear(self: MobRef<Self>, ...);
 // let mob: MobRef<dyn Mob> = ...;
 // mob.hear(...);
 // impl<T: ?Sized + Unsize<U>, U: ?Sized, AccessKey: ?Sized> DispatchFromDyn<Weak<U, AccessKey>> for Weak<T, AccessKey> {}
-impl<'g, T: ?Sized + Unsize<U>, U: ?Sized, AccessKey: ?Sized> DispatchFromDyn<MobRef<'g, U, AccessKey>> for MobRef<'g, T, AccessKey> {}
-impl<'g, T: ?Sized + Unsize<U>, U: ?Sized, AccessKey: ?Sized> DispatchFromDyn<MobRefMut<'g, U, AccessKey>> for MobRefMut<'g, T, AccessKey> {}
+impl<'g, T: ?Sized + Unsize<U>, U: ?Sized, AccessKey: ?Sized>
+    DispatchFromDyn<MobRef<'g, U, AccessKey>> for MobRef<'g, T, AccessKey>
+{
+}
+
+impl<'g, T: ?Sized + Unsize<U>, U: ?Sized, AccessKey: ?Sized>
+    DispatchFromDyn<MobRefMut<'g, U, AccessKey>> for MobRefMut<'g, T, AccessKey>
+{
+}
 
 // prevent cloning
 impl<AccessKey: ?Sized> !Clone for ReadGuard<AccessKey> {}
-impl<AccessKey: ?Sized> !Clone for WriteGuard<AccessKey> {}
-impl<'g, M: ?Sized, AccessKey: ?Sized> !Clone for MobRef<'g, M, AccessKey> {}
-impl<'g, M: ?Sized, AccessKey: ?Sized> !Clone for MobRefMut<'g, M, AccessKey> {}
 
+impl<AccessKey: ?Sized> !Clone for WriteGuard<AccessKey> {}
+
+impl<'g, M: ?Sized, AccessKey: ?Sized> !Clone for MobRef<'g, M, AccessKey> {}
+
+impl<'g, M: ?Sized, AccessKey: ?Sized> !Clone for MobRefMut<'g, M, AccessKey> {}

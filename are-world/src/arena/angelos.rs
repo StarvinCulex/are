@@ -3,11 +3,13 @@
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 
+use crate::singletons::Singletons;
+
 pub struct MajorAngelos {
     pub properties: Properties,
     pub plate_size: Coord<Idx>,
+    pub singletons: Singletons,
     pkey: PKey,
-    pub species_pool: mob::bio::species::SpeciesPool,
 
     async_data: Mutex<MajorAngelosAsyncData>,
     mind_waiting_queue: Mutex<VecDeque<Box<dyn mind::Mind>>>,

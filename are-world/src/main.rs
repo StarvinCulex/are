@@ -14,11 +14,7 @@
 #![feature(in_band_lifetimes)]
 #![feature(ptr_metadata)]
 #![feature(arbitrary_self_types)]
-#![allow(
-    dead_code,
-    unused_imports,
-    unused_variables,
-)]
+#![allow(dead_code, unused_imports, unused_variables)]
 
 use crate::arena::conf::StaticConf;
 use crate::arena::cosmos::*;
@@ -26,7 +22,8 @@ use crate::arena::mind::gods::plant::GodOfPlant;
 use crate::arena::mind::online::Gate;
 use crate::arena::mob::mech::mech::Mech;
 use crate::arena::mob::Mob;
-use crate::arena::{RuntimeConf};
+use crate::arena::r#ref::ReadGuard;
+use crate::arena::RuntimeConf;
 use crate::conencode::ConEncoder;
 use crate::cui::Window;
 use crate::grids::*;
@@ -55,6 +52,7 @@ fn main() {
             fire_tick: 4,
             plant_aging: 0.01,
             plant_sow: 0.001,
+            plant_grow: 100,
             corpse_rot: 1,
             thread_count: 4,
             corpse_convert_cost: 1.0,
@@ -71,8 +69,34 @@ fn main() {
 
     meta.step();
     loop {
+        let mut mobs = vec![];
         println!("=====");
-        println!("{}", meta.cosmos.plate.as_area().map(|b| b.ground.name()));
+        println!(
+            "{}",
+            meta.cosmos.plate.as_area().map(|b| {
+                if let Some(mob) = b.mob() {
+                    mobs.push((mob.0, mob.1.clone()));
+                    "mob ".to_string()
+                } else {
+                    b.ground.name()
+                }
+            })
+        );
+        meta.cosmos.pk(|cosmos, pkey| {
+            for (p, mob) in mobs.iter() {
+                println!(
+                    "mob {} {}",
+                    p,
+                    ReadGuard::with(pkey, |guard| {
+                        if let Some(mob) = guard.wrap_weak(mob.clone()) {
+                            mob.to_string()
+                        } else {
+                            "".to_string()
+                        }
+                    })
+                );
+            }
+        });
         meta.step();
         std::thread::sleep(std::time::Duration::from_millis(
             meta.cosmos.angelos.properties.runtime_conf.period,

@@ -18,6 +18,7 @@ pub struct RuntimeConf {
     pub plant_aging: f64,
     pub plant_sow: f64,
     pub corpse_rot: EnergyT,
+    pub plant_grow: EnergyT,
 
     pub corpse_convert_cost: f64,
 }

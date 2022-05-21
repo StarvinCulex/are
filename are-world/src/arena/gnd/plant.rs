@@ -47,7 +47,7 @@ impl Plant {
                 angelos.order(at + p, gnd::Order::PlantSowing(self.kind), 0);
             }
         } else {
-            self.age += 1;
+            self.age += angelos.major.properties.runtime_conf.plant_grow;
         }
     }
 
@@ -78,9 +78,9 @@ impl Kind {
     fn max_age(&self) -> EnergyT {
         match self {
             Kind::None => 0,
-            Kind::Corpse => 255,
-            Kind::Grass => 16,
-            Kind::Tree => 128,
+            Kind::Corpse => EnergyT::MAX,
+            Kind::Grass => 10000,
+            Kind::Tree => 100000,
         }
     }
 }

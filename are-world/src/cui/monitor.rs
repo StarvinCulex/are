@@ -42,7 +42,7 @@ where
     Rsc: Fn(&E, usize) -> [[char; EDH]; EDW],
 {
     fn set_size(&mut self, size: Coord<usize>) -> Result<(), ()> {
-        todo!()
+        unimplemented!()
     }
 
     fn render(&mut self) -> Matrix<char, 1, 1> {

@@ -8,7 +8,7 @@ use crate::arena::{Cosmos, ReadGuard};
 use crate::cosmos::defs::CrdI;
 use crate::{Angelos, MobRef, MobRefMut};
 
-pub trait Mob: Send + Sync {
+pub trait Mob: Send + Sync + ToString {
     fn into_arc(self) -> Arc<MobBlock>;
 
     fn into_box(self) -> ArcBox<MobBlock>
