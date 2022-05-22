@@ -1,7 +1,8 @@
 use crate::arena::defs::{Crd, CrdI};
-use crate::grids::Coord;
+use crate::grids::{Coord, Matrix};
 
 pub struct CosmosRipper {
+    pub plate_size: Crd, // matrix 大小
     pub chunk_size: Crd, // 消息所在区间大小
     pub padding: Crd, // 消息所在区间周围可操作范围大小
     pub bound_size: Crd, // 可操作的区间范围大小
@@ -23,6 +24,7 @@ impl CosmosRipper {
         debug_assert!(plate_size.0 % bound_size.0 == 0 && plate_size.1 % bound_size.1 == 0);
         let batch_size = Coord(plate_size.0 / bound_size.0, plate_size.1 / bound_size.1);
         Self {
+            plate_size,
             chunk_size,
             padding,
             bound_size,
@@ -44,6 +46,11 @@ impl CosmosRipper {
             }
         }
     }
+    pub fn normalize_area(&self, area: CrdI) -> CrdI {
+        Matrix::<(), 1, 1>::normalize_area_with(self.plate_size.into(), area.into())
+            .try_into()
+            .unwrap()
+    }
 }
 
 impl<'c> Iterator for CosmosRipperBatch<'c> {
@@ -59,7 +66,7 @@ impl<'c> Iterator for CosmosRipperBatch<'c> {
         );
         let bound = left_top | (left_top + self.ripper.bound_size - Coord(1, 1));
         let chunk = (left_top + self.ripper.padding) | (left_top + self.ripper.padding + self.ripper.chunk_size - Coord(1, 1));
-        let slice = (chunk, bound);
+        let slice = (self.ripper.normalize_area(chunk), self.ripper.normalize_area(bound));
         self.consumed.1 += 1;
         if self.consumed.1 >= self.ripper.batch_size.1 {
             self.consumed.1 = 0;
