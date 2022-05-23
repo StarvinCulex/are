@@ -12,25 +12,4 @@ pub enum Acid {
     C,
 }
 
-impl Gene {
-    #[inline]
-    pub fn max_hp(&self) -> HealthT {
-        todo!()
-    }
-    #[inline]
-    pub fn heartbeat(&self) -> HeartbeatT {
-        todo!()
-    }
-    #[inline]
-    pub fn atk(&self) -> ATK {
-        todo!()
-    }
-    #[inline]
-    pub fn dmg(&self, atk: ATK) -> HealthT {
-        todo!()
-    }
-    #[inline]
-    pub fn select(&self, block: cosmos::Block) -> i32 {
-        todo!()
-    }
-}
+impl Gene {}

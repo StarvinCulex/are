@@ -16,9 +16,12 @@
 #![feature(arbitrary_self_types)]
 #![allow(dead_code, unused_imports, unused_variables)]
 
+use std::ffi::{OsStr, OsString};
+use std::io::Read;
+use std::iter::Iterator;
 use std::sync::Arc;
 
-use crate::arena::conf::StaticConf;
+use crate::arena::conf::GameConf;
 use crate::arena::cosmos::*;
 use crate::arena::mind::gods::plant::GodOfPlant;
 use crate::arena::mob::mech::mech::Mech;
@@ -26,6 +29,7 @@ use crate::arena::mob::Mob;
 use crate::arena::r#ref::ReadGuard;
 use crate::arena::RuntimeConf;
 use crate::conencode::ConEncoder;
+use crate::conf::Conf;
 use crate::cui::Window;
 use crate::grids::*;
 use crate::mob::bio::bio::Bio;
@@ -44,8 +48,47 @@ mod msgpip;
 mod sword;
 
 fn main() {
+    let mut conf_path = None;
+    {
+        let mut args = std::env::args_os();
+        while let Some(arg) = args.next() {
+            if arg == *"-c" {
+                conf_path = Some(args.next().unwrap_or_else(|| panic!("-c")));
+            }
+        }
+    }
+
+    let conf: Conf = {
+        let mut file = if let Some(cp) = conf_path {
+            std::fs::File::open(cp).unwrap()
+        } else {
+            std::fs::File::open(
+                std::env::current_exe()
+                    .unwrap()
+                    .parent()
+                    .unwrap()
+                    .join("are.toml")
+                    .into_os_string(),
+            )
+            .or_else(|_| {
+                std::fs::File::open(
+                    std::env::current_dir()
+                        .unwrap()
+                        .join("are.toml")
+                        .into_os_string(),
+                )
+            })
+            .unwrap()
+        };
+        let mut content = String::new();
+        file.read_to_string(&mut content).unwrap();
+        toml::from_str(content.as_str()).unwrap()
+    };
+
+    println!("{:?}", conf);
+
     let mut meta = arena::MetaCosmos::new(
-        StaticConf {
+        GameConf {
             chunk_size: Coord(1, 1),
             chunk_count: Coord(9, 9),
             padding: Coord(1, 1),

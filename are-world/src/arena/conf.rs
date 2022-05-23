@@ -3,13 +3,20 @@ use serde::Deserialize;
 use crate::arena::defs::{Crd, Tick};
 use crate::meta::types::*;
 
-pub struct StaticConf {
+#[derive(Deserialize, Debug)]
+pub struct Conf {
+    pub game: GameConf,
+    pub runtime: RuntimeConf,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct GameConf {
     pub chunk_count: Crd,
     pub chunk_size: Crd,
     pub padding: Crd,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct RuntimeConf {
     pub period: Tick,
     pub fire_tick: Tick,

@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use rc_box::ArcBox;
 
-use crate::arena::conf::StaticConf;
+use crate::arena::conf::GameConf;
 use crate::arena::cosmos_ripper::CosmosRipper;
 use crate::arena::defs::{Crd, CrdI, Idx, Tick};
 use crate::arena::gnd;
@@ -64,7 +64,7 @@ impl Block {
 }
 
 impl Cosmos {
-    pub fn new(static_conf: StaticConf, runtime_conf: RuntimeConf) -> Self {
+    pub fn new(static_conf: GameConf, runtime_conf: RuntimeConf) -> Self {
         let plate_size = static_conf.chunk_size * static_conf.chunk_count;
         let plate_size_usize: Coord<usize> = plate_size.try_into().unwrap();
         Cosmos {

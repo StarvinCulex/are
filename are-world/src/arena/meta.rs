@@ -1,4 +1,4 @@
-use crate::arena::conf::StaticConf;
+use crate::arena::conf::GameConf;
 
 pub use super::*;
 
@@ -8,7 +8,7 @@ pub struct MetaCosmos {
 }
 
 impl MetaCosmos {
-    pub fn new(static_conf: StaticConf, runtime_conf: RuntimeConf) -> MetaCosmos {
+    pub fn new(static_conf: GameConf, runtime_conf: RuntimeConf) -> MetaCosmos {
         MetaCosmos {
             mind_list: Vec::new(),
             cosmos: Cosmos::new(static_conf, runtime_conf),
