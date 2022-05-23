@@ -142,10 +142,7 @@ impl<AccessKey: ?Sized> ReadGuard<AccessKey> {
         &'g self,
         weak: Weak<_MobBlock<M>, AccessKey>,
     ) -> Option<MobRef<'g, M, AccessKey>> {
-        Some(MobRef(
-            weak.data.upgrade().unwrap().into(),
-            PhantomData::default(),
-        ))
+        Some(MobRef(weak.data.upgrade()?, PhantomData::default()))
     }
 }
 
@@ -173,10 +170,7 @@ impl<AccessKey: ?Sized> WriteGuard<AccessKey> {
         &'g self,
         weak: Weak<_MobBlock<M>, AccessKey>,
     ) -> Option<MobRef<'g, M, AccessKey>> {
-        Some(MobRef(
-            weak.data.upgrade().unwrap().into(),
-            PhantomData::default(),
-        ))
+        Some(MobRef(weak.data.upgrade()?, PhantomData::default()))
     }
 
     #[inline]
@@ -192,10 +186,7 @@ impl<AccessKey: ?Sized> WriteGuard<AccessKey> {
         &'g self,
         weak: Weak<_MobBlock<M>, AccessKey>,
     ) -> Option<MobRefMut<'g, M, AccessKey>> {
-        Some(MobRefMut(
-            weak.data.upgrade().unwrap().into(),
-            PhantomData::default(),
-        ))
+        Some(MobRefMut(weak.data.upgrade()?, PhantomData::default()))
     }
 }
 

@@ -2,10 +2,14 @@ use crate::arena::defs::{Crd, CrdI};
 use crate::grids::{Coord, Matrix};
 
 pub struct CosmosRipper {
-    pub plate_size: Crd, // matrix 大小
-    pub chunk_size: Crd, // 消息所在区间大小
-    pub padding: Crd, // 消息所在区间周围可操作范围大小
-    pub bound_size: Crd, // 可操作的区间范围大小
+    pub plate_size: Crd,
+    // matrix 大小
+    pub chunk_size: Crd,
+    // 消息所在区间大小
+    pub padding: Crd,
+    // 消息所在区间周围可操作范围大小
+    pub bound_size: Crd,
+    // 可操作的区间范围大小
     pub batch_size: Crd, // 每批有多少个
 }
 
@@ -33,7 +37,10 @@ impl CosmosRipper {
     }
     #[inline]
     pub fn with(&self, mut func: impl FnMut(&mut CosmosRipperBatch)) {
-        let batch_count = Coord(self.bound_size.0 / self.chunk_size.0, self.bound_size.1 / self.chunk_size.1); // 分多少批执行
+        let batch_count = Coord(
+            self.bound_size.0 / self.chunk_size.0,
+            self.bound_size.1 / self.chunk_size.1,
+        ); // 分多少批执行
         for i in 0..batch_count.0 {
             for j in 0..batch_count.1 {
                 let mut batch = CosmosRipperBatch {
@@ -61,12 +68,18 @@ impl<'c> Iterator for CosmosRipperBatch<'c> {
             return None;
         }
         let left_top = Coord(
-            self.consumed.0 * self.ripper.bound_size.0 + self.batch_offset.0 * self.ripper.chunk_size.0,
-            self.consumed.1 * self.ripper.bound_size.1 + self.batch_offset.1 * self.ripper.chunk_size.1,
+            self.consumed.0 * self.ripper.bound_size.0
+                + self.batch_offset.0 * self.ripper.chunk_size.0,
+            self.consumed.1 * self.ripper.bound_size.1
+                + self.batch_offset.1 * self.ripper.chunk_size.1,
         );
         let bound = left_top | (left_top + self.ripper.bound_size - Coord(1, 1));
-        let chunk = (left_top + self.ripper.padding) | (left_top + self.ripper.padding + self.ripper.chunk_size - Coord(1, 1));
-        let slice = (self.ripper.normalize_area(chunk), self.ripper.normalize_area(bound));
+        let chunk = (left_top + self.ripper.padding)
+            | (left_top + self.ripper.padding + self.ripper.chunk_size - Coord(1, 1));
+        let slice = (
+            self.ripper.normalize_area(chunk),
+            self.ripper.normalize_area(bound),
+        );
         self.consumed.1 += 1;
         if self.consumed.1 >= self.ripper.batch_size.1 {
             self.consumed.1 = 0;
@@ -87,7 +100,8 @@ impl<'c> ExactSizeIterator for CosmosRipperBatch<'c> {
         if self.consumed.0 >= self.ripper.batch_size.0 {
             return 0;
         }
-        ((self.ripper.batch_size.0 - self.consumed.0) * self.ripper.batch_size.1 - self.consumed.1) as usize
+        ((self.ripper.batch_size.0 - self.consumed.0) * self.ripper.batch_size.1 - self.consumed.1)
+            as usize
     }
 }
 

@@ -1,9 +1,6 @@
 //! by *StarvinCulex @2022/01/15*
-use std::iter::Iterator as _;
 
 use super::*;
-
-use ::duplicate::duplicate;
 
 #[derive(Clone)]
 pub struct Area<'m, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> {

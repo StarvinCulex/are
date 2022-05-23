@@ -5,7 +5,7 @@ use rand::{Rng, SeedableRng};
 use crate::arena::gnd::plant;
 use crate::arena::mind::Mind;
 use crate::arena::{gnd, Cosmos, Orderer};
-use crate::Coord;
+use crate::{Coord, PKey};
 
 pub struct GodOfPlant {
     rng: StdRng,
@@ -22,11 +22,11 @@ impl GodOfPlant {
 }
 
 impl Mind for GodOfPlant {
-    fn observe(&mut self, cosmos: &Cosmos) -> Result<(), ()> {
+    fn observe(&mut self, cosmos: &Cosmos, pk: &PKey) -> Result<(), ()> {
         Ok(())
     }
 
-    fn make_move(&mut self, cosmos: &Cosmos) -> Result<(), ()> {
+    fn make_move(&mut self, cosmos: &Cosmos, pk: &PKey) -> Result<(), ()> {
         let mut angelos = cosmos.angelos.make_worker();
 
         let plate_distributes = cosmos.angelos.plate_size.map(|x| Uniform::from(0..x));

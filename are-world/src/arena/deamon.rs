@@ -119,7 +119,7 @@ impl<'c, 'a> Deamon<'c, 'a> {
     pub fn set_plate<M: Mob + Unsize<dyn Mob> + ?Sized>(
         plate: &mut Matrix<Block, 1, 1>,
         mut major: &MajorAngelos,
-        mob: ArcBox<_MobBlock<M>>,
+        mut mob: ArcBox<_MobBlock<M>>,
     ) -> Result<Weak<MobBlock>, ArcBox<_MobBlock<M>>> {
         // check if the plate is empty
         let at = mob.at;
@@ -163,15 +163,16 @@ impl<'c, 'a> Deamon<'c, 'a> {
     pub fn reset_plate<'g, M: Mob + Unsize<dyn Mob> + ?Sized>(
         plate: &mut Matrix<Block, 1, 1>,
         major: &MajorAngelos,
-        mob: &mut MobRefMut<M>,
+        mut mob: &mut MobRefMut<M>,
         new_at: CrdI,
     ) -> Result<(), ()> {
         let at = mob.at();
         let mut mob: Arc<MobBlock> = mob.get_inner(&major.pkey);
         // check if there is another mob
         if plate.area(at).scan().any(|(_, grid)| {
-            grid.mob
-                .is_some_with(|pos_mob| Arc::as_ptr(&pos_mob) != Arc::as_ptr(&mob))
+            grid.mob.is_some_with(|pos_mob| {
+                Arc::as_ptr(pos_mob) as *const () != Arc::as_ptr(&mob) as *const ()
+            })
         }) {
             return Err(());
         }

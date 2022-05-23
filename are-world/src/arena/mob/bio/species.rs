@@ -12,7 +12,6 @@ use super::gene::Gene;
 
 pub struct Species {
     pub name: String,
-    pub gene: Gene,
 }
 
 pub struct SpeciesPool {}
@@ -67,7 +66,7 @@ impl Species {
 
     #[inline]
     pub fn act_delay(&self) -> Tick {
-        0
+        1
     }
 
     #[inline]
@@ -95,14 +94,15 @@ impl Species {
         1
     }
 
+    /// (0, 0)表示（1, 1)大
     #[inline]
     pub fn size(&self) -> Crd {
-        Coord(1, 1)
+        Coord(0, 0)
     }
 
     #[inline]
     pub fn watch_period(&self) -> AgeT {
-        10
+        1
     }
 
     #[inline]
@@ -122,11 +122,11 @@ impl Species {
 
     #[inline]
     pub fn eat_starts(&self) -> EnergyT {
-        1000
+        10
     }
 
     pub fn eat_takes(&self) -> EnergyT {
-        100
+        10
     }
 }
 

@@ -16,10 +16,11 @@
 #![feature(arbitrary_self_types)]
 #![allow(dead_code, unused_imports, unused_variables)]
 
+use std::sync::Arc;
+
 use crate::arena::conf::StaticConf;
 use crate::arena::cosmos::*;
 use crate::arena::mind::gods::plant::GodOfPlant;
-use crate::arena::mind::online::Gate;
 use crate::arena::mob::mech::mech::Mech;
 use crate::arena::mob::Mob;
 use crate::arena::r#ref::ReadGuard;
@@ -27,6 +28,8 @@ use crate::arena::RuntimeConf;
 use crate::conencode::ConEncoder;
 use crate::cui::Window;
 use crate::grids::*;
+use crate::mob::bio::bio::Bio;
+use crate::mob::bio::species::Species;
 use crate::sword::SWord;
 
 // cargo update -p crossbeam-epoch:0.9.8 --precise 0.9.7
@@ -64,6 +67,22 @@ fn main() {
     //     .join(Box::new(Gate::listen("0.0.0.0:8964")));
     meta.cosmos.angelos.join(Box::new(GodOfPlant::new()));
 
+    let adam = meta
+        .cosmos
+        .set(
+            Bio::new(
+                Arc::new(Species {
+                    name: "".to_string(),
+                }),
+                50,
+            )
+            .into_box(),
+        )
+        .unwrap_or_else(|_| panic!());
+    let mut worker = meta.cosmos.angelos.make_worker();
+    worker.tell(adam, mob::Msg::Wake, 1);
+    drop(worker);
+
     // meta.cosmos.plate[Coord(0isize, 0)].mob = Some(Mech {}.into_block());
     // meta.cosmos.angelos.order(Coord(0, 0), mob::Order::Wake, 1);
 
@@ -76,7 +95,7 @@ fn main() {
             meta.cosmos.plate.as_area().map(|b| {
                 if let Some(mob) = b.mob() {
                     mobs.push((mob.0, mob.1.clone()));
-                    "mob ".to_string()
+                    "mob".to_string()
                 } else {
                     b.ground.name()
                 }

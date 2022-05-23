@@ -39,7 +39,7 @@ pub struct BioTarget {
     pub target_mob: Option<Weak<MobBlock>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum BioAction {
     Nothing,
     Stroll,
@@ -139,7 +139,7 @@ impl Mob for Bio {
                 let _: bool = {
                     // 观察周围方格
                     self.age % self.species.watch_period() == 0
-                        && manhattan_carpet_bomb_search(
+                        && (manhattan_carpet_bomb_search(
                             self.at().from(),
                             self.species.watch_range() as u16,
                             |p| {
@@ -157,6 +157,7 @@ impl Mob for Bio {
                             },
                         )
                         .is_some()
+                            || self_target.action != BioAction::Nothing)
                 } || {
                     // 这是运算符[`or`]
                     // 闲逛

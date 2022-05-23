@@ -91,7 +91,7 @@ impl Cosmos {
         }
     }
 
-    pub fn pk<F: FnMut(&mut Cosmos, &PKey)>(&mut self, mut f: F) {
+    pub fn pk<F: FnOnce(&mut Cosmos, &PKey)>(&mut self, f: F) {
         let pkey = PKey::new();
         f(self, &pkey);
     }
@@ -170,7 +170,7 @@ impl Cosmos {
                         center.0 - center.0 % chunk_size.0,
                         center.1 - center.1 % chunk_size.1,
                     );
-                    let interval = left_top | (left_top + chunk_size);
+                    let interval = left_top | (left_top + chunk_size - Coord(1, 1));
                     worker.entry(interval).or_default().push(job);
                 }
             });
@@ -253,7 +253,9 @@ impl Cosmos {
 
         WriteGuard::with(&self.angelos.pkey, |guard| {
             self.ripper.with(|batch| {
+                let batch: Vec<_> = batch.collect();
                 let works: Vec<_> = batch
+                    .into_iter()
                     .filter_map(|(chunk, bound)| {
                         if let Entry::Occupied(o) = chunked_orders.entry(chunk) {
                             Some((bound, o.remove_entry().1))
