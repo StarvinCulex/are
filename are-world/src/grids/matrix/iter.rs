@@ -85,9 +85,8 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         self.accessor.next().map(|(pos, addr)| {
-            // extend the lifetime to 'm (the lifetime of Matrix) while preserving borrow checker working
             (pos, unsafe {
-                std::mem::transmute(self.matrix.get_by_addr(addr))
+                self.matrix.get_by_addr(addr)
             })
         })
     }
