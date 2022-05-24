@@ -70,7 +70,7 @@ impl<'c, 'a> Deamon<'c, 'a> {
 
     pub fn set<M: Mob + Unsize<dyn Mob> + ?Sized>(
         &mut self,
-        mut mob: ArcBox<_MobBlock<M>>,
+        mob: ArcBox<_MobBlock<M>>,
     ) -> Result<Weak<MobBlock>, ArcBox<_MobBlock<M>>> {
         let at = mob.at;
         if !self.contains(at) {
@@ -118,7 +118,7 @@ impl<'c, 'a> Deamon<'c, 'a> {
     #[inline]
     pub fn set_plate<M: Mob + Unsize<dyn Mob> + ?Sized>(
         plate: &mut Matrix<Block, 1, 1>,
-        mut major: &MajorAngelos,
+        major: &MajorAngelos,
         mut mob: ArcBox<_MobBlock<M>>,
     ) -> Result<Weak<MobBlock>, ArcBox<_MobBlock<M>>> {
         // check if the plate is empty
@@ -163,7 +163,7 @@ impl<'c, 'a> Deamon<'c, 'a> {
     pub fn reset_plate<'g, M: Mob + Unsize<dyn Mob> + ?Sized>(
         plate: &mut Matrix<Block, 1, 1>,
         major: &MajorAngelos,
-        mut mob: &mut MobRefMut<M>,
+        mob: &mut MobRefMut<M>,
         new_at: CrdI,
     ) -> Result<(), ()> {
         let at = mob.at();

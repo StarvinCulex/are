@@ -10,7 +10,6 @@ use crate::arena::cosmos::Deamon;
 use crate::arena::defs::Crd;
 use crate::arena::types::*;
 use crate::arena::{gnd, Angelos, Cosmos, Orderer};
-use crate::conf::plant::PlantList;
 use crate::{conf, Coord};
 
 pub struct Plant {
@@ -46,25 +45,26 @@ impl Plant {
             self.age = self.age.saturating_sub(angelos.major.conf.plant.corpse.rot);
         } else if self
             .kind
-            .map(&angelos.major.conf.plant.fruit.threshold)
-            .unwrap_or(&EnergyT::MAX)
-            <= &self.age
+            .map(&angelos.major.conf.plant)
+            .map(|p| p.fruit_when)
+            .unwrap_or(EnergyT::MAX)
+            <= self.age
         {
             self.age = self.age.saturating_sub(
-                *self
-                    .kind
-                    .map(&angelos.major.conf.plant.fruit.cost)
-                    .unwrap_or(&0),
+                self.kind
+                    .map(&angelos.major.conf.plant)
+                    .map(|p| p.fruit_cost)
+                    .unwrap_or(0),
             );
             for p in [Coord(-1, 0), Coord(0, -1), Coord(0, 1), Coord(1, 0)] {
                 angelos.order(at + p, gnd::Order::PlantSowing(self.kind), 0);
             }
         } else {
             self.age = self.age.saturating_add(
-                *self
-                    .kind
-                    .map(&angelos.major.conf.plant.aging.growth)
-                    .unwrap_or(&0),
+                self.kind
+                    .map(&angelos.major.conf.plant)
+                    .map(|p| p.grow)
+                    .unwrap_or(0),
             )
         }
     }
@@ -94,16 +94,16 @@ impl Default for Plant {
 impl Kind {
     #[inline]
     pub fn random_new(conf: &conf::plant::Conf, rng: &mut StdRng) -> Self {
-        let total = conf.sow.items_weight.grass + conf.sow.items_weight.tree;
+        let total = conf.grass.sow_weight + conf.tree.sow_weight;
         let n = rng.sample(Uniform::from(0..total));
-        if n < conf.sow.items_weight.grass {
+        if n < conf.grass.sow_weight {
             Kind::Grass
         } else {
             Kind::Tree
         }
     }
     #[inline]
-    fn map<'b, U: Debug>(&'_ self, plant_list: &'b PlantList<U>) -> Option<&'b U> {
+    fn map(&'_ self, plant_list: &'b conf::plant::Conf) -> Option<&'b conf::plant::Plant> {
         match *self {
             Kind::None | Kind::Corpse => None,
             Kind::Grass => Some(&plant_list.grass),

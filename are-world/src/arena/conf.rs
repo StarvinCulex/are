@@ -20,46 +20,30 @@ pub struct GameConf {
 #[derive(Deserialize, Debug)]
 pub struct RuntimeConf {
     pub period: Tick,
-    pub fire_tick: Tick,
     pub thread_count: usize,
 }
 
 pub mod plant {
     #[derive(super::Deserialize, Debug)]
     pub struct Conf {
-        pub aging: Aging,
-        pub sow: Sow,
-        pub fruit: Fruit,
+        pub aging_possibility: f64,
+        pub sow_possibility: f64,
         pub corpse: Corpse,
+        pub grass: Plant,
+        pub tree: Plant,
     }
 
     #[derive(super::Deserialize, Debug)]
-    pub struct Aging {
-        pub possibility: f64,
-        pub growth: PlantList<super::EnergyT>,
-    }
-
-    #[derive(super::Deserialize, Debug)]
-    pub struct Sow {
-        pub possibility: f64,
-        pub items_weight: PlantList<usize>,
+    pub struct Plant {
+        pub grow: super::EnergyT,
+        pub sow_weight: u32,
+        pub fruit_cost: super::EnergyT,
+        pub fruit_when: super::EnergyT,
     }
 
     #[derive(super::Deserialize, Debug)]
     pub struct Corpse {
         pub rot: super::EnergyT,
         pub convert_rate: f64,
-    }
-
-    #[derive(super::Deserialize, Debug)]
-    pub struct Fruit {
-        pub cost: PlantList<super::EnergyT>,
-        pub threshold: PlantList<super::EnergyT>,
-    }
-
-    #[derive(super::Deserialize, Debug)]
-    pub struct PlantList<V: std::fmt::Debug> {
-        pub grass: V,
-        pub tree: V,
     }
 }

@@ -5,16 +5,23 @@ padding = [1, 1]
 
 [runtime]
 period = 100
-fire_tick = 4
 thread_count = 4
 
 [plant]
-aging.possibility = 0.001
-aging.growth = { grass = 10, tree = 20 }
-sow.possibility = 0.00001
-sow.items_weight = { grass = 9, tree = 1 }
-fruit.cost = { grass = 40, tree = 100 }
-fruit.threshold = { grass = 50, tree = 200 }
+aging_possibility = 0.001
+sow_possibility = 0.00001
+
+[plant.grass]
+grow = 10000
+sow_weight = 9
+fruit_cost = 20000
+fruit_when = 50000
+
+[plant.tree]
+grow = 20000
+sow_weight = 1
+fruit_cost = 50000
+fruit_when = 500000
 
 [plant.corpse]
 rot = 20
