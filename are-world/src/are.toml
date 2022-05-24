@@ -6,9 +6,16 @@ padding = [1, 1]
 [runtime]
 period = 100
 fire_tick = 4
-plant_aging = 0.01
-plant_sow = 0.001
-plant_grow = 100
-corpse_rot = 1
 thread_count = 4
-corpse_convert_cost = 1.0
+
+[plant]
+aging.possibility = 0.001
+aging.growth = { grass = 10, tree = 20 }
+sow.possibility = 0.00001
+sow.items_weight = { grass = 9, tree = 1 }
+fruit.cost = { grass = 40, tree = 100 }
+fruit.threshold = { grass = 50, tree = 200 }
+
+[plant.corpse]
+rot = 20
+convert_rate = 0.8

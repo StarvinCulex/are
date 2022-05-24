@@ -74,12 +74,7 @@ impl Bio {
         let energy: f64 = self.energy.into();
         let size = measure_area(deamon.angelos.major.plate_size, self.at());
         let energy_per_grid: EnergyT = (energy
-            * deamon
-                .angelos
-                .major
-                .properties
-                .runtime_conf
-                .corpse_convert_cost
+            * deamon.angelos.major.conf.plant.corpse.convert_rate
             / (size.0 * size.1) as f64) as EnergyT;
         for (_, g) in deamon.get_ground_iter_mut(self.at()).unwrap() {
             g.plant.add_corpse(energy_per_grid);

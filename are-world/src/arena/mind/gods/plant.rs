@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use rand::distributions::Uniform;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
@@ -5,17 +7,18 @@ use rand::{Rng, SeedableRng};
 use crate::arena::gnd::plant;
 use crate::arena::mind::Mind;
 use crate::arena::{gnd, Cosmos, Orderer};
-use crate::{Coord, PKey};
+use crate::meta::gnd::plant::Kind;
+use crate::{conf, Coord, PKey};
 
 pub struct GodOfPlant {
+    pub conf: Arc<conf::Conf>,
     rng: StdRng,
 }
 
 impl GodOfPlant {
-    const KIND_LIST: [plant::Kind; 2] = [plant::Kind::Grass, plant::Kind::Tree];
-
-    pub fn new() -> GodOfPlant {
+    pub fn new(conf: Arc<conf::Conf>) -> GodOfPlant {
         GodOfPlant {
+            conf,
             rng: StdRng::from_entropy(),
         }
     }
@@ -32,7 +35,7 @@ impl Mind for GodOfPlant {
         let plate_distributes = cosmos.angelos.plate_size.map(|x| Uniform::from(0..x));
         let area = cosmos.plate.size().0 * cosmos.plate.size().1;
 
-        let aging_count = cosmos.angelos.properties.runtime_conf.plant_aging * area as f64;
+        let aging_count = self.conf.plant.aging.possibility * area as f64;
         if aging_count >= 1.0 || {
             let aging_distributes = Uniform::from(0.0..1.0);
             let p = self.rng.sample(aging_distributes);
@@ -47,20 +50,22 @@ impl Mind for GodOfPlant {
             }
         }
 
-        let sow_count = cosmos.angelos.properties.runtime_conf.plant_sow * area as f64;
+        let sow_count = self.conf.plant.sow.possibility * area as f64;
         if sow_count >= 1.0 || {
             let sow_distributes = Uniform::from(0.0..1.0);
             let p = self.rng.sample(sow_distributes);
             p <= sow_count
         } {
-            let kind_distributes = Uniform::from(0..GodOfPlant::KIND_LIST.len());
             for _ in 0..(sow_count.ceil() as usize) {
                 let p = Coord(
                     self.rng.sample(plate_distributes.0),
                     self.rng.sample(plate_distributes.1),
                 );
-                let kind = GodOfPlant::KIND_LIST[self.rng.sample(kind_distributes)];
-                angelos.order(p, gnd::Order::PlantSowing(kind), 0);
+                angelos.order(
+                    p,
+                    gnd::Order::PlantSowing(Kind::random_new(&self.conf.plant, &mut self.rng)),
+                    0,
+                );
             }
         }
 

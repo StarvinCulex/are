@@ -7,6 +7,7 @@ use crate::singletons::Singletons;
 
 pub struct MajorAngelos {
     pub properties: Properties,
+    pub conf: Arc<conf::Conf>,
     pub plate_size: Coord<Idx>,
     pub singletons: Singletons,
     pkey: PKey,

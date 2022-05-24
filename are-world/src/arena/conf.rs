@@ -7,6 +7,7 @@ use crate::meta::types::*;
 pub struct Conf {
     pub game: GameConf,
     pub runtime: RuntimeConf,
+    pub plant: plant::Conf,
 }
 
 #[derive(Deserialize, Debug)]
@@ -21,11 +22,44 @@ pub struct RuntimeConf {
     pub period: Tick,
     pub fire_tick: Tick,
     pub thread_count: usize,
+}
 
-    pub plant_aging: f64,
-    pub plant_sow: f64,
-    pub corpse_rot: EnergyT,
-    pub plant_grow: EnergyT,
+pub mod plant {
+    #[derive(super::Deserialize, Debug)]
+    pub struct Conf {
+        pub aging: Aging,
+        pub sow: Sow,
+        pub fruit: Fruit,
+        pub corpse: Corpse,
+    }
 
-    pub corpse_convert_cost: f64,
+    #[derive(super::Deserialize, Debug)]
+    pub struct Aging {
+        pub possibility: f64,
+        pub growth: PlantList<super::EnergyT>,
+    }
+
+    #[derive(super::Deserialize, Debug)]
+    pub struct Sow {
+        pub possibility: f64,
+        pub items_weight: PlantList<usize>,
+    }
+
+    #[derive(super::Deserialize, Debug)]
+    pub struct Corpse {
+        pub rot: super::EnergyT,
+        pub convert_rate: f64,
+    }
+
+    #[derive(super::Deserialize, Debug)]
+    pub struct Fruit {
+        pub cost: PlantList<super::EnergyT>,
+        pub threshold: PlantList<super::EnergyT>,
+    }
+
+    #[derive(super::Deserialize, Debug)]
+    pub struct PlantList<V: std::fmt::Debug> {
+        pub grass: V,
+        pub tree: V,
+    }
 }

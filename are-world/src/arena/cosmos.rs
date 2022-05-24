@@ -46,7 +46,6 @@ include!("deamon.rs");
 
 pub struct Properties {
     pub tick: u64,
-    pub runtime_conf: RuntimeConf,
 }
 
 impl PKey {
@@ -64,17 +63,15 @@ impl Block {
 }
 
 impl Cosmos {
-    pub fn new(static_conf: GameConf, runtime_conf: RuntimeConf) -> Self {
-        let plate_size = static_conf.chunk_size * static_conf.chunk_count;
+    pub fn new(conf: Arc<conf::Conf>) -> Self {
+        let plate_size = conf.game.chunk_size * conf.game.chunk_count;
         let plate_size_usize: Coord<usize> = plate_size.try_into().unwrap();
         Cosmos {
             plate: Matrix::new(plate_size_usize),
             angelos: MajorAngelos {
-                singletons: Singletons::new(&static_conf),
-                properties: Properties {
-                    tick: 0,
-                    runtime_conf,
-                },
+                singletons: Singletons::new(conf.clone()),
+                conf: conf.clone(),
+                properties: Properties { tick: 0 },
                 plate_size,
                 pkey: PKey::new(),
                 async_data: Mutex::new(MajorAngelosAsyncData {
@@ -87,7 +84,7 @@ impl Cosmos {
                 }),
                 mind_waiting_queue: Default::default(),
             },
-            ripper: CosmosRipper::new(plate_size, static_conf.chunk_size, static_conf.padding),
+            ripper: CosmosRipper::new(plate_size, conf.game.chunk_size, conf.game.padding),
         }
     }
 
@@ -126,7 +123,7 @@ impl Cosmos {
         from: Output<Crd, T>,
         to: &mut Output<Weak<MobBlock>, T>,
     ) {
-        let thread_count = self.angelos.properties.runtime_conf.thread_count;
+        let thread_count = self.angelos.conf.runtime.thread_count;
         let mut workers = Vec::with_capacity(thread_count);
         for _ in 0..thread_count {
             workers.push(Vec::new());
@@ -152,7 +149,7 @@ impl Cosmos {
         mobs: Output<Weak<MobBlock>, T>,
         chunk_size: Crd,
     ) -> HashMap<CrdI, Vec<(Weak<MobBlock>, Vec<T>)>> {
-        let thread_count = self.angelos.properties.runtime_conf.thread_count;
+        let thread_count = self.angelos.conf.runtime.thread_count;
         let mut workers: Vec<HashMap<CrdI, Vec<(Weak<MobBlock>, Vec<T>)>>> =
             Vec::with_capacity(thread_count);
         for _ in 0..thread_count {
@@ -192,7 +189,7 @@ impl Cosmos {
     #[inline]
     pub(crate) fn message_tick(&mut self) {
         {
-            let thread_count = self.angelos.properties.runtime_conf.thread_count;
+            let thread_count = self.angelos.conf.runtime.thread_count;
             let angelos_data = self.angelos.async_data.get_mut().unwrap();
             let gnd_messages = angelos_data.gnd_messages.pop_this_turn();
             let mob_pos_messages = angelos_data.mob_pos_messages.pop_this_turn();
@@ -226,7 +223,7 @@ impl Cosmos {
 
     #[inline]
     pub(crate) fn order_tick(&mut self) {
-        let thread_count = self.angelos.properties.runtime_conf.thread_count;
+        let thread_count = self.angelos.conf.runtime.thread_count;
         let angelos_data = self.angelos.async_data.get_mut().unwrap();
         let gnd_orders = angelos_data.gnd_orders.pop_this_turn();
         let mob_pos_orders = angelos_data.mob_pos_orders.pop_this_turn();

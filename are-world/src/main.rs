@@ -58,7 +58,7 @@ fn main() {
         }
     }
 
-    let conf: Conf = {
+    let conf: Arc<Conf> = {
         let mut file = if let Some(cp) = conf_path {
             std::fs::File::open(cp).unwrap()
         } else {
@@ -82,33 +82,19 @@ fn main() {
         };
         let mut content = String::new();
         file.read_to_string(&mut content).unwrap();
-        toml::from_str(content.as_str()).unwrap()
+        Arc::new(toml::from_str(content.as_str()).unwrap())
     };
 
     println!("{:?}", conf);
 
-    let mut meta = arena::MetaCosmos::new(
-        GameConf {
-            chunk_size: Coord(1, 1),
-            chunk_count: Coord(9, 9),
-            padding: Coord(1, 1),
-        },
-        RuntimeConf {
-            period: 100,
-            fire_tick: 4,
-            plant_aging: 0.01,
-            plant_sow: 0.001,
-            plant_grow: 100,
-            corpse_rot: 1,
-            thread_count: 4,
-            corpse_convert_cost: 1.0,
-        },
-    );
+    let mut meta = arena::MetaCosmos::new(conf.clone());
 
     // meta.cosmos
     //     .angelos
     //     .join(Box::new(Gate::listen("0.0.0.0:8964")));
-    meta.cosmos.angelos.join(Box::new(GodOfPlant::new()));
+    meta.cosmos
+        .angelos
+        .join(Box::new(GodOfPlant::new(conf.clone())));
 
     let adam = meta
         .cosmos
@@ -160,8 +146,6 @@ fn main() {
             }
         });
         meta.step();
-        std::thread::sleep(std::time::Duration::from_millis(
-            meta.cosmos.angelos.properties.runtime_conf.period,
-        ));
+        std::thread::sleep(std::time::Duration::from_millis(conf.runtime.period));
     }
 }
