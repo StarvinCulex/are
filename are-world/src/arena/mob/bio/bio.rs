@@ -71,7 +71,7 @@ impl Bio {
     }
 
     fn suicide(self: MobRefMut<Self>, deamon: &mut Deamon) {
-        let energy: f64 = self.energy.into();
+        let energy: f64 = (self.energy + self.species.energy_cost).into();
         let size = measure_area(deamon.angelos.major.plate_size, self.at());
         let energy_per_grid: EnergyT = (energy
             * deamon.angelos.major.conf.plant.corpse.convert_rate
@@ -103,6 +103,9 @@ impl Mob for Bio {
         message: Vec<Msg>,
         guard: &ReadGuard<PKey>,
     ) {
+        todo!("生物醒来需要能量开销");
+        todo!("生物观察也需要能量开销");
+
         let mut wake = false;
         for msg in message {
             match msg {
@@ -114,7 +117,7 @@ impl Mob for Bio {
             return;
         }
         // 维持心跳
-        angelos.tell(self.downgrade(), Msg::Wake, self.species.wake_period());
+        angelos.tell(self.downgrade(), Msg::Wake, self.species.wake_period);
         angelos.order(
             self.downgrade(),
             Order::MobMainTick,
@@ -133,10 +136,10 @@ impl Mob for Bio {
             } else {
                 let _: bool = {
                     // 观察周围方格
-                    self.age % self.species.watch_period() == 0
+                    self.age % self.species.watch_period == 0
                         && (manhattan_carpet_bomb_search(
                             self.at().from(),
-                            self.species.watch_range() as u16,
+                            self.species.watch_range,
                             |p| {
                                 let target = self.species.watching_choice(p, &cosmos.plate[p]);
                                 if target.action_weight == i8::MIN
@@ -198,7 +201,7 @@ impl Mob for Bio {
 
         // 挨饿
         {
-            if let Some(remain) = self.energy.checked_sub(self.species.wake_energy_consume()) {
+            if let Some(remain) = self.energy.checked_sub(self.species.energy_cost) {
                 self.energy = remain;
             } else {
                 // 饿死
@@ -216,9 +219,9 @@ impl Mob for Bio {
                     .major
                     .singletons
                     .species_pool
-                    .clone_species(self.species.clone());
-                let child_energy = self.species.spawn_energy();
-                let child_size = Coord(0, 0) | child_species.size();
+                    .clone_species(self.species.clone(), deamon);
+                let child_energy = self.species.spawn_init_energy;
+                let child_size = Coord(0, 0) | child_species.size;
                 let child = Bio::new(child_species, child_energy);
                 let mut pchild = Some(child.into_box());
 
@@ -251,7 +254,7 @@ impl Mob for Bio {
                     self.energy = energy_remain;
                     deamon
                         .angelos
-                        .tell(pchild.clone(), Msg::Wake, self.species.spawn_wake_at());
+                        .tell(pchild.clone(), Msg::Wake, self.species.incubation_delay);
                 }
             }
         }
@@ -274,7 +277,7 @@ impl Mob for Bio {
                         let mut takes: EnergyT = 0;
                         if let Ok(grounds) = deamon.get_ground_iter_mut(target_pos) {
                             for (p, g) in grounds {
-                                takes = takes.saturating_add(g.plant.mow(species.eat_takes()));
+                                takes = takes.saturating_add(g.plant.mow(species.eat_takes));
                             }
                         }
                         if takes == 0 {
@@ -287,7 +290,7 @@ impl Mob for Bio {
                         *target = BioTarget::new();
                     }
                 }
-            } else if age % species.move_period() == 0 {
+            } else if age % species.move_period == 0 {
                 {
                     // 移动
                     let facings = silly_facing(
@@ -312,7 +315,7 @@ impl Mob for Bio {
                         }
                     }
                     if move_success {
-                        self.energy = self.energy.saturating_sub(self.species.move_cost());
+                        self.energy = self.energy.saturating_sub(self.species.move_cost);
                     } else {
                         // 移动失败就取消目标
                         self.target.get_mut().unwrap().target = BioTarget::new();

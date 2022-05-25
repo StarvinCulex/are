@@ -32,6 +32,7 @@ use crate::conencode::ConEncoder;
 use crate::conf::Conf;
 use crate::cui::Window;
 use crate::grids::*;
+use crate::mind::gods::bio::GodOfBio;
 use crate::mob::bio::bio::Bio;
 use crate::mob::bio::species::Species;
 use crate::sword::SWord;
@@ -95,22 +96,25 @@ fn main() {
     meta.cosmos
         .angelos
         .join(Box::new(GodOfPlant::new(conf.clone())));
+    meta.cosmos
+        .angelos
+        .join(Box::new(GodOfBio::new(conf.clone())));
 
-    let adam = meta
-        .cosmos
-        .set(
-            Bio::new(
-                Arc::new(Species {
-                    name: "".to_string(),
-                }),
-                50,
-            )
-            .into_box(),
-        )
-        .unwrap_or_else(|_| panic!());
-    let mut worker = meta.cosmos.angelos.make_worker();
-    worker.tell(adam, mob::Msg::Wake, 1);
-    drop(worker);
+    // let adam = meta
+    //     .cosmos
+    //     .set(
+    //         Bio::new(
+    //             Arc::new(Species {
+    //                 name: "".to_string(),
+    //             }),
+    //             50,
+    //         )
+    //         .into_box(),
+    //     )
+    //     .unwrap_or_else(|_| panic!());
+    // let mut worker = meta.cosmos.angelos.make_worker();
+    // worker.tell(adam, mob::Msg::Wake, 1);
+    // drop(worker);
 
     // meta.cosmos.plate[Coord(0isize, 0)].mob = Some(Mech {}.into_block());
     // meta.cosmos.angelos.order(Coord(0, 0), mob::Order::Wake, 1);
@@ -118,7 +122,7 @@ fn main() {
     meta.step();
     loop {
         let mut mobs = vec![];
-        println!("=====");
+        println!("{} =====", meta.cosmos.angelos.properties.tick);
         println!(
             "{}",
             meta.cosmos.plate.as_area().map(|b| {

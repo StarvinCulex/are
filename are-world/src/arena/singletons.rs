@@ -10,7 +10,7 @@ pub struct Singletons {
 impl Singletons {
     pub fn new(conf: Arc<conf::Conf>) -> Singletons {
         Singletons {
-            species_pool: SpeciesPool::new(),
+            species_pool: SpeciesPool::new(conf.clone()),
         }
     }
 }

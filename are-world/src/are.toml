@@ -4,8 +4,9 @@ chunk_count = [9, 9]
 padding = [1, 1]
 
 [runtime]
-period = 100
+period = 0
 thread_count = 4
+retry = 10
 
 [plant]
 aging_possibility = 0.001
@@ -26,3 +27,49 @@ fruit_when = 500000
 [plant.corpse]
 rot = 20
 convert_rate = 0.8
+
+[bio]
+create_possibility = 0.001
+mutation.insert = 0.1
+mutation.remove = 0.1
+
+[bio.init]
+wake_period = 10
+wake_energy_consume = 1
+energy_cost = 10000
+spawn_loss = 10000
+spawn_init_energy = 1000
+incubation_delay = 1
+size = [0, 0]
+watch_period = 10
+watch_range = 3
+move_period = 1
+move_cost = 10
+eat_threshold = 20000
+eat_takes = 1000
+
+[bio.acids.A]
+mutate_rate = 1
+[bio.acids.A.prop]
+wake_period = 0
+wake_energy_consume = 0
+energy_cost = 0
+spawn_loss = 0
+spawn_init_energy = 0
+incubation_delay = 0
+size = [0, 0]
+watch_period = 0
+watch_range = 0
+move_period = 0
+move_cost = 0
+eat_threshold = 0
+eat_takes = 0
+
+[[bio.creatures]]
+weight = 1
+insertions = 1
+gene = ["A", "A", "A"]
+[[bio.creatures]]
+weight = 1
+insertions = 0
+gene = ["A"]
