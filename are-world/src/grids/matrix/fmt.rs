@@ -77,7 +77,7 @@ where
             }
         };
 
-        let sheet = Matrix::<String, 1, 1>::with_ctor_default(sheet_size, constructor, String::new);
+        let sheet = Matrix::<String, 1, 1>::with_ctor(sheet_size, constructor);
         let mut widths = vec![0usize; sheet_size.0];
         for (p, s) in sheet.iter() {
             let col = p.0 as usize;

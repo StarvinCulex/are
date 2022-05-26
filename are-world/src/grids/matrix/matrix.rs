@@ -1,10 +1,10 @@
 // by *StarvinCulex @2021/11/13*
 
+use std::mem::MaybeUninit;
 use std::ops::Index;
 
-use serde::{Deserialize, Serialize};
-
 use ::duplicate::duplicate;
+use serde::{Deserialize, Serialize};
 
 /// 固定宽度和高度的矩阵。  
 /// 通过[`Coord<isize>`]作为索引获得其中的值。  
@@ -25,10 +25,9 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
     ///  
     /// *`size.0`或`size.1`超过[`isize::MAX`]引发未定义行为。*
     #[inline]
-    pub fn with_ctor_default<Index: Into<usize>>(
+    pub fn with_ctor<Index: Into<usize>>(
         siz: Coord<Index>,
         mut constructor: impl FnMut(Coord<isize>) -> Element,
-        mut default_generator: impl FnMut() -> Element,
     ) -> Self {
         let size: Coord<usize> = Coord(siz.0.into(), siz.1.into());
         let alloc_size = Self::calc_alloc_size::<usize>(size);
@@ -42,7 +41,7 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
             let new_element = if contains {
                 constructor(pos)
             } else {
-                default_generator()
+                unsafe { MaybeUninit::uninit().assume_init() }
             };
             instance.elements.push(new_element);
         }
@@ -50,24 +49,16 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
     }
 
     #[inline]
-    pub fn with_array2_default<const X: usize, const Y: usize>(
-        mut elements: [[Element; X]; Y],
-        default_generator: impl Fn() -> Element,
-    ) -> Self {
-        Self::with_ctor_default(
-            Coord(X, Y),
-            |pos| {
-                if pos >= Coord(0, 0) && pos < Coord(X as isize, Y as isize) {
-                    std::mem::replace(
-                        &mut elements[pos.1 as usize][pos.0 as usize],
-                        default_generator(),
-                    )
-                } else {
-                    default_generator()
-                }
-            },
-            || default_generator(),
-        )
+    pub fn with_array2<const X: usize, const Y: usize>(mut elements: [[Element; X]; Y]) -> Self {
+        Self::with_ctor(Coord(X, Y), |pos| {
+            if pos >= Coord(0, 0) && pos < Coord(X as isize, Y as isize) {
+                std::mem::replace(&mut elements[pos.1 as usize][pos.0 as usize], unsafe {
+                    MaybeUninit::uninit().assume_init()
+                })
+            } else {
+                unsafe { MaybeUninit::uninit().assume_init() }
+            }
+        })
     }
 
     /// 返回矩阵的大小  
@@ -145,11 +136,6 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
 #[allow(dead_code)]
 impl<Element> Matrix<Element, 1, 1> {
     #[inline]
-    pub fn with_ctor(size: Coord<usize>, constructor: impl FnMut(Coord<isize>) -> Element) -> Self {
-        Self::with_ctor_default(size, constructor, || panic!("never happen"))
-    }
-
-    #[inline]
     pub fn with_data(size: &Coord<usize>, mut elements: Vec<Element>) -> Result<Self, ()> {
         if elements.len() != size.0 * size.1 {
             Err(())
@@ -187,7 +173,7 @@ where
     Element: Default,
 {
     fn from(elements: [[Element; SIZE_X]; SIZE_Y]) -> Self {
-        Matrix::with_array2_default(elements, Element::default)
+        Matrix::with_array2(elements)
     }
 }
 
@@ -201,7 +187,7 @@ where
     /// 矩阵的所有元素由`Element::default()`的结果填充。  
     #[inline]
     pub fn new<Index: Into<usize>>(size: Coord<Index>) -> Self {
-        Self::with_ctor_default(size, |_| Element::default(), Element::default)
+        Self::with_ctor(size, |_| Element::default())
     }
 }
 
@@ -275,7 +261,7 @@ where
     /// *`size.0`或`size.1`超过[`isize::MAX`]引发未定义行为。*
     #[inline]
     pub fn with_fill(size: Coord<usize>, element: &Element) -> Self {
-        Self::with_ctor_default(size, |_| element.clone(), || element.clone())
+        Self::with_ctor(size, |_| element.clone())
     }
 }
 
@@ -446,8 +432,8 @@ fn test_sub<const CW: usize, const CH: usize>() {
 #[cfg(test)]
 fn test_map() {
     assert_eq!(
-        Matrix::<i32, 1, 1>::with_array2_default([[-1, -2, -3], [-4, -5, -6]], i32::default),
-        Matrix::<i32, 1, 1>::with_array2_default([[1, 2, 3], [4, 5, 6]], i32::default).map(|i| -i),
+        Matrix::<i32, 1, 1>::with_array2([[-1, -2, -3], [-4, -5, -6]]),
+        Matrix::<i32, 1, 1>::with_array2([[1, 2, 3], [4, 5, 6]]).map(|i| -i),
     );
     // assert_eq!(
     //     Matrix::<i32, 1, 1>::with_array2([[0, 0, 0, 0], [0, 1, 2, 3], [0, 4, 5, 6]], i32::default)
