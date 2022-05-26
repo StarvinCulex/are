@@ -24,6 +24,8 @@ pub struct Bio {
     pub age: AgeT,
     pub energy: EnergyT,
     pub target: SpinLock<BioMutex>,
+
+    pub hp: HitPointT,
 }
 
 pub struct BioMutex {
@@ -44,6 +46,8 @@ pub enum BioAction {
     Nothing,
     Stroll,
     Eat,
+    Flee,
+    Chase,
 }
 
 impl BioTarget {
@@ -60,13 +64,21 @@ impl BioTarget {
 
 impl Bio {
     pub fn new(species: Arc<Species>, energy: EnergyT) -> Bio {
+        let hp = species.max_hp;
         Bio {
             species,
             energy,
+            hp,
             age: 0,
             target: SpinLock::new(BioMutex {
                 target: BioTarget::new(),
             }),
+        }
+    }
+
+    pub fn being_attacked(&mut self, atk: ATK) {
+        match atk {
+            ATK::Normal(x) => self.hp = self.hp.saturating_sub(x),
         }
     }
 
@@ -103,13 +115,10 @@ impl Mob for Bio {
         message: Vec<Msg>,
         guard: &ReadGuard<PKey>,
     ) {
-        todo!("生物醒来需要能量开销");
-        todo!("生物观察也需要能量开销");
-
         let mut wake = false;
         for msg in message {
             match msg {
-                mob::Msg::Wake => wake = true,
+                Msg::Wake => wake = true,
             }
         }
 
@@ -141,7 +150,8 @@ impl Mob for Bio {
                             self.at().from(),
                             self.species.watch_range,
                             |p| {
-                                let target = self.species.watching_choice(p, &cosmos.plate[p]);
+                                let target =
+                                    self.species.watching_choice(p, &cosmos.plate[p], guard);
                                 if target.action_weight == i8::MIN
                                     || target.action_weight == i8::MAX
                                 {
@@ -188,9 +198,20 @@ impl Mob for Bio {
         let matrix_size = deamon.angelos.major.plate_size;
 
         let mut main_tick = false;
+        let mut last_attacker = None;
         for odr in orders {
             match odr {
                 Order::MobMainTick => main_tick = true,
+                Order::Attack {
+                    atk,
+                    attacker,
+                    threat,
+                } => {
+                    self.being_attacked(atk);
+                    if let Some(a) = attacker {
+                        last_attacker = Some((Some(a), threat));
+                    }
+                }
             }
         }
 
@@ -199,9 +220,21 @@ impl Mob for Bio {
         }
         self.age = self.age.overflowing_add(1).0;
 
+        // 生命值
+        {
+            if self.hp < self.species.max_hp {
+                self.hp = self.hp.saturating_add(self.species.regeneration);
+                self.energy = self.energy.saturating_sub(self.species.regeneration_cost);
+            }
+            if self.hp == 0 {
+                self.suicide(deamon);
+                return;
+            }
+        }
+
         // 挨饿
         {
-            if let Some(remain) = self.energy.checked_sub(self.species.energy_cost) {
+            if let Some(remain) = self.energy.checked_sub(self.species.wake_energy_consume) {
                 self.energy = remain;
             } else {
                 // 饿死
@@ -289,6 +322,21 @@ impl Mob for Bio {
                     BioAction::Nothing | BioAction::Stroll => {
                         *target = BioTarget::new();
                     }
+                    BioAction::Flee | BioAction::Chase => {
+                        if let Some(enemy) = target.target_mob.clone() {
+                            deamon.angelos.order(
+                                enemy,
+                                Order::Attack {
+                                    atk: species.atk,
+                                    attacker: Some(self.downgrade()),
+                                    threat: species.threat,
+                                },
+                                0,
+                            );
+                        } else {
+                            *target = BioTarget::new();
+                        }
+                    }
                 }
             } else if age % species.move_period == 0 {
                 {
@@ -323,6 +371,30 @@ impl Mob for Bio {
                 }
             }
         }
+
+        if let Some((attacker, threat)) = last_attacker {
+            self.target.get_mut().unwrap().target = if threat <= self.species.fight_back_threshold {
+                BioTarget {
+                    action_weight: i8::MAX,
+                    action: BioAction::Flee,
+                    action_range: self.species.attack_range,
+                    target: None,
+                    target_mob: attacker,
+                }
+            } else {
+                BioTarget {
+                    action_weight: i8::MIN,
+                    action: BioAction::Flee,
+                    action_range: Coord(0, 0),
+                    target: None,
+                    target_mob: attacker,
+                }
+            };
+        }
+    }
+
+    fn threat(&self) -> ThreatT {
+        self.species.threat
     }
 }
 

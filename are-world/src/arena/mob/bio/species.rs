@@ -11,10 +11,11 @@ use crate::arena::conf;
 use crate::arena::defs::Crd;
 use crate::arena::types::*;
 use crate::conf::bio::Acid;
-use crate::lock::spinlock::SpinLock;
+use crate::lock::spinlock::{Guard, SpinLock};
 use crate::meta::defs::{Idx, Tick};
+use crate::mob::bio::atk::ATK;
 use crate::mob::bio::bio::{BioAction, BioTarget};
-use crate::{Block, Coord, Deamon};
+use crate::{Block, Coord, Deamon, PKey, ReadGuard};
 
 use super::gene::Gene;
 
@@ -35,6 +36,17 @@ pub struct Species {
     pub move_cost: EnergyT,
     pub eat_threshold: EnergyT,
     pub eat_takes: EnergyT,
+
+    pub max_hp: HitPointT,
+    pub threat: ThreatT,
+    pub atk: ATK,
+    pub attack_cost: EnergyT,
+    pub flee_threshold: ThreatT,
+    pub fight_back_threshold: ThreatT,
+    pub attack_range: Crd,
+    pub chase_threshold: ThreatT,
+    pub regeneration: HitPointT,
+    pub regeneration_cost: EnergyT,
 }
 
 pub struct SpeciesPool {
@@ -48,7 +60,41 @@ impl Species {
     }
 
     /// 返回值：负数表示逃离，正数表示接近
-    pub fn watching_choice(&self, at: Crd, block: &Block) -> BioTarget {
+    #[inline]
+    pub fn watching_choice(&self, at: Crd, block: &Block, guard: &ReadGuard<PKey>) -> BioTarget {
+        let mob_check = || -> Option<BioTarget> {
+            let mob = guard.wrap_weak(block.mob()?.1)?;
+            let threat = mob.threat();
+            if threat >= self.flee_threshold {
+                Some(BioTarget {
+                    action_weight: i8::MIN,
+                    action: BioAction::Flee,
+                    action_range: if threat <= self.fight_back_threshold {
+                        self.attack_range
+                    } else {
+                        Coord(0, 0)
+                    },
+                    target: Some(mob.at()),
+                    target_mob: Some(mob.downgrade()),
+                })
+            } else if threat <= self.chase_threshold {
+                Some(BioTarget {
+                    action_weight: (self.chase_threshold - threat)
+                        .try_into()
+                        .unwrap_or(i8::MAX),
+                    action: BioAction::Chase,
+                    action_range: self.attack_range,
+                    target: Some(mob.at()),
+                    target_mob: Some(mob.downgrade()),
+                })
+            } else {
+                None
+            }
+        };
+        if let Some(x) = mob_check() {
+            return x;
+        }
+
         if block.ground.plant.age >= self.eat_threshold {
             BioTarget {
                 action_weight: 1,
@@ -216,6 +262,17 @@ impl Species {
             move_cost: stats.move_cost.max(0.0) as EnergyT,
             eat_threshold: stats.eat_threshold.max(0.0) as EnergyT,
             eat_takes: stats.eat_takes.max(0.0) as EnergyT,
+
+            max_hp: stats.combat.hit_point.max(1.0) as HitPointT,
+            threat: stats.combat.threat as ThreatT,
+            atk: ATK::Normal(stats.combat.atk.max(0.0) as HitPointT),
+            attack_cost: stats.combat.atk_cost.max(0.0) as EnergyT,
+            flee_threshold: stats.combat.flee_threshold as ThreatT,
+            fight_back_threshold: stats.combat.fight_back_threshold as ThreatT,
+            attack_range: Default::default(),
+            chase_threshold: stats.combat.chase_threshold as ThreatT,
+            regeneration: stats.combat.regeneration.max(0.0) as HitPointT,
+            regeneration_cost: stats.combat.regeneration_cost.max(0.0) as HitPointT,
         }
     }
 

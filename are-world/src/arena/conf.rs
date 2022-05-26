@@ -70,6 +70,8 @@ pub mod plant {
 }
 
 pub mod bio {
+    use crate::arena::types::HitPointT;
+
     #[derive(super::Deserialize, Debug)]
     pub struct Conf {
         /// [`GodOfBio`]在某一刻触发造生物的概率
@@ -97,7 +99,8 @@ pub mod bio {
         /// 生物醒来的周期。最小是0  
         /// 每当醒来，年龄增加1
         pub wake_period: f64,
-        /// 未实装
+        /// 醒来的能量开销  
+        /// 能量低于0会饿死
         pub wake_energy_consume: f64,
         /// 这个生物价值的能量。最小是1  
         /// 生物繁殖需要消耗的能量是`energy_cost + spawn_loss + spawn_init_energy`
@@ -122,6 +125,32 @@ pub mod bio {
         pub eat_threshold: f64,
         /// 每次吃植物活的的能量。至少是0
         pub eat_takes: f64,
+
+        pub combat: Combat,
+    }
+
+    #[derive(super::Deserialize, Debug, Clone)]
+    pub struct Combat {
+        /// 生命值。为0时会死亡。至少是1
+        pub hit_point: f64,
+        /// 每次醒来会回复的生命值（向下取整）。至少是0
+        pub regeneration: f64,
+        /// 每次醒来回复生命值造成的能量开销（向下取整）。至少是0
+        pub regeneration_cost: f64,
+        /// 攻击力数值。至少是0
+        /// 攻击时会将目标的生命值减去攻击力。
+        pub atk: f64,
+        /// 每次攻击的能量开销。至少是0
+        pub atk_cost: f64,
+
+        /// 威胁系数
+        pub threat: f64,
+        /// 其他生物的威胁系数不低于此数值就会逃跑
+        pub flee_threshold: f64,
+        /// 逃跑时如果目标生物的威胁系数不高于此数值，在攻击范围内就会反击
+        pub fight_back_threshold: f64,
+        /// 其他生物的威胁系数不高于此数值就会设定为捕猎目标
+        pub chase_threshold: f64,
     }
 
     #[derive(super::Deserialize, Debug)]
@@ -160,6 +189,18 @@ pub mod bio {
                 move_cost: self.move_cost + rhs.move_cost,
                 eat_threshold: self.eat_threshold + rhs.eat_threshold,
                 eat_takes: self.eat_takes + rhs.eat_takes,
+                combat: Combat {
+                    hit_point: self.combat.hit_point + rhs.combat.hit_point,
+                    regeneration: self.combat.regeneration + rhs.combat.regeneration,
+                    regeneration_cost: self.combat.regeneration_cost + rhs.combat.regeneration_cost,
+                    atk: self.combat.atk + rhs.combat.atk,
+                    atk_cost: self.combat.atk_cost + rhs.combat.atk_cost,
+                    threat: self.combat.threat + rhs.combat.threat,
+                    flee_threshold: self.combat.flee_threshold + rhs.combat.flee_threshold,
+                    fight_back_threshold: self.combat.fight_back_threshold
+                        + rhs.combat.fight_back_threshold,
+                    chase_threshold: self.combat.chase_threshold + rhs.combat.chase_threshold,
+                },
             }
         }
     }

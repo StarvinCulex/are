@@ -6,6 +6,7 @@ use crate::arena::cosmos::{Deamon, MobBlock, PKey};
 use crate::arena::mob::{Msg, Order};
 use crate::arena::{Cosmos, ReadGuard};
 use crate::cosmos::defs::CrdI;
+use crate::meta::types::ThreatT;
 use crate::{Angelos, MobRef, MobRefMut};
 
 pub trait Mob: Send + Sync + ToString {
@@ -31,4 +32,6 @@ pub trait Mob: Send + Sync + ToString {
     );
 
     fn order(self: MobRefMut<Self>, deamon: &mut Deamon, order: Vec<Order>);
+
+    fn threat(&self) -> ThreatT;
 }

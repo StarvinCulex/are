@@ -3,3 +3,5 @@ pub type HeartbeatT = u8;
 pub type EnergyT = u32;
 pub type AgeT = u32;
 pub type TargetWeightT = i8;
+pub type ThreatT = i32;
+pub type HitPointT = u32;

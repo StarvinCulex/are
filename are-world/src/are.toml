@@ -47,6 +47,15 @@ move_period = 1
 move_cost = 10
 eat_threshold = 20000
 eat_takes = 1000
+combat.hit_point = 10
+combat.regeneration = 0
+combat.regeneration_cost = 0
+combat.atk = 0
+combat.atk_cost = 0
+combat.threat = 0
+combat.flee_threshold = 0
+combat.fight_back_threshold = 0
+combat.chase_threshold = 0
 
 [bio.acids.A]
 mutate_rate = 1
@@ -64,6 +73,15 @@ move_period = 0
 move_cost = 0
 eat_threshold = 0
 eat_takes = 0
+combat.hit_point = 10
+combat.regeneration = 0
+combat.regeneration_cost = 0
+combat.atk = 0
+combat.atk_cost = 0
+combat.threat = 0
+combat.flee_threshold = 0
+combat.fight_back_threshold = 0
+combat.chase_threshold = 0
 
 [[bio.creatures]]
 weight = 1

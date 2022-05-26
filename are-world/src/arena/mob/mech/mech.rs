@@ -6,6 +6,7 @@ use crate::arena::cosmos::*;
 use crate::arena::cosmos::{Deamon, MobBlock, PKey, _MobBlock};
 use crate::arena::defs::CrdI;
 use crate::arena::mob::{Mob, Msg, Order};
+use crate::arena::types::ThreatT;
 use crate::arena::{mob, Cosmos, ReadGuard};
 use crate::{Interval, MobRef, MobRefMut, SWord};
 
@@ -37,6 +38,10 @@ impl Mob for Mech {
         deamon
             .angelos
             .order(self.downgrade(), mob::Order::MobMainTick, 1);
+    }
+
+    fn threat(&self) -> ThreatT {
+        todo!()
     }
 }
 
