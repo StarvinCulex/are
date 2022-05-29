@@ -21,8 +21,15 @@ impl<'m, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
     }
 
     #[inline]
+    pub fn fast(
+        &self,
+    ) -> Iterator<'m, Element, Fast<CHUNK_WIDTH, CHUNK_HEIGHT>, CHUNK_WIDTH, CHUNK_HEIGHT> {
+        Iterator::new(self.matrix, Fast::new(self.area, self.matrix.size))
+    }
+
+    #[inline]
     pub fn iter(&self) -> impl std::iter::Iterator<Item = (Coord<isize>, &'m Element)> {
-        self.scan()
+        self.fast()
     }
 
     #[inline]
@@ -36,11 +43,11 @@ impl<'m, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> std::iter
 {
     type Item = (Coord<isize>, &'m Element);
     type IntoIter =
-        Iterator<'m, Element, Scan<CHUNK_WIDTH, CHUNK_HEIGHT>, CHUNK_WIDTH, CHUNK_HEIGHT>;
+        Iterator<'m, Element, Fast<CHUNK_WIDTH, CHUNK_HEIGHT>, CHUNK_WIDTH, CHUNK_HEIGHT>;
 
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
-        self.scan()
+        self.fast()
     }
 }
 
@@ -62,8 +69,15 @@ impl<'m, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
     }
 
     #[inline]
+    pub fn fast(
+        self,
+    ) -> IteratorMut<'m, Element, Fast<CHUNK_WIDTH, CHUNK_HEIGHT>, CHUNK_WIDTH, CHUNK_HEIGHT> {
+        IteratorMut::new(self.matrix, Fast::new(self.area, self.matrix.size))
+    }
+
+    #[inline]
     pub fn iter(self) -> impl std::iter::Iterator<Item = (Coord<isize>, &'m mut Element)> {
-        self.scan()
+        self.fast()
     }
 
     #[inline]
@@ -77,11 +91,11 @@ impl<'m, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> std::iter
 {
     type Item = (Coord<isize>, &'m mut Element);
     type IntoIter =
-        IteratorMut<'m, Element, Scan<CHUNK_WIDTH, CHUNK_HEIGHT>, CHUNK_WIDTH, CHUNK_HEIGHT>;
+        IteratorMut<'m, Element, Fast<CHUNK_WIDTH, CHUNK_HEIGHT>, CHUNK_WIDTH, CHUNK_HEIGHT>;
 
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
-        self.scan()
+        self.fast()
     }
 }
 
@@ -97,7 +111,7 @@ impl<'m, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
             .map(|(_, ref_element)| mapping(ref_element))
             .collect();
         Matrix::with_data(
-            &Coord(self.size().0 as usize, self.size().1 as usize),
+            Coord(self.size().0 as usize, self.size().1 as usize),
             elements,
         )
         .unwrap()

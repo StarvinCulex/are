@@ -54,12 +54,10 @@ impl<const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> Accessor<CHUNK_WIDTH, 
             None
         } else {
             let at = self.at;
-            let addr = unsafe {
-                Matrix::<(), CHUNK_WIDTH, CHUNK_HEIGHT>::calc_address_unchecked(
-                    self.matrix_size,
-                    at,
-                )
-            };
+            let addr = Matrix::<(), CHUNK_WIDTH, CHUNK_HEIGHT>::calc_address_unchecked(
+                self.matrix_size,
+                at,
+            );
 
             self.length -= 1;
             self.at = {
