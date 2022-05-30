@@ -1,5 +1,6 @@
 use std::cell::UnsafeCell;
 use std::hint;
+use std::intrinsics::{likely, unlikely};
 use std::ops::{Deref, DerefMut};
 use std::sync::atomic::AtomicU8;
 use std::sync::atomic::Ordering::{AcqRel, Acquire, Release};
@@ -28,9 +29,9 @@ impl<T: ?Sized> SpinLock<T> {
     pub fn lock(&self) -> LockResult<Guard<'_, T>> {
         loop {
             let r = self.lock.fetch_or(LOCK_FLAG, AcqRel);
-            if r & LOCK_FLAG == 0 {
+            if likely(r & LOCK_FLAG == 0) {
                 // return `PoisonError` only when holding the lock, as it can be recovered into `Guard`
-                if r & POISON_FLAG != 0 {
+                if unlikely(r & POISON_FLAG != 0) {
                     return Err(PoisonError::new(unsafe { Guard::new(self) }));
                 }
                 return Ok(unsafe { Guard::new(self) });
@@ -41,11 +42,11 @@ impl<T: ?Sized> SpinLock<T> {
 
     pub fn try_lock(&self) -> TryLockResult<Guard<'_, T>> {
         let r = self.lock.fetch_or(LOCK_FLAG, AcqRel);
-        if r & LOCK_FLAG != 0 {
+        if unlikely(r & LOCK_FLAG != 0) {
             return Err(TryLockError::WouldBlock);
         }
         // return `PoisonError` only when holding the lock, as it can be recovered into `Guard`
-        if r & POISON_FLAG != 0 {
+        if likely(r & POISON_FLAG != 0) {
             return Err(TryLockError::Poisoned(PoisonError::new(unsafe {
                 Guard::new(self)
             })));
@@ -61,14 +62,14 @@ impl<T: ?Sized> SpinLock<T> {
     where
         T: Sized,
     {
-        if self.lock.into_inner() & POISON_FLAG != 0 {
+        if unlikely(self.lock.into_inner() & POISON_FLAG != 0) {
             return Err(PoisonError::new(self.data.into_inner()));
         }
         Ok(self.data.into_inner())
     }
 
     pub fn get_mut(&mut self) -> LockResult<&mut T> {
-        if *self.lock.get_mut() & POISON_FLAG != 0 {
+        if unlikely(*self.lock.get_mut() & POISON_FLAG != 0) {
             return Err(PoisonError::new(self.data.get_mut()));
         }
         Ok(self.data.get_mut())

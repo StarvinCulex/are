@@ -15,6 +15,7 @@
 #![feature(ptr_metadata)]
 #![feature(arbitrary_self_types)]
 #![allow(dead_code, unused_imports, unused_variables)]
+#![feature(core_intrinsics)]
 
 use std::ffi::{OsStr, OsString};
 use std::io::Read;
@@ -44,6 +45,7 @@ mod conencode;
 mod cui;
 mod grids;
 mod jobs;
+mod likely;
 mod lock;
 mod msgpip;
 mod sword;

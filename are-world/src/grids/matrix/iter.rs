@@ -120,7 +120,7 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> std::iter::It
     type Item = (Coord<isize>, Element);
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.len() == 0 {
+        if std::intrinsics::unlikely(self.len() == 0) {
             return None;
         }
         while !Matrix::<Element, CHUNK_WIDTH, CHUNK_HEIGHT>::is_initialized(self.size, self.addr) {

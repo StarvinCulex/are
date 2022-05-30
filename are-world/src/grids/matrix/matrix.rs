@@ -39,7 +39,7 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
         for i in 0..alloc_size {
             let pos = Self::pos_at_unchecked(instance.size, i);
             let contains = (Coord(0, 0) | (instance.size - Coord(1, 1))).contains(&pos);
-            let new_element = if contains {
+            let new_element = if std::intrinsics::likely(contains) {
                 MaybeUninit::new(constructor(pos))
             } else {
                 MaybeUninit::uninit()
@@ -125,7 +125,7 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
 impl<Element> Matrix<Element, 1, 1> {
     #[inline]
     pub fn with_data(size: Coord<usize>, mut elements: Vec<Element>) -> Result<Self, ()> {
-        if elements.len() != size.0 * size.1 {
+        if std::intrinsics::unlikely(elements.len() != size.0 * size.1) {
             Err(())
         } else {
             elements.shrink_to_fit();
@@ -229,7 +229,7 @@ where
             elements: (0..self.elements.len())
                 .zip(self.elements.iter())
                 .map(|(addr, element)| {
-                    if Self::is_initialized(self.size, addr) {
+                    if std::intrinsics::likely(Self::is_initialized(self.size, addr)) {
                         MaybeUninit::new(unsafe { element.assume_init_ref() }.clone())
                     } else {
                         MaybeUninit::uninit()

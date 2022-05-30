@@ -1,5 +1,6 @@
 use std::collections::VecDeque;
 use std::collections::{hash_map::Entry, HashMap};
+use std::intrinsics::likely;
 use std::sync::Arc;
 
 use rc_box::ArcBox;
@@ -9,11 +10,11 @@ use crate::arena::cosmos_ripper::CosmosRipper;
 use crate::arena::defs::{Crd, CrdI, Idx, Tick};
 use crate::arena::gnd;
 use crate::arena::mob::Mob;
-use crate::jobs;
 use crate::mind::Mind;
 use crate::mob::bio::species::SpeciesPool;
 use crate::msgpip::pipe::Output;
 use crate::msgpip::MPipe;
+use crate::{if_likely, jobs};
 
 pub use super::*;
 use super::{ReadGuard, Weak, WriteGuard};
@@ -131,9 +132,9 @@ impl Cosmos {
 
         let jobs = from.into_iter().collect();
         jobs::work(workers.iter_mut(), jobs, |worker, job| {
-            if let Some((_pos, weak_mob)) = self.plate[job.0].mob() {
+            if_likely!(let Some((_pos, weak_mob)) = self.plate[job.0].mob() => {
                 worker.push((weak_mob, job.1))
-            }
+            });
         });
 
         for worker in workers {
@@ -159,7 +160,7 @@ impl Cosmos {
         let jobs = mobs.into_iter().collect();
         ReadGuard::with(&self.angelos.pkey, |guard| {
             jobs::work(workers.iter_mut(), jobs, |worker, job| {
-                if let Some(mob_ref) = guard.wrap_weak(job.0.clone()) {
+                if_likely!(let Some(mob_ref) = guard.wrap_weak(job.0.clone()) => {
                     let pos = mob_ref.at();
                     let center = Coord((pos.0.from + pos.0.to) / 2, (pos.1.from + pos.1.to) / 2);
                     let center = self.angelos.normalize_pos(center);
@@ -169,7 +170,7 @@ impl Cosmos {
                     );
                     let interval = left_top | (left_top + chunk_size - Coord(1, 1));
                     worker.entry(interval).or_default().push(job);
-                }
+                });
             });
         });
 
@@ -212,9 +213,9 @@ impl Cosmos {
                     workers.into_iter(),
                     mob_messages.into_iter().collect(),
                     |angelos, (mob, msgs)| {
-                        if let Some(mob_ref) = guard.wrap_weak(mob) {
+                        if_likely!(let Some(mob_ref) = guard.wrap_weak(mob) => {
                             mob_ref.hear(self, angelos, msgs, guard);
-                        }
+                        });
                     },
                 );
             })
@@ -272,9 +273,9 @@ impl Cosmos {
                             bound,
                         };
                         for (mob, orders) in local_mob_orders.into_iter() {
-                            if let Some(mob_ref_mut) = unsafe { guard.wrap_weak_mut(mob) } {
+                            if_likely!(let Some(mob_ref_mut) = unsafe { guard.wrap_weak_mut(mob) } => {
                                 mob_ref_mut.order(&mut deamon, orders);
-                            }
+                            })
                         }
                     },
                 );

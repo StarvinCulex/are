@@ -1,3 +1,4 @@
+use std::intrinsics::likely;
 use std::sync::Arc;
 
 use crate::arena::conf::GameConf;
@@ -45,7 +46,7 @@ impl MetaCosmos {
         let old_mind_list = std::mem::replace(&mut self.mind_list, Vec::with_capacity(cap));
         self.cosmos.pk(|cosmos, pkey| {
             for mut mind in old_mind_list {
-                if mind.observe(cosmos, pkey).is_ok() {
+                if likely(mind.observe(cosmos, pkey).is_ok()) {
                     self.mind_list.push(mind);
                 }
             }
@@ -58,7 +59,7 @@ impl MetaCosmos {
         let old_mind_list = std::mem::replace(&mut self.mind_list, Vec::with_capacity(cap));
         self.cosmos.pk(|cosmos, pkey| {
             for mut mind in old_mind_list {
-                if mind.make_move(cosmos, pkey).is_ok() {
+                if likely(mind.make_move(cosmos, pkey).is_ok()) {
                     self.mind_list.push(mind);
                 }
             }
@@ -70,7 +71,7 @@ impl MetaCosmos {
         let cap = self.mind_list.len();
         let old_mind_list = std::mem::replace(&mut self.mind_list, Vec::with_capacity(cap));
         for mut mind in old_mind_list {
-            if mind.set_cosmos(&mut self.cosmos).is_ok() {
+            if likely(mind.set_cosmos(&mut self.cosmos).is_ok()) {
                 self.mind_list.push(mind);
             }
         }

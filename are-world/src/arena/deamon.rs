@@ -1,4 +1,5 @@
 use core::marker::Unsize;
+use std::intrinsics::unlikely;
 use std::iter::Map;
 
 use crate::meta::gnd::Ground;
@@ -14,7 +15,7 @@ impl<'c, 'a> Deamon<'c, 'a> {
     pub fn get_ground(&self, p: Crd) -> Result<&Ground, ()> {
         let pos = self.plate.normalize(p.into());
         let bound: Coord<Interval<isize>> = self.bound.into();
-        if !bound.contains(&pos) {
+        if unlikely(!bound.contains(&pos)) {
             Err(())
         } else {
             Ok(&self.plate[pos].ground)
@@ -23,7 +24,7 @@ impl<'c, 'a> Deamon<'c, 'a> {
     pub fn get_ground_mut(&mut self, p: Crd) -> Result<&mut Ground, ()> {
         let pos = self.plate.normalize(p.into());
         let bound: Coord<Interval<isize>> = self.bound.into();
-        if !bound.contains(&pos) {
+        if unlikely(!bound.contains(&pos)) {
             Err(())
         } else {
             Ok(&mut self.plate[pos].ground)
@@ -58,7 +59,7 @@ impl<'c, 'a> Deamon<'c, 'a> {
         >,
         (),
     > {
-        if !self.contains(p) {
+        if unlikely(!self.contains(p)) {
             return Err(());
         }
         Ok(self
@@ -73,7 +74,7 @@ impl<'c, 'a> Deamon<'c, 'a> {
         mob: ArcBox<_MobBlock<M>>,
     ) -> Result<Weak<MobBlock>, ArcBox<_MobBlock<M>>> {
         let at = mob.at;
-        if !self.contains(at) {
+        if unlikely(!self.contains(at)) {
             return Err(mob);
         }
 
@@ -102,7 +103,7 @@ impl<'c, 'a> Deamon<'c, 'a> {
         mob: &mut MobRefMut<'g, M>,
         new_at: CrdI,
     ) -> Result<(), ()> {
-        if !self.contains(new_at) {
+        if unlikely(!self.contains(new_at)) {
             return Err(());
         }
         Self::reset_plate(self.plate, self.angelos.major, mob, new_at)
@@ -123,7 +124,11 @@ impl<'c, 'a> Deamon<'c, 'a> {
     ) -> Result<Weak<MobBlock>, ArcBox<_MobBlock<M>>> {
         // check if the plate is empty
         let at = mob.at;
-        if plate.area(at).scan().any(|(_, grid)| grid.mob.is_some()) {
+        if plate
+            .area(at)
+            .scan()
+            .any(|(_, grid)| unlikely(grid.mob.is_some()))
+        {
             return Err(mob);
         }
         // set the plate
@@ -146,7 +151,7 @@ impl<'c, 'a> Deamon<'c, 'a> {
         let at = mob.at();
         let scan = plate.area_mut(at).scan();
         // quick fail: check if it's unique after clearing the plate
-        if scan.len() + 1 < mob.strong_count() {
+        if unlikely(scan.len() + 1 < mob.strong_count()) {
             return Err(mob);
         }
         // clear the plate
@@ -169,11 +174,11 @@ impl<'c, 'a> Deamon<'c, 'a> {
         let at = mob.at();
         let mut mob: Arc<MobBlock> = mob.get_inner(&major.pkey);
         // check if there is another mob
-        if plate.area(at).scan().any(|(_, grid)| {
+        if unlikely(plate.area(at).scan().any(|(_, grid)| {
             grid.mob.is_some_with(|pos_mob| {
                 Arc::as_ptr(pos_mob) as *const () != Arc::as_ptr(&mob) as *const ()
             })
-        }) {
+        })) {
             return Err(());
         }
         // clear the old grids

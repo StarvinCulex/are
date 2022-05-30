@@ -1,4 +1,5 @@
 use std::fmt::Debug;
+use std::intrinsics::{likely, unlikely};
 use std::ops::{AddAssign, DivAssign};
 use std::sync::atomic::{AtomicU8, Ordering};
 
@@ -10,7 +11,7 @@ use crate::arena::cosmos::Deamon;
 use crate::arena::defs::Crd;
 use crate::arena::types::*;
 use crate::arena::{gnd, Angelos, Cosmos, Orderer};
-use crate::{conf, Coord};
+use crate::{conf, if_likely, if_unlikely, Coord};
 
 pub struct Plant {
     pub kind: Kind,
@@ -41,14 +42,14 @@ impl Plant {
 
     #[inline]
     pub fn aging(&mut self, at: Crd, angelos: &mut Angelos) {
-        if self.kind == Kind::Corpse {
+        if_likely!(self.kind == Kind::Corpse => {
             self.age = self.age.saturating_sub(angelos.major.conf.plant.corpse.rot);
-        } else if self
+        } else {if_unlikely!(self
             .kind
             .map(&angelos.major.conf.plant)
             .map(|p| p.fruit_when)
             .unwrap_or(EnergyT::MAX)
-            <= self.age
+            <= self.age =>
         {
             self.age = self.age.saturating_sub(
                 self.kind
@@ -66,7 +67,7 @@ impl Plant {
                     .map(|p| p.grow)
                     .unwrap_or(0),
             )
-        }
+        })});
     }
 
     #[inline]

@@ -32,7 +32,7 @@ impl<const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> Accessor<CHUNK_WIDTH, 
                 self.addr,
             );
             self.addr += 1;
-            if p < self.matrix_size && self.area.contains(&p) {
+            if std::intrinsics::likely(p < self.matrix_size && self.area.contains(&p)) {
                 self.count += 1;
                 return Some((p, self.addr - 1));
             }

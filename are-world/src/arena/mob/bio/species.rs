@@ -1,5 +1,6 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::intrinsics::unlikely;
 use std::ops::Add;
 use std::sync;
 use std::sync::{Arc, Weak};
@@ -212,30 +213,26 @@ impl SpeciesPool {
 
     pub fn clone_species(&self, species: sync::Arc<Species>, deamon: &mut Deamon) -> Arc<Species> {
         let mut rand = deamon.angelos.random.gen_range(0.0..1.0);
-        let gene = if rand <= self.conf.bio.mutation.insert {
-            Some(SpeciesPool::insert_mutate(
+        let gene = if unlikely(rand <= self.conf.bio.mutation.insert) {
+            SpeciesPool::insert_mutate(
                 species.gene.clone(),
                 &mut deamon.angelos.random,
                 &*self.conf,
-            ))
-        } else if {
+            )
+        } else if unlikely({
             rand -= self.conf.bio.mutation.insert;
             rand <= self.conf.bio.mutation.remove
-        } {
-            Some(SpeciesPool::delete_mutate(
+        }) {
+            SpeciesPool::delete_mutate(
                 species.gene.clone(),
                 &mut deamon.angelos.random,
                 &*self.conf,
-            ))
+            )
         } else {
-            None
+            return species;
         };
 
-        if let Some(new_gene) = gene {
-            self.new_species(new_gene)
-        } else {
-            species
-        }
+        self.new_species(gene)
     }
 }
 
