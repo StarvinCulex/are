@@ -71,8 +71,8 @@ impl<'c, 'a> Deamon<'c, 'a> {
 
     pub fn set<M: Mob + Unsize<dyn Mob> + ?Sized>(
         &mut self,
-        mob: ArcBox<_MobBlock<M>>,
-    ) -> Result<Weak<MobBlock>, ArcBox<_MobBlock<M>>> {
+        mob: MobBox<M>,
+    ) -> Result<Weak<MobBlock>, MobBox<M>> {
         let at = mob.at;
         if unlikely(!self.contains(at)) {
             return Err(mob);
@@ -84,7 +84,7 @@ impl<'c, 'a> Deamon<'c, 'a> {
     pub fn take<'g, M: Mob + ?Sized>(
         &mut self,
         mob: MobRefMut<'g, M>,
-    ) -> Result<ArcBox<_MobBlock<M>>, MobRefMut<'g, M>> {
+    ) -> Result<MobBox<M>, MobRefMut<'g, M>> {
         // check if the mob.at() is valid
         // no need to check, MobRefMut is trusted
         // if let Some(plate_mob) = self.plate[at.from()].mob.as_ref() {
@@ -120,8 +120,8 @@ impl<'c, 'a> Deamon<'c, 'a> {
     pub fn set_plate<M: Mob + Unsize<dyn Mob> + ?Sized>(
         plate: &mut Matrix<Block, 1, 1>,
         major: &MajorAngelos,
-        mut mob: ArcBox<_MobBlock<M>>,
-    ) -> Result<Weak<MobBlock>, ArcBox<_MobBlock<M>>> {
+        mut mob: MobBox<M>,
+    ) -> Result<Weak<MobBlock>, MobBox<M>> {
         // check if the plate is empty
         let at = mob.at;
         if plate
@@ -133,7 +133,8 @@ impl<'c, 'a> Deamon<'c, 'a> {
         }
         // set the plate
         mob.at = major.normalize_area(at);
-        let mob: Arc<_MobBlock<M>> = mob.into();
+        mob.on_plate = true;
+        let mob: Arc<_MobBlock<M>> = mob.into_inner(&major.pkey);
         let mob: Arc<MobBlock> = mob;
 
         for (_, grid) in plate.area_mut(at) {
@@ -147,7 +148,7 @@ impl<'c, 'a> Deamon<'c, 'a> {
         plate: &mut Matrix<Block, 1, 1>,
         major: &MajorAngelos,
         mob: MobRefMut<'g, M>,
-    ) -> Result<ArcBox<_MobBlock<M>>, MobRefMut<'g, M>> {
+    ) -> Result<MobBox<M>, MobRefMut<'g, M>> {
         let at = mob.at();
         let scan = plate.area_mut(at).scan();
         // quick fail: check if it's unique after clearing the plate
@@ -159,9 +160,10 @@ impl<'c, 'a> Deamon<'c, 'a> {
             grid.mob = None;
         }
         // convert
-        mob.into_inner(&major.pkey)
-            .try_into()
-            .map_err(|_| unreachable!())
+        debug_assert_eq!(mob.strong_count(), 1);
+        let mut mob = unsafe { MobBox::new_unchecked(mob.into_inner(&major.pkey)) };
+        mob.on_plate = false;
+        Ok(mob)
     }
 
     #[inline]

@@ -98,10 +98,10 @@ impl Bio {
 
 impl Mob for Bio {
     fn into_arc(self) -> Arc<MobBlock> {
-        Arc::new(_MobBlock {
-            at: CrdI::default(),
-            mob: self,
-        })
+        Arc::new(_MobBlock::new(
+            CrdI::default(),
+            self,
+        ))
     }
 
     fn get_name(&self) -> String {

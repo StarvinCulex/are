@@ -7,6 +7,7 @@ pub use cosmos::Cosmos;
 pub use cosmos::Orderer;
 pub use cosmos::Teller;
 pub use meta::MetaCosmos;
+pub use r#ref::MobBox;
 pub use r#ref::MobRef;
 pub use r#ref::MobRefMut;
 pub use r#ref::ReadGuard;

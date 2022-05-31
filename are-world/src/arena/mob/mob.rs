@@ -1,10 +1,8 @@
 use std::sync::Arc;
 
-use rc_box::ArcBox;
-
 use crate::arena::cosmos::{Deamon, MobBlock, PKey};
 use crate::arena::mob::{Msg, Order};
-use crate::arena::{Cosmos, ReadGuard};
+use crate::arena::{Cosmos, ReadGuard, MobBox};
 use crate::cosmos::defs::CrdI;
 use crate::meta::types::ThreatT;
 use crate::{Angelos, MobRef, MobRefMut};
@@ -12,13 +10,14 @@ use crate::{Angelos, MobRef, MobRefMut};
 pub trait Mob: Send + Sync + ToString {
     fn into_arc(self) -> Arc<MobBlock>;
 
-    fn into_box(self) -> ArcBox<MobBlock>
+    fn into_box(self) -> MobBox<dyn Mob>
     where
         Self: Sized,
     {
-        self.into_arc()
-            .try_into()
-            .unwrap_or_else(|_| unreachable!())
+        let mob = self.into_arc();
+        debug_assert_eq!(Arc::strong_count(&mob), 1);
+        debug_assert_eq!(mob.on_plate(), false);
+        unsafe { MobBox::new_unchecked(mob) }
     }
 
     fn get_name(&self) -> String;

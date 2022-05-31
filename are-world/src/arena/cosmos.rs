@@ -3,8 +3,6 @@ use std::collections::{hash_map::Entry, HashMap};
 use std::intrinsics::likely;
 use std::sync::Arc;
 
-use rc_box::ArcBox;
-
 use crate::arena::conf::GameConf;
 use crate::arena::cosmos_ripper::CosmosRipper;
 use crate::arena::defs::{Crd, CrdI, Idx, Tick};
@@ -17,7 +15,7 @@ use crate::msgpip::MPipe;
 use crate::{if_likely, jobs};
 
 pub use super::*;
-use super::{ReadGuard, Weak, WriteGuard};
+use super::{ReadGuard, Weak, WriteGuard, MobBox};
 
 pub struct Cosmos {
     pub plate: Matrix<Block, 1, 1>,
@@ -37,7 +35,26 @@ pub struct Block {
 
 pub struct _MobBlock<M: ?Sized> {
     pub at: CrdI,
+    on_plate: bool,
     pub mob: M,
+}
+
+impl<M> _MobBlock<M> {
+    #[inline]
+    pub fn new(at: CrdI, mob: M) -> Self {
+        Self {
+            at,
+            on_plate: false,
+            mob,
+        }
+    }
+}
+
+impl<M: ?Sized> _MobBlock<M> {
+    #[inline]
+    pub fn on_plate(&self) -> bool {
+        self.on_plate
+    }
 }
 
 pub type MobBlock = _MobBlock<dyn Mob>;
@@ -96,15 +113,15 @@ impl Cosmos {
 
     pub fn set<M: Mob + Unsize<dyn Mob> + ?Sized>(
         &mut self,
-        mob: ArcBox<_MobBlock<M>>,
-    ) -> Result<Weak<MobBlock>, ArcBox<_MobBlock<M>>> {
+        mob: MobBox<M>,
+    ) -> Result<Weak<MobBlock>, MobBox<M>> {
         Deamon::set_plate(&mut self.plate, &self.angelos, mob)
     }
 
     pub fn take<'g, M: Mob + ?Sized>(
         &mut self,
         mob: MobRefMut<'g, M>,
-    ) -> Result<ArcBox<_MobBlock<M>>, MobRefMut<'g, M>> {
+    ) -> Result<MobBox<M>, MobRefMut<'g, M>> {
         Deamon::take_plate(&mut self.plate, &self.angelos, mob)
     }
 

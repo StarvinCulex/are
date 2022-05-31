@@ -1,7 +1,5 @@
 use std::sync::Arc;
 
-use rc_box::ArcBox;
-
 use crate::arena::cosmos::*;
 use crate::arena::cosmos::{Deamon, MobBlock, PKey, _MobBlock};
 use crate::arena::defs::CrdI;
