@@ -2,8 +2,8 @@ use std::cell::UnsafeCell;
 use std::hint;
 use std::intrinsics::{likely, unlikely};
 use std::ops::{Deref, DerefMut};
-use std::sync::atomic::AtomicU8;
-use std::sync::atomic::Ordering::{AcqRel, Acquire, Release};
+use std::sync::atomic::Ordering::{AcqRel, Acquire, Relaxed, Release, SeqCst};
+use std::sync::atomic::{fence, AtomicU8};
 use std::sync::{LockResult, PoisonError, TryLockError, TryLockResult};
 use std::thread::panicking;
 
@@ -28,7 +28,7 @@ impl<T> SpinLock<T> {
 impl<T: ?Sized> SpinLock<T> {
     pub fn lock(&self) -> LockResult<Guard<'_, T>> {
         loop {
-            let r = self.lock.fetch_or(LOCK_FLAG, AcqRel);
+            let r = self.lock.fetch_or(LOCK_FLAG, SeqCst);
             if likely(r & LOCK_FLAG == 0) {
                 // return `PoisonError` only when holding the lock, as it can be recovered into `Guard`
                 if unlikely(r & POISON_FLAG != 0) {
@@ -41,7 +41,7 @@ impl<T: ?Sized> SpinLock<T> {
     }
 
     pub fn try_lock(&self) -> TryLockResult<Guard<'_, T>> {
-        let r = self.lock.fetch_or(LOCK_FLAG, AcqRel);
+        let r = self.lock.fetch_or(LOCK_FLAG, SeqCst);
         if unlikely(r & LOCK_FLAG != 0) {
             return Err(TryLockError::WouldBlock);
         }
@@ -55,7 +55,7 @@ impl<T: ?Sized> SpinLock<T> {
     }
 
     pub fn is_poisioned(&self) -> bool {
-        self.lock.load(Acquire) & POISON_FLAG != 0
+        self.lock.load(SeqCst) & POISON_FLAG != 0
     }
 
     pub fn into_inner(self) -> LockResult<T>
@@ -101,7 +101,7 @@ impl<T: ?Sized> DerefMut for Guard<'_, T> {
 impl<T: ?Sized> Drop for Guard<'_, T> {
     fn drop(&mut self) {
         let v = if panicking() { POISON_FLAG } else { INIT };
-        self.spinlock.lock.store(v, Release)
+        self.spinlock.lock.store(v, SeqCst);
     }
 }
 
