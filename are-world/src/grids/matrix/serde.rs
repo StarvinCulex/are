@@ -15,8 +15,13 @@ where
     {
         let mut state = serializer.serialize_struct("Matrix", 3)?;
         state.serialize_field("cols", &(self.size.0 as u32))?;
-        let elements: Vec<_> = self.as_area().scan().map(|(_, e)| e).collect();
-        state.serialize_field("elems", &elements)?;
+        if CHUNK_WIDTH == 1 && CHUNK_HEIGHT == 1 {
+            let elements: &[Element] = unsafe { std::mem::transmute(self.elements.as_slice()) };
+            state.serialize_field("elems", elements)
+        } else {
+            let elements: Vec<_> = self.as_area().scan().map(|(_, e)| e).collect();
+            state.serialize_field("elems", &elements)
+        }?;
         state.end()
     }
 }
@@ -30,6 +35,10 @@ where
     where
         D: Deserializer<'de>,
     {
+        #[derive(Deserialize)]
+        #[serde(field_identifier, rename_all = "lowercase")]
+        enum Field { Cols, Elems }
+
         struct MatrixSizeVisitor<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> {
             phantom: std::marker::PhantomData<Element>,
         }
@@ -46,35 +55,47 @@ where
             where
                 M: serde::de::MapAccess<'de>,
             {
-                let cols_entry: (String, u32) = map
-                    .next_entry()?
-                    .ok_or_else(|| Error::custom("need param `cols`"))?;
-                let cols = cols_entry.1 as usize;
-                if cols == 0 {
+                let mut cols: Option<u32> = None;
+                let mut elems: Option<Vec<Element>> = None;
+                while let Some(key) = map.next_key()? {
+                    match key {
+                        Field::Cols => {
+                            if unlikely(cols.is_some()) {
+                                return Err(Error::duplicate_field("cols"));
+                            }
+                            cols = Some(map.next_value()?);
+                        }
+                        Field::Elems => {
+                            if unlikely(elems.is_some()) {
+                                return Err(Error::duplicate_field("elems"));
+                            }
+                            elems = Some(map.next_value()?);
+                        }
+                    }
+                }
+                let cols = cols.ok_or_else(|| Error::missing_field("cols"))? as usize;
+                let elems = elems.ok_or_else(|| Error::missing_field("elems"))?;
+                if unlikely(cols == 0) {
                     return Err(Error::custom("`cols` must greater than 0"));
                 }
-
-                let elems_entry: (String, Vec<Element>) = map
-                    .next_entry()?
-                    .ok_or_else(|| Error::custom("need param `elems`"))?;
-                let elems = elems_entry.1;
-                if elems.len() % cols != 0 {
+                if unlikely(elems.len() % cols != 0) {
                     return Err(Error::custom("`cols` cannot divide length of `elems`"));
                 }
                 let rows = elems.len() / cols;
-                if rows == 0 {
+                if unlikely(rows == 0) {
                     return Err(Error::custom("`rows` must greater than 0"));
                 }
-                let origin_matrix = Matrix::with_data(Coord(cols, rows), elems).unwrap();
-                let matrix = if CHUNK_WIDTH == 1 && CHUNK_HEIGHT == 1 {
-                    unsafe { std::mem::transmute(origin_matrix) }
-                } else {
-                    Matrix::<Element, CHUNK_WIDTH, CHUNK_HEIGHT>::with_iter(
-                        Coord(cols, rows),
-                        origin_matrix.into_iter(),
-                    )
-                    .unwrap()
-                };
+                let size = Coord(cols, rows);
+                if CHUNK_WIDTH == 1 && CHUNK_HEIGHT == 1 {
+                    let origin_matrix = Matrix::with_data(size, elems).unwrap();
+                    // no actual transmute occurs here
+                    return Ok(unsafe { std::mem::transmute(origin_matrix) });
+                }
+                // with_iter() introduces extra check, this is faster
+                let mut matrix = unsafe { Self::Value::uninit(size) };
+                for (src, (_, dest)) in elems.into_iter().zip(matrix.as_area_mut().scan()) {
+                    unsafe { std::ptr::write(dest, src) };
+                }
                 Ok(matrix)
             }
         }
@@ -101,4 +122,6 @@ fn test_serde() {
             assert_eq!(origin[p], target[p]);
         }
     }
+    // JSON object is unordered: test of reversing the order of elems and cols
+    let target2: Matrix<String, 7, 9> = serde_json::from_str("{\"elems\":[\"(0, 0)\"],\"cols\":1}").unwrap();
 }

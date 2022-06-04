@@ -19,6 +19,27 @@ where
     }
 }
 
+impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> std::fmt::Debug
+    for Matrix<Element, CHUNK_WIDTH, CHUNK_HEIGHT>
+where
+    Element: std::fmt::Debug,
+{
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Matrix::<String, CHUNK_WIDTH, CHUNK_HEIGHT>::with_iter(
+            Self::calc_chunk_size(self.size.try_into().unwrap()) * Coord(CHUNK_WIDTH, CHUNK_HEIGHT),
+            self.elements.iter().enumerate().map(|(i, elem)| (
+                Self::pos_at_unchecked(self.size, i),
+                if Self::is_initialized(self.size, i) {
+                    format!("Init({:?})", unsafe { elem.assume_init_ref() })
+                } else {
+                    "Uninit".to_string()
+                },
+            )),
+        ).unwrap().iter().fmt_with(f, HEAD_MATRIX)
+    }
+}
+
 impl<'m, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> std::fmt::Display
     for Area<'m, Element, CHUNK_WIDTH, CHUNK_HEIGHT>
 where

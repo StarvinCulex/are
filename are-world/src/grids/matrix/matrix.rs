@@ -1,6 +1,6 @@
 // by *StarvinCulex @2021/11/13*
 
-use std::intrinsics::unlikely;
+use std::intrinsics::{likely, unlikely};
 use std::iter::{IntoIterator as _, Iterator as _};
 use std::mem::MaybeUninit;
 use std::ops::Index;
@@ -9,7 +9,6 @@ use ::duplicate::duplicate;
 
 /// 固定宽度和高度的矩阵。  
 /// 通过[`Coord<isize>`]作为索引获得其中的值。  
-#[derive(Debug, Default)]
 pub struct Matrix<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> {
     elements: Vec<MaybeUninit<Element>>,
     size: Coord<isize>,
@@ -19,10 +18,25 @@ pub struct Matrix<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> 
 impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
     Matrix<Element, CHUNK_WIDTH, CHUNK_HEIGHT>
 {
+    /// 构造大小为参数`size`的矩阵，但里面全部元素都未初始化，仅用于内部调用
+    /// Safety: `Drop` 返回值前应先初始化数据
+    #[inline]
+    unsafe fn uninit(size: Coord<usize>) -> Self {
+        assert!(likely(size.0 != 0 && size.1 != 0), "Can not construct empty Matrix (input size={})", size);
+        let alloc_size = Self::calc_alloc_size(size);
+        let mut elements = Vec::with_capacity(alloc_size);
+        #[allow(unused_unsafe)]
+        unsafe { elements.set_len(alloc_size) };
+        Self {
+            elements,
+            size: Coord(size.0 as isize, size.1 as isize),
+        }
+    }
+
     /// 构造大小为参数`size`的矩阵。
     /// 矩阵中的元素由参数函数`constructor`决定：  
-    /// - `constructor(Some(Coord(x, y)))`的值填充`(x, y)`对映的位置
-    /// - 不使用的区域用`constructor(None)`的值填充
+    /// - `constructor(Coord(x, y))`的值填充`(x, y)`对映的位置
+    /// - 不使用的区域用`MaybeUninit::uninit()`的值填充
     ///  
     /// *`size.0`或`size.1`超过[`isize::MAX`]引发未定义行为。*
     pub fn with_ctor<Index: Into<usize>>(
@@ -30,20 +44,9 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
         mut constructor: impl FnMut(Coord<isize>) -> Element,
     ) -> Self {
         let size: Coord<usize> = Coord(size.0.into(), size.1.into());
-        let alloc_size = Self::calc_alloc_size::<usize>(size);
-        let mut instance = Self {
-            elements: Vec::with_capacity(alloc_size),
-            size: Coord(size.0 as isize, size.1 as isize),
-        };
-        for i in 0..alloc_size {
-            let pos = Self::pos_at_unchecked(instance.size, i);
-            let contains = (Coord(0, 0) | (instance.size - Coord(1, 1))).contains(&pos);
-            let new_element = if std::intrinsics::likely(contains) {
-                MaybeUninit::new(constructor(pos))
-            } else {
-                MaybeUninit::uninit()
-            };
-            instance.elements.push(new_element);
+        let mut instance = unsafe { Self::uninit(size) };
+        for (pos, dest) in instance.as_area_mut().fast() {
+            unsafe { std::ptr::write(dest, constructor(pos)) };
         }
         instance
     }
@@ -57,39 +60,55 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
         iter: Iter,
     ) -> Result<Self, String> {
         let size: Coord<usize> = Coord(size.0.into(), size.1.into());
-        let alloc_size = Self::calc_alloc_size::<usize>(size);
-        let mut instance = Self {
-            elements: Vec::with_capacity(alloc_size),
-            size: Coord(size.0 as isize, size.1 as isize),
-        };
-        for _ in 0..alloc_size {
-            instance.elements.push(MaybeUninit::uninit());
+        if unlikely(size.0 == 0 || size.1 == 0) {
+            return Err(format!("Can not construct empty Matrix (input size={})", size))
         }
+        let mut instance = unsafe { Self::uninit(size) };
         let expected_range =
             Coord::with_intervals(Coord(0, 0), Coord(size.0 as isize, size.1 as isize));
         let mut exist = Matrix::<bool, 1, 1>::new(size);
+        let drop_with = |mut instance: Self, exist: Matrix::<bool, 1, 1>| {
+            for (p, &b) in exist.as_area().fast() {
+                if b {
+                    unsafe {
+                        instance
+                            .elements
+                            .get_unchecked_mut(Self::calc_address_unchecked(instance.size, p))
+                            .assume_init_drop();
+                    }
+                }
+            }
+            std::mem::take(&mut instance.elements); // avoid default Drop to drop elements
+        };
+        let mut cnt = 0;
         for (pos, e) in iter {
             let pos: Coord<isize> = Coord(pos.0.into(), pos.1.into());
             if unlikely(!expected_range.contains(&pos)) {
+                drop_with(instance, exist);
                 return Err(format!("{} out of range", pos));
             }
+            cnt += 1;
             unsafe {
                 let x = exist.get_by_addr_mut(Matrix::<bool, 1, 1>::calc_address_unchecked(
                     exist.size, pos,
                 ));
                 if unlikely(*x) {
+                    drop_with(instance, exist);
                     return Err(format!("{} initialized more than once", pos));
                 }
                 *x = true;
-                *instance
+                instance
                     .elements
-                    .get_unchecked_mut(Self::calc_address_unchecked(instance.size, pos)) =
-                    MaybeUninit::new(e);
+                    .get_unchecked_mut(Self::calc_address_unchecked(instance.size, pos))
+                    .write(e);
             }
         }
-        for (p, &b) in exist.as_area().fast() {
-            if !b {
-                return Err(format!("{} not initialized", p));
+        if unlikely(cnt != size.0 * size.1) {
+            for (p, &b) in exist.as_area().fast() {
+                if !b {
+                    drop_with(instance, exist);
+                    return Err(format!("{} not initialized", p));
+                }
             }
         }
 
@@ -172,34 +191,41 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
 impl<Element> Matrix<Element, 1, 1> {
     #[inline]
     pub fn with_data(size: Coord<usize>, mut elements: Vec<Element>) -> Result<Self, ()> {
-        if std::intrinsics::unlikely(elements.len() != size.0 * size.1) {
+        if unlikely(size.0 == 0 || size.1 == 0 || elements.len() != size.0 * size.1) {
             Err(())
         } else {
-            elements.shrink_to_fit();
             Ok(Self {
                 size: size.try_into().unwrap(),
-                elements: elements.into_iter().map(|x| MaybeUninit::new(x)).collect(),
+                elements: {
+                    elements.shrink_to_fit();
+                    let (ptr, len, cap) = elements.into_raw_parts();
+                    unsafe { Vec::from_raw_parts(ptr as *mut _, len, cap) }
+                },
             })
         }
     }
 
     #[inline]
     pub fn with_array2<const X: usize, const Y: usize>(elements: [[Element; X]; Y]) -> Self {
-        let mut dim_reduct = Vec::with_capacity(X * Y);
-        for row in elements {
-            for e in row {
-                dim_reduct.push(e);
-            }
+        debug_assert!(X != 0 && Y != 0);
+        let mut instance = unsafe { Self::uninit(Coord(X, Y)) };
+        // copy + forget = move
+        unsafe {
+            std::ptr::copy_nonoverlapping::<Element>(
+                &elements as *const _ as *const _,
+                instance.elements.as_mut_ptr() as *mut _,
+                X * Y,
+            );
         }
-        unsafe { Matrix::<_, 1, 1>::with_data(Coord(X, Y), dim_reduct).unwrap_unchecked() }
+        std::mem::forget(elements); // avoid double drop
+        instance
     }
 }
 
 impl<Element, const SIZE_X: usize, const SIZE_Y: usize> From<[[Element; SIZE_X]; SIZE_Y]>
     for Matrix<Element, 1, 1>
-where
-    Element: Default,
 {
+    #[inline]
     fn from(elements: [[Element; SIZE_X]; SIZE_Y]) -> Self {
         Matrix::with_array2(elements)
     }
@@ -225,6 +251,8 @@ where
     Index: Into<isize>,
 {
     type Output = Element;
+
+    #[inline]
     fn index(&self, index: Coord<Index>) -> &Element {
         unsafe {
             self.get_by_addr(Self::calc_address_unchecked(
@@ -240,6 +268,7 @@ impl<Index, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
 where
     Index: Into<isize>,
 {
+    #[inline]
     fn index_mut(&mut self, index: Coord<Index>) -> &mut Element {
         unsafe {
             self.get_by_addr_mut(Self::calc_address_unchecked(
@@ -273,10 +302,10 @@ where
 {
     fn clone(&self) -> Self {
         Self {
-            elements: (0..self.elements.len())
-                .zip(self.elements.iter())
+            elements: self.elements.iter()
+                .enumerate()
                 .map(|(addr, element)| {
-                    if std::intrinsics::likely(Self::is_initialized(self.size, addr)) {
+                    if likely(Self::is_initialized(self.size, addr)) {
                         MaybeUninit::new(unsafe { element.assume_init_ref() }.clone())
                     } else {
                         MaybeUninit::uninit()
@@ -339,8 +368,17 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> Drop
 {
     #[inline]
     fn drop(&mut self) {
-        for i in (0..self.elements.len()).filter(|&i| Self::is_initialized(self.size, i)) {
-            unsafe { self.elements.get_unchecked_mut(i).assume_init_drop() }
+        if CHUNK_WIDTH == 1 && CHUNK_HEIGHT == 1 {
+            unsafe {
+                let elements: &mut [Element] = std::mem::transmute(self.elements.as_mut_slice());
+                std::ptr::drop_in_place(elements);
+            }
+        } else {
+            for (i, elem) in self.elements.iter_mut().enumerate() {
+                if likely(Self::is_initialized(self.size, i)) {
+                    unsafe { elem.assume_init_drop() }
+                }
+            }
         }
     }
 }
@@ -367,7 +405,7 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
 
     /// 计算`size`大小的矩阵需要分配多长的数组才能存下
     #[inline]
-    const fn calc_alloc_size<Index: Into<usize>>(size: Coord<usize>) -> usize {
+    const fn calc_alloc_size(size: Coord<usize>) -> usize {
         let chunk_size = Self::calc_chunk_size(size);
         let chunk_count = chunk_size.0 * chunk_size.1;
         CHUNK_WIDTH * CHUNK_HEIGHT * chunk_count
