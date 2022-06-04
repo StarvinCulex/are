@@ -116,7 +116,7 @@ pub mod bio {
         /// 醒来观察周围的周期。至少是1（醒来就移动）
         pub watch_period: f64,
         /// 生物观察周围的范围。至少是0（不观察）
-        pub watch_range: f64,
+        pub watch_area: f64,
         /// 生物醒来移动的周期。至少是1（醒来就移动）
         pub move_period: f64,
         /// 移动的能量消耗。至少是0
@@ -184,7 +184,7 @@ pub mod bio {
                 incubation_delay: self.incubation_delay + rhs.incubation_delay,
                 size: self.size + rhs.size,
                 watch_period: self.watch_period + rhs.watch_period,
-                watch_range: self.watch_range + rhs.watch_range,
+                watch_area: self.watch_area + rhs.watch_area,
                 move_period: self.move_period + rhs.move_period,
                 move_cost: self.move_cost + rhs.move_cost,
                 eat_threshold: self.eat_threshold + rhs.eat_threshold,

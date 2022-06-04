@@ -28,6 +28,7 @@ pub mod gnd;
 pub mod meta;
 pub mod mind;
 pub mod mob;
+pub mod observe;
 pub mod r#ref;
 pub mod singletons;
 mod types;

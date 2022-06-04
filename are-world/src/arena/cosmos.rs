@@ -15,10 +15,10 @@ use crate::msgpip::MPipe;
 use crate::{if_likely, jobs};
 
 pub use super::*;
-use super::{ReadGuard, Weak, WriteGuard, MobBox};
+use super::{MobBox, ReadGuard, Weak, WriteGuard};
 
 pub struct Cosmos {
-    pub plate: Matrix<Block, 1, 1>,
+    pub plate: Matrix<Block, 16, 16>,
     pub angelos: MajorAngelos,
     ripper: CosmosRipper,
 }
@@ -29,7 +29,7 @@ pub struct PKey {
 
 #[derive(Default)]
 pub struct Block {
-    pub ground: gnd::Ground,
+    pub ground: Ground,
     mob: Option<Arc<MobBlock>>,
 }
 
@@ -268,7 +268,6 @@ impl Cosmos {
 
         WriteGuard::with(&self.angelos.pkey, |guard| {
             self.ripper.with(|batch| {
-                let batch: Vec<_> = batch.collect();
                 let works: Vec<_> = batch
                     .into_iter()
                     .filter_map(|(chunk, bound)| {

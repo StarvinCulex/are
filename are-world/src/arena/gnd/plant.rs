@@ -78,6 +78,13 @@ impl Plant {
     }
 
     #[inline]
+    pub fn mow_threshold(&mut self, value: EnergyT, threshold: EnergyT) -> EnergyT {
+        let mow = self.age.saturating_sub(threshold).min(threshold);
+        self.age -= mow;
+        mow
+    }
+
+    #[inline]
     pub fn add_corpse(&mut self, value: EnergyT) {
         if value > self.age {
             self.kind = Kind::Corpse;
@@ -109,6 +116,16 @@ impl Kind {
             Kind::None | Kind::Corpse => None,
             Kind::Grass => Some(&plant_list.grass),
             Kind::Tree => Some(&plant_list.tree),
+        }
+    }
+
+    #[inline]
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Kind::None => "none",
+            Kind::Corpse => "corpse",
+            Kind::Grass => "grass",
+            Kind::Tree => "tree",
         }
     }
 }

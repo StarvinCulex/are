@@ -1,6 +1,6 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
-use std::intrinsics::unlikely;
+use std::intrinsics::{likely, unlikely};
 use std::ops::Add;
 use std::sync;
 use std::sync::{Arc, Weak};
@@ -16,10 +16,11 @@ use crate::lock::spinlock::{Guard, SpinLock};
 use crate::meta::defs::{Idx, Tick};
 use crate::mob::bio::atk::ATK;
 use crate::mob::bio::bio::{BioAction, BioTarget};
-use crate::{Block, Coord, Deamon, PKey, ReadGuard};
+use crate::{if_likely, if_unlikely, Block, Coord, Deamon, PKey, ReadGuard};
 
 use super::gene::Gene;
 
+#[derive(Clone)]
 pub struct Species {
     pub gene: Gene,
     pub name: String,
@@ -51,6 +52,7 @@ pub struct Species {
 }
 
 pub struct SpeciesPool {
+    snapshot: SpinLock<Option<Arc<Vec<(Gene, Weak<Species>)>>>>,
     conf: Arc<conf::Conf>,
     species_list: SpinLock<HashMap<Gene, Weak<Species>>>,
 }
@@ -155,9 +157,25 @@ impl ToString for Species {
 impl SpeciesPool {
     pub fn new(conf: Arc<conf::Conf>) -> SpeciesPool {
         SpeciesPool {
+            snapshot: Default::default(),
             conf,
             species_list: SpinLock::default(),
         }
+    }
+
+    pub fn snapshot(&self) -> Arc<Vec<(Gene, Weak<Species>)>> {
+        let mut snapshot_guard = self.snapshot.lock().unwrap();
+        if let Some(x) = &*snapshot_guard {
+            return x.clone();
+        }
+        let species_guard = self.species_list.lock().unwrap();
+        let mut x = Vec::with_capacity(species_guard.len());
+        for (g, s) in species_guard.iter() {
+            x.push((g.clone(), s.clone()));
+        }
+        let x = Arc::new(x);
+        *snapshot_guard = Some(x.clone());
+        x
     }
 
     pub fn insert_mutate<R: Rng>(mut gene: Gene, rng: &mut R, conf: &conf::Conf) -> Gene {
@@ -194,24 +212,26 @@ impl SpeciesPool {
 
     pub fn new_species(&self, gene: Gene) -> Arc<Species> {
         let mut guard = self.species_list.lock().unwrap();
-        match guard.entry(gene) {
+        let species = match guard.entry(gene) {
             Entry::Occupied(mut x) => {
                 if let Some(y) = x.get().upgrade() {
                     return y;
                 }
                 let species = Arc::new(Species::new(x.key().clone(), &self.conf));
-                *x.get_mut() = std::sync::Arc::downgrade(&species);
+                *x.get_mut() = Arc::downgrade(&species);
                 species
             }
             Entry::Vacant(x) => {
                 let species = Arc::new(Species::new(x.key().clone(), &self.conf));
-                x.insert(std::sync::Arc::downgrade(&species));
+                x.insert(Arc::downgrade(&species));
                 species
             }
-        }
+        };
+        *self.snapshot.lock().unwrap() = None;
+        species
     }
 
-    pub fn clone_species(&self, species: sync::Arc<Species>, deamon: &mut Deamon) -> Arc<Species> {
+    pub fn clone_species(&self, species: Arc<Species>, deamon: &mut Deamon) -> Arc<Species> {
         let mut rand = deamon.angelos.random.gen_range(0.0..1.0);
         let gene = if unlikely(rand <= self.conf.bio.mutation.insert) {
             SpeciesPool::insert_mutate(
@@ -237,7 +257,7 @@ impl SpeciesPool {
 }
 
 impl Species {
-    fn new(gene: Gene, conf: &conf::Conf) -> Species {
+    pub fn new(gene: Gene, conf: &conf::Conf) -> Species {
         let mut stats = conf.bio.init.clone();
         for acid in gene.iter() {
             stats = stats + &conf.bio.acids[acid].prop;
@@ -254,7 +274,7 @@ impl Species {
             incubation_delay: stats.incubation_delay.max(0.0) as Tick,
             size: stats.size.map(|x| x.max(0.0) as Idx),
             watch_period: stats.watch_period.max(1.0) as AgeT,
-            watch_range: stats.watch_range.max(0.0) as u16,
+            watch_range: stats.watch_area.max(0.0).sqrt() as u16,
             move_period: stats.move_period.max(0.0) as AgeT,
             move_cost: stats.move_cost.max(0.0) as EnergyT,
             eat_threshold: stats.eat_threshold.max(0.0) as EnergyT,
@@ -273,7 +293,7 @@ impl Species {
         }
     }
 
-    fn name(gene: &Gene) -> String {
+    pub fn name(gene: &Gene) -> String {
         gene.clone()
             .into_iter()
             .reduce(|x, y| x.add(y.as_str()))

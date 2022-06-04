@@ -21,6 +21,7 @@ use std::ffi::{OsStr, OsString};
 use std::io::Read;
 use std::iter::Iterator;
 use std::sync::Arc;
+use std::time::SystemTime;
 
 use crate::arena::conf::GameConf;
 use crate::arena::cosmos::*;
@@ -57,6 +58,8 @@ fn main() {
         while let Some(arg) = args.next() {
             if arg == *"-c" {
                 conf_path = Some(args.next().unwrap_or_else(|| panic!("-c")));
+            } else {
+                println!("unexpected param `{}`", arg.into_string().unwrap());
             }
         }
     }
@@ -90,11 +93,8 @@ fn main() {
 
     println!("{:?}", conf);
 
-    let mut meta = arena::MetaCosmos::new(conf.clone());
+    let mut meta = MetaCosmos::new(conf.clone());
 
-    // meta.cosmos
-    //     .angelos
-    //     .join(Box::new(Gate::listen("0.0.0.0:8964")));
     meta.cosmos
         .angelos
         .join(Box::new(GodOfPlant::new(conf.clone())));
@@ -102,56 +102,22 @@ fn main() {
         .angelos
         .join(Box::new(GodOfBio::new(conf.clone())));
 
-    // let adam = meta
-    //     .cosmos
-    //     .set(
-    //         Bio::new(
-    //             Arc::new(Species {
-    //                 name: "".to_string(),
-    //             }),
-    //             50,
-    //         )
-    //         .into_box(),
-    //     )
-    //     .unwrap_or_else(|_| panic!());
-    // let mut worker = meta.cosmos.angelos.make_worker();
-    // worker.tell(adam, mob::Msg::Wake, 1);
-    // drop(worker);
-
-    // meta.cosmos.plate[Coord(0isize, 0)].mob = Some(Mech {}.into_block());
-    // meta.cosmos.angelos.order(Coord(0, 0), mob::Order::Wake, 1);
-
-    meta.step();
     loop {
-        let mut mobs = vec![];
-        println!("{} =====", meta.cosmos.angelos.properties.tick);
-        println!(
-            "{}",
-            meta.cosmos.plate.as_area().map(|b| {
-                if let Some(mob) = b.mob() {
-                    mobs.push((mob.0, mob.1.clone()));
-                    "mob".to_string()
-                } else {
-                    b.ground.name()
-                }
-            })
-        );
-        meta.cosmos.pk(|cosmos, pkey| {
-            for (p, mob) in mobs.iter() {
-                println!(
-                    "mob {} {}",
-                    p,
-                    ReadGuard::with(pkey, |guard| {
-                        if let Some(mob) = guard.wrap_weak(mob.clone()) {
-                            mob.to_string()
-                        } else {
-                            "".to_string()
-                        }
-                    })
-                );
+        let start = SystemTime::now();
+        for i in 0..1000 {
+            meta.step();
+            if conf.runtime.period != 0 {
+                std::thread::sleep(std::time::Duration::from_millis(conf.runtime.period));
             }
+        }
+        let duration = SystemTime::now().duration_since(start).unwrap();
+        println!("cost {}ms", duration.as_millis());
+        meta.cosmos.pk(|cosmos, pkey| {
+            let area = Coord(0, 0) | (*cosmos.plate.size() - Coord(1, 1));
+            ReadGuard::with(pkey, |guard| {
+                let view = observe::species::SpeciesStats::new(cosmos, guard);
+                println!("{}", view);
+            });
         });
-        meta.step();
-        std::thread::sleep(std::time::Duration::from_millis(conf.runtime.period));
     }
 }

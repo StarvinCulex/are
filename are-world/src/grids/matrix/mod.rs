@@ -5,7 +5,7 @@ pub use util::*;
 use super::{coord::Coord, interval::Interval};
 
 include!("matrix.rs");
-
+include!("serde.rs");
 pub mod access;
 pub mod area;
 pub mod mapping;

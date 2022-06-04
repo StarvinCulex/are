@@ -98,10 +98,7 @@ impl Bio {
 
 impl Mob for Bio {
     fn into_arc(self) -> Arc<MobBlock> {
-        Arc::new(_MobBlock::new(
-            CrdI::default(),
-            self,
-        ))
+        Arc::new(_MobBlock::new(CrdI::default(), self))
     }
 
     fn get_name(&self) -> String {
@@ -310,7 +307,10 @@ impl Mob for Bio {
                         let mut takes: EnergyT = 0;
                         if let Ok(grounds) = deamon.get_ground_iter_mut(target_pos) {
                             for (p, g) in grounds {
-                                takes = takes.saturating_add(g.plant.mow(species.eat_takes));
+                                takes = takes.saturating_add(
+                                    g.plant
+                                        .mow_threshold(species.eat_takes, species.eat_threshold),
+                                );
                             }
                         }
                         if takes == 0 {

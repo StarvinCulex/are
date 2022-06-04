@@ -1,11 +1,11 @@
 // by *StarvinCulex @2021/11/13*
 
+use std::intrinsics::unlikely;
 use std::iter::{IntoIterator as _, Iterator as _};
 use std::mem::MaybeUninit;
 use std::ops::Index;
 
 use ::duplicate::duplicate;
-use serde::{Deserialize, Serialize};
 
 /// 固定宽度和高度的矩阵。  
 /// 通过[`Coord<isize>`]作为索引获得其中的值。  
@@ -25,7 +25,6 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
     /// - 不使用的区域用`constructor(None)`的值填充
     ///  
     /// *`size.0`或`size.1`超过[`isize::MAX`]引发未定义行为。*
-    #[inline]
     pub fn with_ctor<Index: Into<usize>>(
         size: Coord<Index>,
         mut constructor: impl FnMut(Coord<isize>) -> Element,
@@ -47,6 +46,54 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
             instance.elements.push(new_element);
         }
         instance
+    }
+
+    pub fn with_iter<
+        Size: Into<usize>,
+        Index: Into<isize>,
+        Iter: std::iter::Iterator<Item = (Coord<Index>, Element)>,
+    >(
+        size: Coord<Size>,
+        iter: Iter,
+    ) -> Result<Self, String> {
+        let size: Coord<usize> = Coord(size.0.into(), size.1.into());
+        let alloc_size = Self::calc_alloc_size::<usize>(size);
+        let mut instance = Self {
+            elements: Vec::with_capacity(alloc_size),
+            size: Coord(size.0 as isize, size.1 as isize),
+        };
+        for _ in 0..alloc_size {
+            instance.elements.push(MaybeUninit::uninit());
+        }
+        let expected_range =
+            Coord::with_intervals(Coord(0, 0), Coord(size.0 as isize, size.1 as isize));
+        let mut exist = Matrix::<bool, 1, 1>::new(size);
+        for (pos, e) in iter {
+            let pos: Coord<isize> = Coord(pos.0.into(), pos.1.into());
+            if unlikely(!expected_range.contains(&pos)) {
+                return Err(format!("{} out of range", pos));
+            }
+            unsafe {
+                let x = exist.get_by_addr_mut(Matrix::<bool, 1, 1>::calc_address_unchecked(
+                    exist.size, pos,
+                ));
+                if unlikely(*x) {
+                    return Err(format!("{} initialized more than once", pos));
+                }
+                *x = true;
+                *instance
+                    .elements
+                    .get_unchecked_mut(Self::calc_address_unchecked(instance.size, pos)) =
+                    MaybeUninit::new(e);
+            }
+        }
+        for (p, &b) in exist.as_area().fast() {
+            if !b {
+                return Err(format!("{} not initialized", p));
+            }
+        }
+
+        Ok(instance)
     }
 
     /// 返回矩阵的大小  
@@ -411,9 +458,29 @@ fn test_sub<const CW: usize, const CH: usize>() {
 }
 
 #[cfg(test)]
+fn test_with_iter<const CW: usize, const CH: usize>() {
+    let size = Coord(89usize, 97);
+    let matrix1 = Matrix::<String, 1, 1>::with_ctor(size, |pos| pos.to_string());
+    let matrix2 = Matrix::<String, CW, CH>::with_iter(
+        size,
+        matrix1.as_area().fast().map(|(a, b)| (a, b.clone())),
+    )
+    .unwrap();
+    for j in 0..size.1 {
+        for i in 0..size.0 {
+            let p = Coord(i as isize, j as isize);
+            assert_eq!(matrix1[p], matrix2[p]);
+        }
+    }
+}
+
+#[cfg(test)]
 #[test]
 fn test() {
     test_sub::<1, 1>();
     test_sub::<2, 2>();
+    test_with_iter::<1, 1>();
+    test_with_iter::<29, 2>();
+    test_with_iter::<13, 17>();
     // test_map();
 }

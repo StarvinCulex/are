@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::arena::cosmos::{Deamon, MobBlock, PKey};
 use crate::arena::mob::{Msg, Order};
-use crate::arena::{Cosmos, ReadGuard, MobBox};
+use crate::arena::{Cosmos, MobBox, ReadGuard};
 use crate::cosmos::defs::CrdI;
 use crate::meta::types::ThreatT;
 use crate::{Angelos, MobRef, MobRefMut};

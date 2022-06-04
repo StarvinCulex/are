@@ -1,16 +1,16 @@
 [game]
-chunk_size = [1, 1]
-chunk_count = [9, 9]
-padding = [1, 1]
+chunk_size = [16, 16]
+chunk_count = [150, 150]
+padding = [32, 32]
 
 [runtime]
 period = 0
-thread_count = 4
-retry = 10
+thread_count = 1
+retry = 4
 
 [plant]
-aging_possibility = 0.001
-sow_possibility = 0.00001
+aging_possibility = 0.0001
+sow_possibility = 0.000001
 
 [plant.grass]
 grow = 10000
@@ -19,17 +19,17 @@ fruit_cost = 20000
 fruit_when = 50000
 
 [plant.tree]
-grow = 20000
+grow = 10000
 sow_weight = 1
 fruit_cost = 50000
 fruit_when = 500000
 
 [plant.corpse]
-rot = 20
+rot = 1000
 convert_rate = 0.8
 
 [bio]
-create_possibility = 0.001
+create_possibility = 0.000001
 mutation.insert = 0.1
 mutation.remove = 0.1
 
@@ -37,43 +37,95 @@ mutation.remove = 0.1
 wake_period = 10
 wake_energy_consume = 1
 energy_cost = 10000
-spawn_loss = 10000
+spawn_loss = 9000
 spawn_init_energy = 1000
-incubation_delay = 1
+incubation_delay = 10
 size = [0, 0]
-watch_period = 10
-watch_range = 3
+watch_period = 20
+watch_area = 1
 move_period = 1
 move_cost = 10
-eat_threshold = 20000
+eat_threshold = 30000
 eat_takes = 1000
-combat.hit_point = 10
+combat.hit_point = 100
 combat.regeneration = 0
 combat.regeneration_cost = 0
 combat.atk = 0
 combat.atk_cost = 0
 combat.threat = 0
+combat.flee_threshold = 0
+combat.fight_back_threshold = 0
+combat.chase_threshold = 0
+
+[bio.acids.S]
+mutate_rate = 300
+[bio.acids.S.prop]
+wake_period = 0.2
+wake_energy_consume = 0.2
+energy_cost = 5000
+spawn_loss = 4500
+spawn_init_energy = 500
+incubation_delay = 0.2
+size = [0.05, 0.05]
+watch_period = 0
+watch_area = 0.5
+move_period = 0
+move_cost = 2
+eat_threshold = 0
+eat_takes = 100
+combat.hit_point = 20
+combat.regeneration = 0.2
+combat.regeneration_cost = 0
+combat.atk = 0
+combat.atk_cost = 0
+combat.threat = 1
 combat.flee_threshold = 0
 combat.fight_back_threshold = 0
 combat.chase_threshold = 0
 
 [bio.acids.A]
-mutate_rate = 1
+mutate_rate = 300
 [bio.acids.A.prop]
-wake_period = 0
-wake_energy_consume = 0
-energy_cost = 0
-spawn_loss = 0
-spawn_init_energy = 0
+wake_period = -1
+wake_energy_consume = 0.5
+energy_cost = 2500
+spawn_loss = 2250
+spawn_init_energy = 250
 incubation_delay = 0
 size = [0, 0]
-watch_period = 0
-watch_range = 0
-move_period = 0
+watch_period = -1
+watch_area = 0
+move_period = -0.2
 move_cost = 0
 eat_threshold = 0
 eat_takes = 0
-combat.hit_point = 10
+combat.hit_point = 0
+combat.regeneration = 0
+combat.regeneration_cost = 0
+combat.atk = 1
+combat.atk_cost = 0.25
+combat.threat = 2
+combat.flee_threshold = 1
+combat.fight_back_threshold = 1
+combat.chase_threshold = 1
+
+[bio.acids.E]
+mutate_rate = 100
+[bio.acids.E.prop]
+wake_period = 0
+wake_energy_consume = 1
+energy_cost = 20000
+spawn_loss = 19000
+spawn_init_energy = 1000
+incubation_delay = 5
+size = [0.05, 0.05]
+watch_period = 1
+watch_area = 15
+move_period = 0
+move_cost = 2
+eat_threshold = 0
+eat_takes = 100
+combat.hit_point = 20
 combat.regeneration = 0
 combat.regeneration_cost = 0
 combat.atk = 0
@@ -83,11 +135,72 @@ combat.flee_threshold = 0
 combat.fight_back_threshold = 0
 combat.chase_threshold = 0
 
-[[bio.creatures]]
-weight = 1
-insertions = 1
-gene = ["A", "A", "A"]
+[bio.acids.D]
+mutate_rate = 100
+[bio.acids.D.prop]
+wake_period = 0
+wake_energy_consume = 1
+energy_cost = 5000
+spawn_loss = 4500
+spawn_init_energy = 500
+incubation_delay = 1
+size = [0.05, 0.05]
+watch_period = 0.5
+watch_area = 1
+move_period = 0
+move_cost = 0
+eat_threshold = -200
+eat_takes = 200
+combat.hit_point = 5
+combat.regeneration = 0
+combat.regeneration_cost = 0
+combat.atk = 1
+combat.atk_cost = 0.25
+combat.threat = 2
+combat.flee_threshold = 1
+combat.fight_back_threshold = 1
+combat.chase_threshold = 1
+
+[bio.acids.P]
+mutate_rate = 20
+[bio.acids.P.prop]
+wake_period = -1
+wake_energy_consume = 2
+energy_cost = 10000
+spawn_loss = 9000
+spawn_init_energy = 1000
+incubation_delay = 0
+size = [0.1, 0.1]
+watch_period = 0
+watch_area = 1
+move_period = 0
+move_cost = 1
+eat_threshold = 500
+eat_takes = 500
+combat.hit_point = 20
+combat.regeneration = 1
+combat.regeneration_cost = 1
+combat.atk = 10
+combat.atk_cost = 2
+combat.threat = 20
+combat.flee_threshold = 25
+combat.fight_back_threshold = 15
+combat.chase_threshold = -20
+
+
 [[bio.creatures]]
 weight = 1
 insertions = 0
-gene = ["A"]
+gene = []
+[[bio.creatures]]
+weight = 1
+insertions = 1
+gene = []
+[[bio.creatures]]
+weight = 1
+insertions = 2
+gene = []
+[[bio.creatures]]
+weight = 1
+insertions = 3
+gene = []

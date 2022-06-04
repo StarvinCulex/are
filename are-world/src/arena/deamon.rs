@@ -117,8 +117,8 @@ impl<'c, 'a> Deamon<'c, 'a> {
     }
 
     #[inline]
-    pub fn set_plate<M: Mob + Unsize<dyn Mob> + ?Sized>(
-        plate: &mut Matrix<Block, 1, 1>,
+    pub fn set_plate<M: Mob + Unsize<dyn Mob> + ?Sized, const MCW: usize, const MCH: usize>(
+        plate: &mut Matrix<Block, MCW, MCH>,
         major: &MajorAngelos,
         mut mob: MobBox<M>,
     ) -> Result<Weak<MobBlock>, MobBox<M>> {
@@ -144,8 +144,8 @@ impl<'c, 'a> Deamon<'c, 'a> {
     }
 
     #[inline]
-    pub fn take_plate<'g, M: Mob + ?Sized>(
-        plate: &mut Matrix<Block, 1, 1>,
+    pub fn take_plate<'g, M: Mob + ?Sized, const MCW: usize, const MCH: usize>(
+        plate: &mut Matrix<Block, MCW, MCH>,
         major: &MajorAngelos,
         mob: MobRefMut<'g, M>,
     ) -> Result<MobBox<M>, MobRefMut<'g, M>> {
@@ -167,8 +167,13 @@ impl<'c, 'a> Deamon<'c, 'a> {
     }
 
     #[inline]
-    pub fn reset_plate<'g, M: Mob + Unsize<dyn Mob> + ?Sized>(
-        plate: &mut Matrix<Block, 1, 1>,
+    pub fn reset_plate<
+        'g,
+        M: Mob + Unsize<dyn Mob> + ?Sized,
+        const MCW: usize,
+        const MCH: usize,
+    >(
+        plate: &mut Matrix<Block, MCW, MCH>,
         major: &MajorAngelos,
         mob: &mut MobRefMut<M>,
         new_at: CrdI,
