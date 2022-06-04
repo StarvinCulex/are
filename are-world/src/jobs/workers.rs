@@ -2,6 +2,7 @@ use std::mem::ManuallyDrop;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::Relaxed;
 use std::thread;
+use std::intrinsics::{likely, unlikely};
 
 pub fn work<Worker: Send, WorkersIter: Iterator<Item=Worker>, Job: Sync + Send, F: Fn(&mut Worker, Job) + Sync + Send>(
     mut workers_iter: WorkersIter,
@@ -47,7 +48,7 @@ impl<Job> AtomicQueue<Job> {
     pub fn pop(&self) -> Option<Job> {
         #![allow(mutable_transmutes)]
         let ptr = self.ptr.fetch_add(1, Relaxed);
-        if ptr >= self.data.len() {
+        if unlikely(ptr >= self.data.len()) {
             return None;
         }
         unsafe {
@@ -60,7 +61,7 @@ impl<Job> AtomicQueue<Job> {
 impl<Job> Drop for AtomicQueue<Job> {
     fn drop(&mut self) {
         let ptr = *self.ptr.get_mut();
-        if ptr < self.data.len() {
+        if unlikely(ptr < self.data.len()) {
             unsafe {
                 let need_drop: &mut [Job] = std::mem::transmute(&mut self.data[ptr..]);
                 std::ptr::drop_in_place(need_drop);

@@ -2,6 +2,8 @@ use core::marker::Unsize;
 use core::ops::{CoerceUnsized, DispatchFromDyn};
 use std::marker::PhantomData;
 use std::sync::{self, Arc};
+use std::any::Any;
+use std::intrinsics::{likely, unlikely};
 
 use crate::arena::cosmos::{MobBlock, PKey, _MobBlock};
 use crate::arena::defs::CrdI;
@@ -143,7 +145,7 @@ impl<AccessKey: ?Sized> ReadGuard<AccessKey> {
         weak: Weak<_MobBlock<M>, AccessKey>,
     ) -> Option<MobRef<'g, M, AccessKey>> {
         let p = weak.data.upgrade()?;
-        if !p.on_plate() {
+        if unlikely(!p.on_plate()) {
             return None;
         }
         Some(self.wrap(p))
@@ -183,7 +185,7 @@ impl<AccessKey: ?Sized> WriteGuard<AccessKey> {
         weak: Weak<_MobBlock<M>, AccessKey>,
     ) -> Option<MobRef<'g, M, AccessKey>> {
         let p = weak.data.upgrade()?;
-        if !p.on_plate() {
+        if unlikely(!p.on_plate()) {
             return None;
         }
         Some(self.wrap(p))
@@ -214,16 +216,19 @@ impl<AccessKey: ?Sized> WriteGuard<AccessKey> {
     }
 }
 
+#[repr(transparent)]
 pub struct MobRef<'g, M: ?Sized, AccessKey: ?Sized = PKey>(
     Arc<_MobBlock<M>>,
     PhantomData<&'g ReadGuard<AccessKey>>,
 );
 
+#[repr(transparent)]
 pub struct MobRefMut<'g, M: ?Sized, AccessKey: ?Sized = PKey>(
     Arc<_MobBlock<M>>,
     PhantomData<&'g WriteGuard<AccessKey>>,
 );
 
+#[repr(transparent)]
 pub struct MobBox<M: ?Sized, AccessKey: ?Sized = PKey>(
     Arc<_MobBlock<M>>,
     PhantomData<AccessKey>,
@@ -277,7 +282,7 @@ impl<M: ?Sized + Mob, AccessKey: ?Sized> MobBox<M, AccessKey> {
 
     #[inline]
     pub fn new(p: Arc<_MobBlock<M>>) -> Option<Self> {
-        if Arc::strong_count(&p) != 1 || p.on_plate() {
+        if unlikely(Arc::strong_count(&p) != 1 || p.on_plate()) {
             return None;
         }
         Some(unsafe { Self::new_unchecked(p) })
@@ -317,6 +322,45 @@ impl<M: Mob + Unsize<dyn Mob> + ?Sized, AccessKey: ?Sized> MobBox<M, AccessKey> 
     #[inline]
     pub fn downgrade(&self) -> Weak<MobBlock, AccessKey> {
         Weak::<_MobBlock<M>, _>::from(&self.0)
+    }
+}
+
+impl<'g, AccessKey: ?Sized> MobRef<'g, dyn Mob, AccessKey> {
+    #[inline]
+    pub fn downcast<T: Mob>(self) -> Result<MobRef<'g, T, AccessKey>, Self> {
+        if likely((*self).is::<T>()) {
+            Ok(MobRef(unsafe {
+                Arc::from_raw(Arc::into_raw(self.0) as _)
+            }, PhantomData::default()))
+        } else {
+            Err(self)
+        }
+    }
+}
+
+impl<'g, AccessKey: ?Sized> MobRefMut<'g, dyn Mob, AccessKey> {
+    #[inline]
+    pub fn downcast<T: Mob>(self) -> Result<MobRefMut<'g, T, AccessKey>, Self> {
+        if likely((*self).is::<T>()) {
+            Ok(MobRefMut(unsafe {
+                Arc::from_raw(Arc::into_raw(self.0) as _)
+            }, PhantomData::default()))
+        } else {
+            Err(self)
+        }
+    }
+}
+
+impl<AccessKey: ?Sized> MobBox<dyn Mob, AccessKey> {
+    #[inline]
+    pub fn downcast<T: Mob>(self) -> Result<MobBox<T, AccessKey>, Self> {
+        if likely(self.mob.is::<T>()) {
+            Ok(MobBox(unsafe {
+                Arc::from_raw(Arc::into_raw(self.0) as _)
+            }, PhantomData::default()))
+        } else {
+            Err(self)
+        }
     }
 }
 

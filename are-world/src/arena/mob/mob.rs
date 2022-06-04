@@ -1,4 +1,6 @@
 use std::sync::Arc;
+use std::any::{Any, TypeId};
+use std::intrinsics::likely;
 
 use crate::arena::cosmos::{Deamon, MobBlock, PKey};
 use crate::arena::mob::{Msg, Order};
@@ -7,7 +9,7 @@ use crate::cosmos::defs::CrdI;
 use crate::meta::types::ThreatT;
 use crate::{Angelos, MobRef, MobRefMut};
 
-pub trait Mob: Send + Sync + ToString {
+pub trait Mob: Send + Sync + ToString + Any {
     fn into_arc(self) -> Arc<MobBlock>;
 
     fn into_box(self) -> MobBox<dyn Mob>
@@ -33,4 +35,18 @@ pub trait Mob: Send + Sync + ToString {
     fn order(self: MobRefMut<Self>, deamon: &mut Deamon, order: Vec<Order>);
 
     fn threat(&self) -> ThreatT;
+}
+
+impl dyn Mob {
+    #[inline]
+    pub fn is<T: Mob>(&self) -> bool {
+        // Get `TypeId` of the type this function is instantiated with.
+        let t = TypeId::of::<T>();
+
+        // Get `TypeId` of the type in the trait object (`self`).
+        let concrete = self.type_id();
+
+        // Compare both `TypeId`s on equality.
+        t == concrete
+    }
 }
