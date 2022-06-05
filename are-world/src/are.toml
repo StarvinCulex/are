@@ -1,7 +1,7 @@
 [game]
-chunk_size = [16, 16]
-chunk_count = [150, 150]
-padding = [32, 32]
+chunk_size = [8, 8]
+chunk_count = [9, 9]
+padding = [8, 8]
 
 [runtime]
 period = 0
@@ -9,8 +9,8 @@ thread_count = 1
 retry = 4
 
 [plant]
-aging_possibility = 0.0001
-sow_possibility = 0.000001
+aging_possibility = 0.01
+sow_possibility = 0.0001
 
 [plant.grass]
 grow = 10000
@@ -29,7 +29,7 @@ rot = 1000
 convert_rate = 0.8
 
 [bio]
-create_possibility = 0.000001
+create_possibility = 0.001
 mutation.insert = 0.1
 mutation.remove = 0.1
 
@@ -45,7 +45,7 @@ watch_period = 20
 watch_area = 1
 move_period = 1
 move_cost = 10
-eat_threshold = 30000
+eat_threshold = 10000
 eat_takes = 1000
 combat.hit_point = 100
 combat.regeneration = 0

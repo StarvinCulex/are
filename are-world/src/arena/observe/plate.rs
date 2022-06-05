@@ -28,6 +28,7 @@ pub struct BlockView {
 #[derive(Serialize)]
 pub struct MobView {
     pub name: String,
+    pub properties: String,
 }
 
 impl PlateView {
@@ -69,6 +70,7 @@ impl MobView {
     fn new(mob: MobRef<dyn Mob>) -> Self {
         MobView {
             name: mob.get_name(),
+            properties: { todo!() },
         }
     }
 }

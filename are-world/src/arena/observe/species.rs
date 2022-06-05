@@ -51,7 +51,7 @@ impl Display for SpeciesView {
 impl Display for SpeciesStats {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         for (gene, view) in self.species.iter() {
-            write!(f, "{gene:?} : {view}", gene = gene, view = view)?;
+            writeln!(f, "{gene:?} : {view}", gene = gene, view = view)?;
         }
         Ok(())
     }

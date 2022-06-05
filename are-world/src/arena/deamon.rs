@@ -152,11 +152,12 @@ impl<'c, 'a> Deamon<'c, 'a> {
         let at = mob.at();
         let scan = plate.area_mut(at).scan();
         // quick fail: check if it's unique after clearing the plate
-        if unlikely(scan.len() + 1 < mob.strong_count()) {
+        if unlikely(scan.len() + 1 != mob.strong_count()) {
             return Err(mob);
         }
         // clear the plate
         for (_, grid) in scan {
+            debug_assert!(grid.mob.is_some());
             grid.mob = None;
         }
         // convert

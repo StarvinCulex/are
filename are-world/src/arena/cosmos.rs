@@ -18,7 +18,7 @@ pub use super::*;
 use super::{MobBox, ReadGuard, Weak, WriteGuard};
 
 pub struct Cosmos {
-    pub plate: Matrix<Block, 16, 16>,
+    pub plate: Matrix<Block, 1, 1>,
     pub angelos: MajorAngelos,
     ripper: CosmosRipper,
 }

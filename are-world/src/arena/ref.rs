@@ -1,9 +1,8 @@
 use core::marker::Unsize;
 use core::ops::{CoerceUnsized, DispatchFromDyn};
+use std::intrinsics::{likely, unlikely};
 use std::marker::PhantomData;
 use std::sync::{self, Arc};
-use std::any::Any;
-use std::intrinsics::{likely, unlikely};
 
 use crate::arena::cosmos::{MobBlock, PKey, _MobBlock};
 use crate::arena::defs::CrdI;
@@ -229,10 +228,7 @@ pub struct MobRefMut<'g, M: ?Sized, AccessKey: ?Sized = PKey>(
 );
 
 #[repr(transparent)]
-pub struct MobBox<M: ?Sized, AccessKey: ?Sized = PKey>(
-    Arc<_MobBlock<M>>,
-    PhantomData<AccessKey>,
-);
+pub struct MobBox<M: ?Sized, AccessKey: ?Sized = PKey>(Arc<_MobBlock<M>>, PhantomData<AccessKey>);
 
 impl<'g, M: ?Sized, AccessKey: ?Sized> MobRef<'g, M, AccessKey> {
     #[inline]
@@ -279,7 +275,6 @@ impl<'g, M: ?Sized + Mob, AccessKey: ?Sized> MobRefMut<'g, M, AccessKey> {
 }
 
 impl<M: ?Sized + Mob, AccessKey: ?Sized> MobBox<M, AccessKey> {
-
     #[inline]
     pub fn new(p: Arc<_MobBlock<M>>) -> Option<Self> {
         if unlikely(Arc::strong_count(&p) != 1 || p.on_plate()) {
@@ -329,9 +324,10 @@ impl<'g, AccessKey: ?Sized> MobRef<'g, dyn Mob, AccessKey> {
     #[inline]
     pub fn downcast<T: Mob>(self) -> Result<MobRef<'g, T, AccessKey>, Self> {
         if likely((*self).is::<T>()) {
-            Ok(MobRef(unsafe {
-                Arc::from_raw(Arc::into_raw(self.0) as _)
-            }, PhantomData::default()))
+            Ok(MobRef(
+                unsafe { Arc::from_raw(Arc::into_raw(self.0) as _) },
+                PhantomData::default(),
+            ))
         } else {
             Err(self)
         }
@@ -342,9 +338,10 @@ impl<'g, AccessKey: ?Sized> MobRefMut<'g, dyn Mob, AccessKey> {
     #[inline]
     pub fn downcast<T: Mob>(self) -> Result<MobRefMut<'g, T, AccessKey>, Self> {
         if likely((*self).is::<T>()) {
-            Ok(MobRefMut(unsafe {
-                Arc::from_raw(Arc::into_raw(self.0) as _)
-            }, PhantomData::default()))
+            Ok(MobRefMut(
+                unsafe { Arc::from_raw(Arc::into_raw(self.0) as _) },
+                PhantomData::default(),
+            ))
         } else {
             Err(self)
         }
@@ -355,9 +352,10 @@ impl<AccessKey: ?Sized> MobBox<dyn Mob, AccessKey> {
     #[inline]
     pub fn downcast<T: Mob>(self) -> Result<MobBox<T, AccessKey>, Self> {
         if likely(self.mob.is::<T>()) {
-            Ok(MobBox(unsafe {
-                Arc::from_raw(Arc::into_raw(self.0) as _)
-            }, PhantomData::default()))
+            Ok(MobBox(
+                unsafe { Arc::from_raw(Arc::into_raw(self.0) as _) },
+                PhantomData::default(),
+            ))
         } else {
             Err(self)
         }
@@ -419,8 +417,8 @@ impl<'g, T: ?Sized + Unsize<U>, U: ?Sized, AccessKey: ?Sized>
 {
 }
 
-impl<T: ?Sized + Unsize<U>, U: ?Sized, AccessKey: ?Sized>
-    CoerceUnsized<MobBox<U, AccessKey>> for MobBox<T, AccessKey>
+impl<T: ?Sized + Unsize<U>, U: ?Sized, AccessKey: ?Sized> CoerceUnsized<MobBox<U, AccessKey>>
+    for MobBox<T, AccessKey>
 {
 }
 
@@ -439,8 +437,8 @@ impl<'g, T: ?Sized + Unsize<U>, U: ?Sized, AccessKey: ?Sized>
 {
 }
 
-impl<T: ?Sized + Unsize<U>, U: ?Sized, AccessKey: ?Sized>
-    DispatchFromDyn<MobBox<U, AccessKey>> for MobBox<T, AccessKey>
+impl<T: ?Sized + Unsize<U>, U: ?Sized, AccessKey: ?Sized> DispatchFromDyn<MobBox<U, AccessKey>>
+    for MobBox<T, AccessKey>
 {
 }
 

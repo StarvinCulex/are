@@ -49,6 +49,7 @@ mod jobs;
 mod likely;
 mod lock;
 mod msgpip;
+mod stats;
 mod sword;
 
 fn main() {
@@ -112,11 +113,20 @@ fn main() {
         }
         let duration = SystemTime::now().duration_since(start).unwrap();
         println!("cost {}ms", duration.as_millis());
+        println!("benchmarks\n{}", meta.benchmark);
         meta.cosmos.pk(|cosmos, pkey| {
             let area = Coord(0, 0) | (*cosmos.plate.size() - Coord(1, 1));
             ReadGuard::with(pkey, |guard| {
                 let view = observe::species::SpeciesStats::new(cosmos, guard);
                 println!("{}", view);
+                println!(
+                    "{}",
+                    observe::plate::PlateView::new(
+                        cosmos,
+                        Coord(0isize, 0) | Coord(20isize, 20),
+                        guard,
+                    )
+                );
             });
         });
     }
