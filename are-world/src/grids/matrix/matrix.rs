@@ -22,11 +22,17 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
     /// Safety: `Drop` 返回值前应先初始化数据
     #[inline]
     unsafe fn uninit(size: Coord<usize>) -> Self {
-        assert!(likely(size.0 != 0 && size.1 != 0), "Can not construct empty Matrix (input size={})", size);
+        assert!(
+            likely(size.0 != 0 && size.1 != 0),
+            "Can not construct empty Matrix (input size={})",
+            size
+        );
         let alloc_size = Self::calc_alloc_size(size);
         let mut elements = Vec::with_capacity(alloc_size);
         #[allow(unused_unsafe)]
-        unsafe { elements.set_len(alloc_size) };
+        unsafe {
+            elements.set_len(alloc_size)
+        };
         Self {
             elements,
             size: Coord(size.0 as isize, size.1 as isize),
@@ -61,13 +67,16 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
     ) -> Result<Self, String> {
         let size: Coord<usize> = Coord(size.0.into(), size.1.into());
         if unlikely(size.0 == 0 || size.1 == 0) {
-            return Err(format!("Can not construct empty Matrix (input size={})", size))
+            return Err(format!(
+                "Can not construct empty Matrix (input size={})",
+                size
+            ));
         }
         let mut instance = unsafe { Self::uninit(size) };
         let expected_range =
             Coord::with_intervals(Coord(0, 0), Coord(size.0 as isize, size.1 as isize));
         let mut exist = Matrix::<bool, 1, 1>::new(size);
-        let drop_with = |mut instance: Self, exist: Matrix::<bool, 1, 1>| {
+        let drop_with = |mut instance: Self, exist: Matrix<bool, 1, 1>| {
             for (p, &b) in exist.as_area().fast() {
                 if b {
                     unsafe {
@@ -302,7 +311,9 @@ where
 {
     fn clone(&self) -> Self {
         Self {
-            elements: self.elements.iter()
+            elements: self
+                .elements
+                .iter()
                 .enumerate()
                 .map(|(addr, element)| {
                     if likely(Self::is_initialized(self.size, addr)) {
@@ -472,14 +483,13 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
 
 // tests
 #[cfg(test)]
-fn test_sub<const CW: usize, const CH: usize>() {
-    let size = Coord(5usize, 5);
+fn test_sub<const CW: usize, const CH: usize>(size: Coord<usize>) {
     let matrix = Matrix::<String, CW, CH>::with_ctor(size, |pos| pos.to_string());
 
-    assert_eq!(*matrix.size(), Coord(5isize, 5isize));
-
-    for j in 0..5isize {
-        for i in 0..5isize {
+    for j in 0..size.1 {
+        for i in 0..size.0 {
+            let j = j as isize;
+            let i = i as isize;
             let expected = Coord(i, j).to_string();
             let value = &matrix[Coord(i, j)];
             assert_eq!(&expected, value);
@@ -515,8 +525,9 @@ fn test_with_iter<const CW: usize, const CH: usize>() {
 #[cfg(test)]
 #[test]
 fn test() {
-    test_sub::<1, 1>();
-    test_sub::<2, 2>();
+    test_sub::<1, 1>(Coord(5, 5));
+    test_sub::<2, 2>(Coord(1, 1));
+    test_sub::<37, 19>(Coord(300, 300));
     test_with_iter::<1, 1>();
     test_with_iter::<29, 2>();
     test_with_iter::<13, 17>();

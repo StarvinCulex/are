@@ -7,7 +7,7 @@ use crate::meta::gnd::Ground;
 //
 pub struct Deamon<'c, 'a> {
     pub angelos: &'a mut Angelos<'c>,
-    plate: &'c mut Matrix<Block, 1, 1>,
+    plate: &'c mut Matrix<Block, CHUNK_WIDTH, CHUNK_HEIGHT>,
     bound: CrdI,
 }
 

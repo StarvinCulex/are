@@ -1,3 +1,4 @@
+use crate::arena::cosmos::{CHUNK_HEIGHT, CHUNK_WIDTH};
 use crate::arena::defs::{Crd, CrdI};
 use crate::grids::{Coord, Matrix};
 
@@ -54,9 +55,12 @@ impl CosmosRipper {
         }
     }
     pub fn normalize_area(&self, area: CrdI) -> CrdI {
-        Matrix::<(), 1, 1>::normalize_area_with(self.plate_size.into(), area.into())
-            .try_into()
-            .unwrap()
+        Matrix::<(), CHUNK_WIDTH, CHUNK_HEIGHT>::normalize_area_with(
+            self.plate_size.into(),
+            area.into(),
+        )
+        .try_into()
+        .unwrap()
     }
 }
 

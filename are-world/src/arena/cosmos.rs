@@ -18,8 +18,11 @@ use crate::{if_likely, jobs};
 pub use super::*;
 use super::{MobBox, ReadGuard, Weak, WriteGuard};
 
+pub const CHUNK_WIDTH: usize = 1;
+pub const CHUNK_HEIGHT: usize = 16;
+
 pub struct Cosmos {
-    pub plate: Matrix<Block, 1, 1>,
+    pub plate: Matrix<Block, CHUNK_WIDTH, CHUNK_HEIGHT>,
     pub angelos: MajorAngelos,
     ripper: CosmosRipper,
 }
@@ -290,9 +293,9 @@ impl Cosmos {
                             bound,
                         };
                         for (mob, orders) in local_mob_orders.into_iter() {
-                            if_likely!(let Some(mob_ref_mut) = unsafe { guard.wrap_weak_mut(mob) } => {
+                            if let Some(mob_ref_mut) = unsafe { guard.wrap_weak_mut(mob) } {
                                 mob_ref_mut.order(&mut deamon, orders);
-                            })
+                            }
                         }
                     },
                 );
