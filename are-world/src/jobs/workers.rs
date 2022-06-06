@@ -4,7 +4,7 @@ use std::sync::atomic::Ordering::Relaxed;
 use std::thread;
 use std::intrinsics::{likely, unlikely};
 
-pub fn work<Worker: Send, WorkersIter: Iterator<Item=Worker>, Job: Sync + Send, F: Fn(&mut Worker, Job) + Sync + Send>(
+pub fn work<'w, Worker: Send + 'w, WorkersIter: Iterator<Item=&'w mut Worker>, Job: Sync + Send, F: Fn(&mut Worker, Job) + Sync + Send>(
     mut workers_iter: WorkersIter,
     jobs: Vec<Job>,
     func: F,
@@ -37,7 +37,7 @@ impl<Job> AtomicQueue<Job> {
     #[inline]
     pub fn new(jobs: Vec<Job>) -> Self {
         let (ptr, len, cap) = jobs.into_raw_parts();
-        let jobs = unsafe { Vec::from_raw_parts(ptr as *mut ManuallyDrop<Job>, len, cap) };
+        let jobs = unsafe { Vec::from_raw_parts(ptr as _, len, cap) };
         Self {
             data: jobs,
             ptr: AtomicUsize::new(0),
@@ -46,14 +46,13 @@ impl<Job> AtomicQueue<Job> {
 
     #[inline]
     pub fn pop(&self) -> Option<Job> {
-        #![allow(mutable_transmutes)]
         let ptr = self.ptr.fetch_add(1, Relaxed);
         if unlikely(ptr >= self.data.len()) {
             return None;
         }
         unsafe {
-            let job: &mut _ = std::mem::transmute(self.data.get_unchecked(ptr));
-            Some(ManuallyDrop::take(job))
+            let job = self.data.get_unchecked(ptr) as *const _ as _;
+            Some(std::ptr::read(job))
         }
     }
 }

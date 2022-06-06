@@ -92,7 +92,7 @@ impl Bio {
             g.plant.add_corpse(energy_per_grid);
         }
 
-        deamon.take(self).unwrap_or_else(|_| unreachable!());
+        deamon.take(self);
     }
 }
 

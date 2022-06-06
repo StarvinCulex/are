@@ -84,7 +84,7 @@ impl<'c, 'a> Deamon<'c, 'a> {
     pub fn take<'g, M: Mob + ?Sized>(
         &mut self,
         mob: MobRefMut<'g, M>,
-    ) -> Result<MobBox<M>, MobRefMut<'g, M>> {
+    ) -> MobBox<M> {
         // check if the mob.at() is valid
         // no need to check, MobRefMut is trusted
         // if let Some(plate_mob) = self.plate[at.from()].mob.as_ref() {
@@ -134,13 +134,15 @@ impl<'c, 'a> Deamon<'c, 'a> {
         // set the plate
         mob.at = major.normalize_area(at);
         mob.on_plate = true;
-        let mob: Arc<_MobBlock<M>> = mob.into_inner(&major.pkey);
-        let mob: Arc<MobBlock> = mob;
+        let mob: Arc<MobBlock> = mob.into_inner(&major.pkey);
+        let weak = Weak::from(&mob);
+        let mob = unsafe { CheapMobArc::from_arc(mob) };
 
         for (_, grid) in plate.area_mut(at) {
-            grid.mob = Some(mob.clone());
+            grid.mob = Some(mob);
         }
-        Ok(Weak::from(&mob))
+        debug_assert_eq!(weak.strong_count(), 1);
+        Ok(weak)
     }
 
     #[inline]
@@ -148,23 +150,18 @@ impl<'c, 'a> Deamon<'c, 'a> {
         plate: &mut Matrix<Block, MCW, MCH>,
         major: &MajorAngelos,
         mob: MobRefMut<'g, M>,
-    ) -> Result<MobBox<M>, MobRefMut<'g, M>> {
-        let at = mob.at();
-        let scan = plate.area_mut(at).scan();
-        // quick fail: check if it's unique after clearing the plate
-        if unlikely(scan.len() + 1 != mob.strong_count()) {
-            return Err(mob);
-        }
+    ) -> MobBox<M> {
+        debug_assert_eq!(mob.strong_count(), 1);
         // clear the plate
-        for (_, grid) in scan {
+        for (_, grid) in plate.area_mut(mob.at()).scan() {
             debug_assert!(grid.mob.is_some());
             grid.mob = None;
         }
         // convert
         debug_assert_eq!(mob.strong_count(), 1);
-        let mut mob = unsafe { MobBox::new_unchecked(mob.into_inner(&major.pkey)) };
+        let mut mob = unsafe { MobBox::new_unchecked(mob.get_inner(&major.pkey).into_arc()) };
         mob.on_plate = false;
-        Ok(mob)
+        mob
     }
 
     #[inline]
@@ -179,30 +176,29 @@ impl<'c, 'a> Deamon<'c, 'a> {
         mob: &mut MobRefMut<M>,
         new_at: CrdI,
     ) -> Result<(), ()> {
+        debug_assert_eq!(mob.strong_count(), 1);
         let at = mob.at();
-        let mut mob: Arc<MobBlock> = mob.get_inner(&major.pkey);
+        let mut inner = mob.get_inner(&major.pkey);
+        let ptr = inner.as_ptr() as *const ();
         // check if there is another mob
-        if unlikely(plate.area(at).scan().any(|(_, grid)| {
+        if unlikely(plate.area(new_at).scan().any(|(_, grid)| {
             grid.mob.is_some_with(|pos_mob| {
-                Arc::as_ptr(pos_mob) as *const () != Arc::as_ptr(&mob) as *const ()
+                pos_mob.as_ptr() as *const () != ptr
             })
         })) {
             return Err(());
         }
+        // resetZ
+        unsafe { inner.as_mut() }.at = major.normalize_area(new_at);
         // clear the old grids
         for (pos, grid) in plate.area_mut(at) {
-            if !new_at.contains(&pos.try_into().unwrap()) {
-                grid.mob = None;
-            }
+            grid.mob = None;
         }
         // set the new grids
         for (_, grid) in plate.area_mut(new_at) {
-            if grid.mob.is_none() {
-                grid.mob = Some(mob.clone());
-            }
+            grid.mob = Some(inner);
         }
-        // resetZ
-        unsafe { Arc::get_mut_unchecked(&mut mob) }.at = major.normalize_area(new_at);
+        debug_assert_eq!(mob.strong_count(), 1);
         Ok(())
     }
 }

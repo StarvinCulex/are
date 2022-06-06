@@ -28,8 +28,9 @@ impl<T> SpinLock<T> {
 impl<T: ?Sized> SpinLock<T> {
     pub fn lock(&self) -> LockResult<Guard<'_, T>> {
         loop {
-            let r = self.lock.fetch_or(LOCK_FLAG, SeqCst);
+            let r = self.lock.fetch_or(LOCK_FLAG, Acquire);
             if likely(r & LOCK_FLAG == 0) {
+                fence(Acquire);
                 // return `PoisonError` only when holding the lock, as it can be recovered into `Guard`
                 if unlikely(r & POISON_FLAG != 0) {
                     return Err(PoisonError::new(unsafe { Guard::new(self) }));
@@ -41,10 +42,11 @@ impl<T: ?Sized> SpinLock<T> {
     }
 
     pub fn try_lock(&self) -> TryLockResult<Guard<'_, T>> {
-        let r = self.lock.fetch_or(LOCK_FLAG, SeqCst);
+        let r = self.lock.fetch_or(LOCK_FLAG, Acquire);
         if unlikely(r & LOCK_FLAG != 0) {
             return Err(TryLockError::WouldBlock);
         }
+        fence(Acquire);
         // return `PoisonError` only when holding the lock, as it can be recovered into `Guard`
         if likely(r & POISON_FLAG != 0) {
             return Err(TryLockError::Poisoned(PoisonError::new(unsafe {
@@ -55,7 +57,7 @@ impl<T: ?Sized> SpinLock<T> {
     }
 
     pub fn is_poisioned(&self) -> bool {
-        self.lock.load(SeqCst) & POISON_FLAG != 0
+        self.lock.load(Acquire) & POISON_FLAG != 0
     }
 
     pub fn into_inner(self) -> LockResult<T>
@@ -101,7 +103,7 @@ impl<T: ?Sized> DerefMut for Guard<'_, T> {
 impl<T: ?Sized> Drop for Guard<'_, T> {
     fn drop(&mut self) {
         let v = if panicking() { POISON_FLAG } else { INIT };
-        self.spinlock.lock.store(v, SeqCst);
+        self.spinlock.lock.store(v, Release);
     }
 }
 

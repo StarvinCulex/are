@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 use std::collections::{hash_map::Entry, HashMap};
 use std::intrinsics::likely;
+use std::ptr::NonNull;
 use std::sync::Arc;
 
 use crate::arena::conf::GameConf;
@@ -30,7 +31,7 @@ pub struct PKey {
 #[derive(Default)]
 pub struct Block {
     pub ground: Ground,
-    mob: Option<Arc<MobBlock>>,
+    mob: Option<CheapMobArc<dyn Mob>>,
 }
 
 pub struct _MobBlock<M: ?Sized> {
@@ -76,7 +77,7 @@ impl PKey {
 impl Block {
     #[inline]
     pub fn mob(&self) -> Option<(CrdI, Weak<MobBlock>)> {
-        self.mob.as_ref().map(|mob| (mob.as_ref().at, mob.into()))
+        self.mob.map(|mob| unsafe { (mob.as_ref().at, mob.make_weak()) })
     }
 }
 
@@ -121,7 +122,7 @@ impl Cosmos {
     pub fn take<'g, M: Mob + ?Sized>(
         &mut self,
         mob: MobRefMut<'g, M>,
-    ) -> Result<MobBox<M>, MobRefMut<'g, M>> {
+    ) -> MobBox<M> {
         Deamon::take_plate(&mut self.plate, &self.angelos, mob)
     }
 
@@ -227,7 +228,7 @@ impl Cosmos {
             self.pos_to_weak_mob(mob_pos_messages, &mut mob_messages);
             ReadGuard::with(&self.angelos.pkey, |guard| {
                 jobs::work(
-                    workers.into_iter(),
+                    workers.iter_mut(),
                     mob_messages.into_iter().collect(),
                     |angelos, (mob, msgs)| {
                         if_likely!(let Some(mob_ref) = guard.wrap_weak(mob) => {
