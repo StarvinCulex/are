@@ -92,7 +92,10 @@ impl Bio {
             g.plant.add_corpse(energy_per_grid);
         }
 
-        deamon.take(self).unwrap_or_else(|_| unreachable!());
+        deamon.take(self).unwrap_or_else(|m| {
+            println!("EEE {} {}", m.strong_count(), m.weak_count());
+            panic!()
+        });
     }
 }
 

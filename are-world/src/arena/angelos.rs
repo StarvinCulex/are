@@ -52,14 +52,17 @@ impl MajorAngelos {
         }
     }
     pub fn normalize_pos(&self, pos: Crd) -> Crd {
-        Matrix::<(), 1, 1>::normalize_pos(self.plate_size.into(), pos.into())
+        Matrix::<(), CHUNK_WIDTH, CHUNK_HEIGHT>::normalize_pos(self.plate_size.into(), pos.into())
             .try_into()
             .unwrap()
     }
     pub fn normalize_area(&self, area: CrdI) -> CrdI {
-        Matrix::<(), 1, 1>::normalize_area_with(self.plate_size.into(), area.into())
-            .try_into()
-            .unwrap()
+        Matrix::<(), CHUNK_WIDTH, CHUNK_HEIGHT>::normalize_area_with(
+            self.plate_size.into(),
+            area.into(),
+        )
+        .try_into()
+        .unwrap()
     }
 }
 
