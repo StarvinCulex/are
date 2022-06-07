@@ -76,7 +76,7 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
         let expected_range =
             Coord::with_intervals(Coord(0, 0), Coord(size.0 as isize, size.1 as isize));
         let mut exist = Matrix::<bool, 1, 1>::new(size);
-        let drop_with = |mut instance: Self, exist: Matrix<bool, 1, 1>| {
+        let drop_with = |mut instance: Self, exist: &Matrix<bool, 1, 1>| {
             for (p, &b) in exist.as_area().iter() {
                 if b {
                     unsafe {
@@ -93,7 +93,7 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
         for (pos, e) in iter {
             let pos: Coord<isize> = Coord(pos.0.into(), pos.1.into());
             if unlikely(!expected_range.contains(&pos)) {
-                drop_with(instance, exist);
+                drop_with(instance, &exist);
                 return Err(format!("{} out of range", pos));
             }
             cnt += 1;
@@ -102,7 +102,7 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
                     exist.size, pos,
                 ));
                 if unlikely(*x) {
-                    drop_with(instance, exist);
+                    drop_with(instance, &exist);
                     return Err(format!("{} initialized more than once", pos));
                 }
                 *x = true;
@@ -115,7 +115,7 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
         if unlikely(cnt != size.0 * size.1) {
             for (p, &b) in exist.as_area().iter() {
                 if !b {
-                    drop_with(instance, exist.clone());
+                    drop_with(instance, &exist);
                     return Err(format!("{} not initialized", p));
                 }
             }
