@@ -43,9 +43,11 @@ impl Benchmark {
 
 impl Display for Benchmark {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let total: u128 = self.records.iter().map(|(_, &v)| v).sum();
+        let mut records: Vec<_> = self.records.iter().collect();
+        records.sort_unstable_by_key(|&(s, _)| s);
+        let total: u128 = records.iter().map(|(_, &v)| v).sum();
         writeln!(f, "total: {:?}", Duration::from_nanos(total as u64))?;
-        for (s, &v) in self.records.iter() {
+        for (s, &v) in records.into_iter() {
             writeln!(f, "{}: {:?} ({:.2}%)", s, Duration::from_nanos(v as u64), (v * 100) as f64 / total as f64)?;
         }
         Ok(())

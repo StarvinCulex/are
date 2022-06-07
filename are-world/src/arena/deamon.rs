@@ -42,7 +42,7 @@ impl<'c, 'a> Deamon<'c, 'a> {
         Ok(self
             .plate
             .area(p)
-            .iter()
+            .scan()
             .map(|(p, g)| (p.try_into().unwrap(), &g.ground)))
     }
     pub fn get_ground_iter_mut(
@@ -61,7 +61,7 @@ impl<'c, 'a> Deamon<'c, 'a> {
         Ok(self
             .plate
             .area_mut(p)
-            .iter()
+            .scan()
             .map(|(p, b)| (p.try_into().unwrap(), &mut b.ground)))
     }
 
