@@ -98,7 +98,7 @@ where
     fn clone(&self) -> Self {
         Self {
             data: self.data.clone(),
-            _key: PhantomData::default(),
+            _key: PhantomData,
         }
     }
 }
@@ -147,7 +147,7 @@ where
     fn from(data: sync::Weak<Element>) -> Self {
         Self {
             data,
-            _key: PhantomData::default(),
+            _key: PhantomData,
         }
     }
 }
@@ -195,7 +195,7 @@ impl<AccessKey: ?Sized> ReadGuard<AccessKey> {
     // unsafe, you should drop() it manually to terminate the lifetime of the references it returned
     #[inline]
     pub unsafe fn new(_key: &AccessKey) -> Self {
-        Self(PhantomData::default())
+        Self(PhantomData)
     }
 
     #[inline]
@@ -207,35 +207,45 @@ impl<AccessKey: ?Sized> ReadGuard<AccessKey> {
     }
 
     #[inline]
-    pub fn wrap<'g, M: ?Sized>(&'g self, p: Arc<_MobBlock<M>>) -> MobRef<'g, M, AccessKey> {
-        MobRef(unsafe { CheapMobArc::from_arc_ref(&p) }, PhantomData::default())
+    pub unsafe fn wrap_cheap<'g, M: ?Sized>(&'g self, p: CheapMobArc<M>) -> MobRef<'g, M, AccessKey> {
+        MobRef(p, PhantomData)
+    }
+
+    #[inline]
+    pub fn wrap<'g, M: ?Sized>(&'g self, p: &Arc<_MobBlock<M>>) -> MobRef<'g, M, AccessKey> {
+        unsafe { self.wrap_cheap(CheapMobArc::from_arc_ref(p)) }
     }
 
     #[inline]
     pub fn wrap_weak<'g, M: ?Sized>(
         &'g self,
-        weak: Weak<_MobBlock<M>, AccessKey>,
+        weak: &Weak<_MobBlock<M>, AccessKey>,
     ) -> Option<MobRef<'g, M, AccessKey>> {
         let p = weak.data.upgrade()?;
         if unlikely(!p.on_plate()) {
             return None;
         }
-        Some(self.wrap(p))
+        Some(self.wrap(&p))
     }
 
     #[inline]
     pub unsafe fn wrap_weak_unchecked<'g, M: ?Sized>(
         &'g self,
-        weak: Weak<_MobBlock<M>, AccessKey>,
+        weak: &Weak<_MobBlock<M>, AccessKey>,
     ) -> Option<MobRef<'g, M, AccessKey>> {
-        Some(self.wrap(weak.data.upgrade().unwrap_unchecked()))
+        Some(self.wrap(&weak.data.upgrade().unwrap_unchecked()))
     }
 }
 
 impl<AccessKey: ?Sized> WriteGuard<AccessKey> {
     #[inline]
     pub unsafe fn new(_key: &AccessKey) -> Self {
-        Self(PhantomData::default())
+        Self(PhantomData)
+    }
+
+    #[inline]
+    pub fn read<'g>(&'g self) -> &'g ReadGuard<AccessKey> {
+        &ReadGuard::<AccessKey>(PhantomData)
     }
 
     #[inline]
@@ -247,44 +257,24 @@ impl<AccessKey: ?Sized> WriteGuard<AccessKey> {
     }
 
     #[inline]
-    pub fn wrap<'g, M: ?Sized>(&'g self, p: Arc<_MobBlock<M>>) -> MobRef<'g, M, AccessKey> {
-        MobRef(unsafe { CheapMobArc::from_arc_ref(&p) }, PhantomData::default())
-    }
-
-    #[inline]
-    pub fn wrap_weak<'g, M: ?Sized>(
-        &'g self,
-        weak: Weak<_MobBlock<M>, AccessKey>,
-    ) -> Option<MobRef<'g, M, AccessKey>> {
-        let p = weak.data.upgrade()?;
-        if unlikely(!p.on_plate()) {
-            return None;
-        }
-        Some(self.wrap(p))
-    }
-
-    #[inline]
-    pub unsafe fn wrap_weak_unchecked<'g, M: ?Sized>(
-        &'g self,
-        weak: Weak<_MobBlock<M>, AccessKey>,
-    ) -> Option<MobRef<'g, M, AccessKey>> {
-        Some(self.wrap(weak.data.upgrade().unwrap_unchecked()))
+    pub unsafe fn wrap_cheap_mut<'g, M: ?Sized>(&'g self, p: CheapMobArc<M>) -> MobRefMut<'g, M, AccessKey> {
+        MobRefMut(p, PhantomData)
     }
 
     #[inline]
     pub unsafe fn wrap_mut<'g, M: ?Sized>(
         &'g self,
-        p: Arc<_MobBlock<M>>,
+        p: &Arc<_MobBlock<M>>,
     ) -> MobRefMut<'g, M, AccessKey> {
-        MobRefMut(CheapMobArc::from_arc_ref(&p), PhantomData::default())
+        self.wrap_cheap_mut(CheapMobArc::from_arc_ref(p))
     }
 
     #[inline]
     pub unsafe fn wrap_weak_mut<'g, M: Mob + ?Sized>(
         &'g self,
-        weak: Weak<_MobBlock<M>, AccessKey>,
+        weak: &Weak<_MobBlock<M>, AccessKey>,
     ) -> Option<MobRefMut<'g, M, AccessKey>> {
-        Some(MobRefMut(CheapMobArc::from_arc_ref(&weak.data.upgrade()?), PhantomData::default()))
+        Some(self.wrap_mut(&weak.data.upgrade()?))
     }
 }
 
@@ -358,7 +348,7 @@ impl<M: ?Sized, AccessKey: ?Sized> MobBox<M, AccessKey> {
 
     #[inline]
     pub unsafe fn new_unchecked(p: Arc<_MobBlock<M>>) -> Self {
-        MobBox(p, PhantomData::default())
+        MobBox(p, PhantomData)
     }
 
     #[inline]
@@ -399,7 +389,7 @@ impl<'g, AccessKey: ?Sized> MobRef<'g, dyn Mob, AccessKey> {
         if likely((*self).is::<T>()) {
             Ok(MobRef(
                 CheapMobArc(self.0.0.cast()),
-                PhantomData::default(),
+                PhantomData,
             ))
         } else {
             Err(self)
@@ -413,7 +403,7 @@ impl<'g, AccessKey: ?Sized> MobRefMut<'g, dyn Mob, AccessKey> {
         if likely((*self).is::<T>()) {
             Ok(MobRefMut(
                 CheapMobArc(self.0.0.cast()),
-                PhantomData::default(),
+                PhantomData,
             ))
         } else {
             Err(self)
@@ -427,7 +417,7 @@ impl<AccessKey: ?Sized> MobBox<dyn Mob, AccessKey> {
         if likely(self.mob.is::<T>()) {
             Ok(MobBox(
                 unsafe { Arc::from_raw(Arc::into_raw(self.0) as _) },
-                PhantomData::default(),
+                PhantomData,
             ))
         } else {
             Err(self)

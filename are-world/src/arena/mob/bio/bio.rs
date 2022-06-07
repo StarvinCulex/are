@@ -134,7 +134,7 @@ impl Mob for Bio {
         let mut self_mutex = self.target.lock().unwrap();
         let self_target = &mut self_mutex.target;
         if self_target.target.is_none() {
-            if let Some(target_mob_weak) = self_target.target_mob.clone() {
+            if let Some(target_mob_weak) = &self_target.target_mob {
                 self_target.target = guard.wrap_weak(target_mob_weak).map(|m| m.at());
                 if self_target.target.is_none() {
                     self_target.target_mob = None;

@@ -41,8 +41,7 @@ impl PlateView {
 
         let matrix = cosmos.plate.area(area).map(|block| BlockView {
             mob: block
-                .mob()
-                .and_then(|(_, m)| guard.wrap_weak(m))
+                .mob_ref(guard)
                 .map(|m| {
                     // make it shorter
                     let ptr = &*m as *const dyn Mob as *const () as usize;

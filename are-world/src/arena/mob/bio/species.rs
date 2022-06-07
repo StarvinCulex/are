@@ -66,7 +66,7 @@ impl Species {
     #[inline]
     pub fn watching_choice(&self, at: Crd, block: &Block, guard: &ReadGuard<PKey>) -> BioTarget {
         let mob_check = || -> Option<BioTarget> {
-            let mob = guard.wrap_weak(block.mob()?.1)?;
+            let mob = block.mob_ref(guard)?;
             let threat = mob.threat();
             if threat >= self.flee_threshold {
                 Some(BioTarget {

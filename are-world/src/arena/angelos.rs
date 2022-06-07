@@ -39,6 +39,7 @@ pub struct Angelos<'m> {
 }
 
 impl MajorAngelos {
+    #[inline]
     pub fn make_worker(&self) -> Angelos {
         Angelos {
             major: self,
@@ -51,11 +52,15 @@ impl MajorAngelos {
             mob_orders_buf: vec![],
         }
     }
+
+    #[inline]
     pub fn normalize_pos(&self, pos: Crd) -> Crd {
         Matrix::<(), CHUNK_WIDTH, CHUNK_HEIGHT>::normalize_pos(self.plate_size.into(), pos.into())
             .try_into()
             .unwrap()
     }
+
+    #[inline]
     pub fn normalize_area(&self, area: CrdI) -> CrdI {
         Matrix::<(), CHUNK_WIDTH, CHUNK_HEIGHT>::normalize_area_with(
             self.plate_size.into(),
@@ -67,6 +72,7 @@ impl MajorAngelos {
 }
 
 impl<'m> Drop for Angelos<'m> {
+    #[inline]
     fn drop(&mut self) {
         let mut guard = self.major.async_data.lock().unwrap();
         guard

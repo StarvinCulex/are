@@ -7,27 +7,23 @@ use crate::meta::gnd::Ground;
 //
 pub struct Deamon<'c, 'a> {
     pub angelos: &'a mut Angelos<'c>,
-    plate: &'c mut Matrix<Block, CHUNK_WIDTH, CHUNK_HEIGHT>,
+    plate: &'c mut Plate,
     bound: CrdI,
 }
 
 impl<'c, 'a> Deamon<'c, 'a> {
     pub fn get_ground(&self, p: Crd) -> Result<&Ground, ()> {
-        let pos = self.plate.normalize(p.into());
-        let bound: Coord<Interval<isize>> = self.bound.into();
-        if unlikely(!bound.contains(&pos)) {
+        if unlikely(!self.contains_pos(p)) {
             Err(())
         } else {
-            Ok(&self.plate[pos].ground)
+            Ok(&self.plate[p].ground)
         }
     }
     pub fn get_ground_mut(&mut self, p: Crd) -> Result<&mut Ground, ()> {
-        let pos = self.plate.normalize(p.into());
-        let bound: Coord<Interval<isize>> = self.bound.into();
-        if unlikely(!bound.contains(&pos)) {
+        if unlikely(!self.contains_pos(p)) {
             Err(())
         } else {
-            Ok(&mut self.plate[pos].ground)
+            Ok(&mut self.plate[p].ground)
         }
     }
     pub fn get_ground_iter(
@@ -40,7 +36,7 @@ impl<'c, 'a> Deamon<'c, 'a> {
         >,
         (),
     > {
-        if !self.contains(p) {
+        if unlikely(!self.contains(p)) {
             return Err(());
         }
         Ok(self
@@ -117,17 +113,23 @@ impl<'c, 'a> Deamon<'c, 'a> {
     }
 
     #[inline]
-    pub fn set_plate<M: Mob + Unsize<dyn Mob> + ?Sized, const MCW: usize, const MCH: usize>(
-        plate: &mut Matrix<Block, MCW, MCH>,
+    fn contains_pos(&self, mut p: Crd) -> bool {
+        p = self.angelos.major.normalize_pos(p);
+        self.bound.contains(&p)
+    }
+
+    #[inline]
+    pub fn set_plate<M: Mob + Unsize<dyn Mob> + ?Sized>(
+        plate: &mut Plate,
         major: &MajorAngelos,
         mut mob: MobBox<M>,
     ) -> Result<Weak<MobBlock>, MobBox<M>> {
         // check if the plate is empty
         let at = mob.at;
-        if plate
+        if unlikely(plate
             .area(at)
             .scan()
-            .any(|(_, grid)| unlikely(grid.mob.is_some()))
+            .any(|(_, grid)| unlikely(grid.mob.is_some())))
         {
             return Err(mob);
         }
@@ -146,8 +148,8 @@ impl<'c, 'a> Deamon<'c, 'a> {
     }
 
     #[inline]
-    pub fn take_plate<'g, M: Mob + ?Sized, const MCW: usize, const MCH: usize>(
-        plate: &mut Matrix<Block, MCW, MCH>,
+    pub fn take_plate<'g, M: Mob + ?Sized>(
+        plate: &mut Plate,
         major: &MajorAngelos,
         mob: MobRefMut<'g, M>,
     ) -> MobBox<M> {
@@ -165,13 +167,8 @@ impl<'c, 'a> Deamon<'c, 'a> {
     }
 
     #[inline]
-    pub fn reset_plate<
-        'g,
-        M: Mob + Unsize<dyn Mob> + ?Sized,
-        const MCW: usize,
-        const MCH: usize,
-    >(
-        plate: &mut Matrix<Block, MCW, MCH>,
+    pub fn reset_plate<'g, M: Mob + Unsize<dyn Mob> + ?Sized>(
+        plate: &mut Plate,
         major: &MajorAngelos,
         mob: &mut MobRefMut<M>,
         new_at: CrdI,
@@ -182,9 +179,9 @@ impl<'c, 'a> Deamon<'c, 'a> {
         let ptr = inner.as_ptr() as *const ();
         // check if there is another mob
         if unlikely(plate.area(new_at).scan().any(|(_, grid)| {
-            grid.mob.is_some_with(|pos_mob| {
-                pos_mob.as_ptr() as *const () != ptr
-            })
+            unlikely(grid.mob.is_some_with(|pos_mob| {
+                unlikely(pos_mob.as_ptr() as *const () != ptr)
+            }))
         })) {
             return Err(());
         }

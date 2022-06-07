@@ -20,9 +20,10 @@ use super::{MobBox, ReadGuard, Weak, WriteGuard};
 
 pub const CHUNK_WIDTH: usize = 1;
 pub const CHUNK_HEIGHT: usize = 16;
+pub type Plate = Matrix<Block, CHUNK_WIDTH, CHUNK_HEIGHT>;
 
 pub struct Cosmos {
-    pub plate: Matrix<Block, CHUNK_WIDTH, CHUNK_HEIGHT>,
+    pub plate: Plate,
     pub angelos: MajorAngelos,
     ripper: CosmosRipper,
 }
@@ -79,8 +80,23 @@ impl PKey {
 
 impl Block {
     #[inline]
+    pub fn mob_at(&self) -> Option<CrdI> {
+        self.mob.map(|mob| unsafe { mob.as_ref().at })
+    }
+
+    #[inline]
     pub fn mob(&self) -> Option<(CrdI, Weak<MobBlock>)> {
         self.mob.map(|mob| unsafe { (mob.as_ref().at, mob.make_weak()) })
+    }
+
+    #[inline]
+    pub fn mob_ref<'g>(&'g self, guard: &'g ReadGuard<PKey>) -> Option<MobRef<'g, dyn Mob>> {
+        self.mob.map(|mob| unsafe { guard.wrap_cheap(mob) })
+    }
+
+    #[inline]
+    pub fn mob_ref_mut<'g>(&'g self, guard: &'g WriteGuard<PKey>) -> Option<MobRefMut<'g, dyn Mob>> {
+        self.mob.map(|mob| unsafe { guard.wrap_cheap_mut(mob) })
     }
 }
 
@@ -110,11 +126,15 @@ impl Cosmos {
         }
     }
 
-    pub fn pk<F: FnOnce(&mut Cosmos, &PKey)>(&mut self, f: F) {
+    #[inline]
+    pub fn pk<R, F: FnOnce(&mut Cosmos, &PKey) -> R>(&mut self, f: F) -> R {
         let pkey = PKey::new();
-        f(self, &pkey);
+        let ret = f(self, &pkey);
+        drop(pkey);
+        ret
     }
 
+    #[inline]
     pub fn set<M: Mob + Unsize<dyn Mob> + ?Sized>(
         &mut self,
         mob: MobBox<M>,
@@ -122,6 +142,7 @@ impl Cosmos {
         Deamon::set_plate(&mut self.plate, &self.angelos, mob)
     }
 
+    #[inline]
     pub fn take<'g, M: Mob + ?Sized>(
         &mut self,
         mob: MobRefMut<'g, M>,
@@ -129,6 +150,7 @@ impl Cosmos {
         Deamon::take_plate(&mut self.plate, &self.angelos, mob)
     }
 
+    #[inline]
     pub fn reset<'g, M: Mob + Unsize<dyn Mob> + ?Sized>(
         &mut self,
         mob: &mut MobRefMut<M>,
@@ -181,7 +203,7 @@ impl Cosmos {
         let jobs = mobs.into_iter().collect();
         ReadGuard::with(&self.angelos.pkey, |guard| {
             jobs::work(workers.iter_mut(), jobs, |worker, job| {
-                if_likely!(let Some(mob_ref) = guard.wrap_weak(job.0.clone()) => {
+                if_likely!(let Some(mob_ref) = guard.wrap_weak(&job.0) => {
                     let pos = mob_ref.at();
                     let center = Coord((pos.0.from + pos.0.to) / 2, (pos.1.from + pos.1.to) / 2);
                     let center = self.angelos.normalize_pos(center);
@@ -234,7 +256,7 @@ impl Cosmos {
                     workers.iter_mut(),
                     mob_messages.into_iter().collect(),
                     |angelos, (mob, msgs)| {
-                        if_likely!(let Some(mob_ref) = guard.wrap_weak(mob) => {
+                        if_likely!(let Some(mob_ref) = guard.wrap_weak(&mob) => {
                             mob_ref.hear(self, angelos, msgs, guard);
                         });
                     },
@@ -260,8 +282,7 @@ impl Cosmos {
             workers.iter_mut(),
             gnd_orders.into_iter().collect(),
             |angelos, (pos, orders)| {
-                #![allow(mutable_transmutes)]
-                let mg: &mut gnd::Ground = unsafe { std::mem::transmute(&self.plate[pos].ground) };
+                let mg: &mut gnd::Ground = unsafe { &mut *(&self.plate[pos].ground as *const _ as *mut _) };
                 mg.order(pos, angelos, orders);
             },
         );
@@ -286,14 +307,13 @@ impl Cosmos {
                     workers.iter_mut(),
                     works,
                     |worker, (bound, local_mob_orders)| {
-                        #![allow(mutable_transmutes)]
                         let mut deamon = Deamon {
                             angelos: worker,
-                            plate: unsafe { std::mem::transmute(&self.plate) },
+                            plate: unsafe { &mut *(&self.plate as *const Plate as *mut Plate) },
                             bound,
                         };
                         for (mob, orders) in local_mob_orders.into_iter() {
-                            if let Some(mob_ref_mut) = unsafe { guard.wrap_weak_mut(mob) } {
+                            if let Some(mob_ref_mut) = unsafe { guard.wrap_weak_mut(&mob) } {
                                 mob_ref_mut.order(&mut deamon, orders);
                             }
                         }
