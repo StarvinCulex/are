@@ -8,7 +8,8 @@ use serde::Serialize;
 use crate::meta::defs::CrdI;
 use crate::meta::types::EnergyT;
 use crate::{
-    if_likely, if_unlikely, Block, Coord, Cosmos, Interval, Matrix, Mob, MobRef, PKey, ReadGuard,
+    if_likely, if_unlikely, Bio, Block, Coord, Cosmos, Interval, Matrix, Mob, MobRef, PKey,
+    ReadGuard,
 };
 
 #[derive(Serialize)]
@@ -69,7 +70,24 @@ impl MobView {
     fn new(mob: MobRef<dyn Mob>) -> Self {
         MobView {
             name: mob.get_name(),
-            properties: { todo!() },
+            properties: mob
+                .downcast()
+                .map(|m: MobRef<Bio>| {
+                    let g = m.target.lock().unwrap();
+                    let target = &g.target;
+                    format!(
+                        "H{hp} A{age} E{energy} S{species} T{{target{target} action{action:?} range{action_range} tmob{target_mob:x}}}",
+                        hp = m.hp,
+                        age = m.age,
+                        energy = m.energy,
+                        species = m.species.name,
+                        target = target.target.map_or("-".to_string(), |x| x.to_string()),
+                        action = target.action,
+                        action_range = target.action_range,
+                        target_mob = target.target_mob.clone().map_or(0usize, |x| x.as_ptr() as *const () as usize),
+                    )
+                })
+                .unwrap_or_else(|_| "-".to_string()),
         }
     }
 }
@@ -94,7 +112,7 @@ impl Display for PlateView {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "{}", self.matrix)?;
         for (id, mob) in self.mobs.iter() {
-            writeln!(f, "{:x} {}", id, mob)?;
+            writeln!(f, "{:x} {}", id, mob.properties)?;
         }
         Ok(())
     }

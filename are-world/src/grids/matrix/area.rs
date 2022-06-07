@@ -29,7 +29,7 @@ impl<'m, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
 
     #[inline]
     pub fn iter(&self) -> impl std::iter::Iterator<Item = (Coord<isize>, &'m Element)> {
-        self.fast()
+        self.scan()
     }
 
     #[inline]
@@ -43,11 +43,11 @@ impl<'m, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> std::iter
 {
     type Item = (Coord<isize>, &'m Element);
     type IntoIter =
-        Iterator<'m, Element, Fast<CHUNK_WIDTH, CHUNK_HEIGHT>, CHUNK_WIDTH, CHUNK_HEIGHT>;
+        Iterator<'m, Element, Scan<CHUNK_WIDTH, CHUNK_HEIGHT>, CHUNK_WIDTH, CHUNK_HEIGHT>;
 
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
-        self.fast()
+        self.scan()
     }
 }
 
@@ -77,7 +77,7 @@ impl<'m, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
 
     #[inline]
     pub fn iter(self) -> impl std::iter::Iterator<Item = (Coord<isize>, &'m mut Element)> {
-        self.fast()
+        self.scan()
     }
 
     #[inline]
@@ -95,7 +95,7 @@ impl<'m, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> std::iter
 
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
-        self.fast()
+        todo!()
     }
 }
 

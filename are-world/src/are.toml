@@ -1,7 +1,7 @@
 [game]
-chunk_size = [8, 8]
+chunk_size = [1, 1]
 chunk_count = [9, 9]
-padding = [8, 8]
+padding = [1, 1]
 
 [runtime]
 period = 0
@@ -10,7 +10,7 @@ retry = 4
 
 [plant]
 aging_possibility = 0.01
-sow_possibility = 0.0001
+sow_possibility = 0.01
 
 [plant.grass]
 grow = 10000
@@ -29,7 +29,7 @@ rot = 1000
 convert_rate = 0.8
 
 [bio]
-create_possibility = 0.001
+create_possibility = 0.01
 mutation.insert = 0.1
 mutation.remove = 0.1
 

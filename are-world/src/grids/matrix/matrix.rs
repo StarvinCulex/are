@@ -51,7 +51,7 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
     ) -> Self {
         let size: Coord<usize> = Coord(size.0.into(), size.1.into());
         let mut instance = unsafe { Self::uninit(size) };
-        for (pos, dest) in instance.as_area_mut().fast() {
+        for (pos, dest) in instance.as_area_mut().iter() {
             unsafe { std::ptr::write(dest, constructor(pos)) };
         }
         instance
@@ -77,7 +77,7 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
             Coord::with_intervals(Coord(0, 0), Coord(size.0 as isize, size.1 as isize));
         let mut exist = Matrix::<bool, 1, 1>::new(size);
         let drop_with = |mut instance: Self, exist: Matrix<bool, 1, 1>| {
-            for (p, &b) in exist.as_area().fast() {
+            for (p, &b) in exist.as_area().iter() {
                 if b {
                     unsafe {
                         instance
@@ -113,9 +113,9 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
             }
         }
         if unlikely(cnt != size.0 * size.1) {
-            for (p, &b) in exist.as_area().fast() {
+            for (p, &b) in exist.as_area().iter() {
                 if !b {
-                    drop_with(instance, exist);
+                    drop_with(instance, exist.clone());
                     return Err(format!("{} not initialized", p));
                 }
             }
@@ -459,11 +459,15 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
 
     #[inline]
     unsafe fn get_by_addr(&self, addr: usize) -> &Element {
+        debug_assert!(addr < self.elements.len());
+        debug_assert!(Self::is_initialized(self.size, addr));
         self.elements.get_unchecked(addr).assume_init_ref()
     }
 
     #[inline]
     unsafe fn get_by_addr_mut(&mut self, addr: usize) -> &mut Element {
+        debug_assert!(addr < self.elements.len());
+        debug_assert!(Self::is_initialized(self.size, addr));
         self.elements.get_unchecked_mut(addr).assume_init_mut()
     }
 

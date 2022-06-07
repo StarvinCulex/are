@@ -19,7 +19,9 @@ impl<M: ?Sized> CheapMobArc<M> {
 
     #[inline]
     pub unsafe fn from_arc_ref(arc: &Arc<_MobBlock<M>>) -> Self {
-        Self(NonNull::new_unchecked(Arc::as_ref(arc) as *const _ as *mut _))
+        Self(NonNull::new_unchecked(
+            Arc::as_ref(arc) as *const _ as *mut _
+        ))
     }
 
     #[inline]
@@ -181,6 +183,11 @@ where
     pub fn weak_count(&self) -> usize {
         sync::Weak::weak_count(&self.data)
     }
+
+    #[inline]
+    pub fn as_ptr(&self) -> *const Element {
+        self.data.as_ptr()
+    }
 }
 
 // ReadGuard & WriteGuard can be explicitly drop()-ed, ensuring references' lifetime obtained from it shorter than itself.
@@ -207,7 +214,10 @@ impl<AccessKey: ?Sized> ReadGuard<AccessKey> {
     }
 
     #[inline]
-    pub unsafe fn wrap_cheap<'g, M: ?Sized>(&'g self, p: CheapMobArc<M>) -> MobRef<'g, M, AccessKey> {
+    pub unsafe fn wrap_cheap<'g, M: ?Sized>(
+        &'g self,
+        p: CheapMobArc<M>,
+    ) -> MobRef<'g, M, AccessKey> {
         MobRef(p, PhantomData)
     }
 
@@ -257,7 +267,10 @@ impl<AccessKey: ?Sized> WriteGuard<AccessKey> {
     }
 
     #[inline]
-    pub unsafe fn wrap_cheap_mut<'g, M: ?Sized>(&'g self, p: CheapMobArc<M>) -> MobRefMut<'g, M, AccessKey> {
+    pub unsafe fn wrap_cheap_mut<'g, M: ?Sized>(
+        &'g self,
+        p: CheapMobArc<M>,
+    ) -> MobRefMut<'g, M, AccessKey> {
         MobRefMut(p, PhantomData)
     }
 
@@ -387,10 +400,7 @@ impl<'g, AccessKey: ?Sized> MobRef<'g, dyn Mob, AccessKey> {
     #[inline]
     pub fn downcast<T: Mob>(self) -> Result<MobRef<'g, T, AccessKey>, Self> {
         if likely((*self).is::<T>()) {
-            Ok(MobRef(
-                CheapMobArc(self.0.0.cast()),
-                PhantomData,
-            ))
+            Ok(MobRef(CheapMobArc(self.0 .0.cast()), PhantomData))
         } else {
             Err(self)
         }
@@ -401,10 +411,7 @@ impl<'g, AccessKey: ?Sized> MobRefMut<'g, dyn Mob, AccessKey> {
     #[inline]
     pub fn downcast<T: Mob>(self) -> Result<MobRefMut<'g, T, AccessKey>, Self> {
         if likely((*self).is::<T>()) {
-            Ok(MobRefMut(
-                CheapMobArc(self.0.0.cast()),
-                PhantomData,
-            ))
+            Ok(MobRefMut(CheapMobArc(self.0 .0.cast()), PhantomData))
         } else {
             Err(self)
         }
@@ -465,10 +472,7 @@ impl<M: ?Sized, AccessKey: ?Sized> std::ops::DerefMut for MobBox<M, AccessKey> {
 
 // CoerceUnsized
 // Weak<_MobBlock<Bio>> -> Weak<_MobBlock<dyn Mob>>
-impl<T: ?Sized + Unsize<U>, U: ?Sized> CoerceUnsized<CheapMobArc<U>>
-for CheapMobArc<T>
-{
-}
+impl<T: ?Sized + Unsize<U>, U: ?Sized> CoerceUnsized<CheapMobArc<U>> for CheapMobArc<T> {}
 
 impl<T: ?Sized + Unsize<U>, U: ?Sized, AccessKey: ?Sized> CoerceUnsized<Weak<U, AccessKey>>
     for Weak<T, AccessKey>
@@ -495,10 +499,7 @@ impl<T: ?Sized + Unsize<U>, U: ?Sized, AccessKey: ?Sized> CoerceUnsized<MobBox<U
 // let mob: MobRef<dyn Mob> = ...;
 // mob.hear(...);
 // impl<T: ?Sized + Unsize<U>, U: ?Sized, AccessKey: ?Sized> DispatchFromDyn<Weak<U, AccessKey>> for Weak<T, AccessKey> {}
-impl<'g, T: ?Sized + Unsize<U>, U: ?Sized>
-    DispatchFromDyn<CheapMobArc<U>> for CheapMobArc<T>
-{
-}
+impl<'g, T: ?Sized + Unsize<U>, U: ?Sized> DispatchFromDyn<CheapMobArc<U>> for CheapMobArc<T> {}
 
 impl<'g, T: ?Sized + Unsize<U>, U: ?Sized, AccessKey: ?Sized>
     DispatchFromDyn<MobRef<'g, U, AccessKey>> for MobRef<'g, T, AccessKey>

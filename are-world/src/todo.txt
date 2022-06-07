@@ -1,3 +1,2 @@
-Matrix的CW和CH不为1时 scan具有bug
 生物似乎无法吃草
 cosmos_ripper有严重的性能问题
