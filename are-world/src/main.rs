@@ -1,6 +1,5 @@
 #![feature(exclusive_range_pattern)]
 #![feature(const_fn_trait_bound)]
-#![feature(stmt_expr_attributes)]
 #![feature(auto_traits)]
 #![feature(negative_impls)]
 #![feature(get_mut_unchecked)]
@@ -10,12 +9,17 @@
 #![feature(is_some_with)]
 #![feature(scoped_threads)]
 #![feature(vec_into_raw_parts)]
-#![feature(maybe_uninit_slice)]
 #![feature(in_band_lifetimes)]
-#![feature(ptr_metadata)]
 #![feature(arbitrary_self_types)]
-#![allow(dead_code, unused_imports, unused_variables)]
 #![feature(core_intrinsics)]
+// code styles
+#![allow(dead_code, unused_imports, unused_variables)]
+#![warn(unsafe_op_in_unsafe_fn)]
+#![warn(noop_method_call)]
+#![warn(unused_qualifications)]
+#![warn(non_ascii_idents)]
+#![deny(unused_must_use)]
+#![deny(pointer_structural_match)]
 
 use std::ffi::{OsStr, OsString};
 use std::io::Read;

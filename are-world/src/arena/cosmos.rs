@@ -282,7 +282,7 @@ impl Cosmos {
             workers.iter_mut(),
             gnd_orders.into_iter().collect(),
             |angelos, (pos, orders)| {
-                let mg: &mut gnd::Ground = unsafe { &mut *(&self.plate[pos].ground as *const _ as *mut _) };
+                let mg: &mut Ground = unsafe { &mut *(&self.plate[pos].ground as *const _ as *mut _) };
                 mg.order(pos, angelos, orders);
             },
         );

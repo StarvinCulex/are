@@ -48,7 +48,7 @@ where
 }
 
 impl<'m, Element, Access, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
-    std::iter::ExactSizeIterator for IteratorMut<'m, Element, Access, CHUNK_WIDTH, CHUNK_HEIGHT>
+    ExactSizeIterator for IteratorMut<'m, Element, Access, CHUNK_WIDTH, CHUNK_HEIGHT>
 where
     Access: Accessor<CHUNK_WIDTH, CHUNK_HEIGHT>,
 {
@@ -103,7 +103,7 @@ where
 }
 
 impl<'m, Element, Access, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
-    std::iter::ExactSizeIterator for Iterator<'m, Element, Access, CHUNK_WIDTH, CHUNK_HEIGHT>
+    ExactSizeIterator for Iterator<'m, Element, Access, CHUNK_WIDTH, CHUNK_HEIGHT>
 where
     Access: Accessor<CHUNK_WIDTH, CHUNK_HEIGHT>,
 {
@@ -127,7 +127,7 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> std::iter::It
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        if std::intrinsics::unlikely(self.len() == 0) {
+        if unlikely(self.len() == 0) {
             return None;
         }
         while !Matrix::<Element, CHUNK_WIDTH, CHUNK_HEIGHT>::is_initialized(self.size, self.addr) {
@@ -151,7 +151,7 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> Drop
     }
 }
 
-impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> std::iter::ExactSizeIterator
+impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> ExactSizeIterator
     for IntoIterator<Element, CHUNK_WIDTH, CHUNK_HEIGHT>
 {
     #[inline]

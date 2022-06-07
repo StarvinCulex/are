@@ -44,7 +44,7 @@ pub fn measure_distance(size: isize, int1: Interval<isize>, int2: Interval<isize
 }
 
 #[inline]
-#[allow(warnings, deprecated)]
+#[allow(deprecated)]
 #[deprecated]
 pub fn measure_distances(
     size: Coord<isize>,
@@ -63,10 +63,10 @@ where
     I: Clone
         + Copy
         + std::ops::Neg<Output = I>
-        + std::cmp::Ord
-        + std::ops::Sub<Output = I>
+        + Ord
+        + Sub<Output = I>
         + From<bool>
-        + std::ops::Add<Output = I>,
+        + Add<Output = I>,
 {
     if origin.contains_interval(&target, size) || target.contains_interval(&origin, size) {
         return false.into();
@@ -82,7 +82,7 @@ where
     #[inline]
     fn abs<I>(a: &I) -> I
     where
-        I: Clone + Copy + std::ops::Neg<Output = I> + std::cmp::Ord,
+        I: Clone + Copy + std::ops::Neg<Output = I> + Ord,
     {
         std::cmp::max(*a, -*a)
     }

@@ -13,7 +13,7 @@ pub struct MajorAngelos {
     pkey: PKey,
 
     async_data: Mutex<MajorAngelosAsyncData>,
-    mind_waiting_queue: Mutex<VecDeque<Box<dyn mind::Mind>>>,
+    mind_waiting_queue: Mutex<VecDeque<Box<dyn Mind>>>,
 }
 
 pub struct MajorAngelosAsyncData {
@@ -152,13 +152,13 @@ impl Orderer<Weak<MobBlock>, mob::Order> for Angelos<'_> {
 }
 
 impl MajorAngelos {
-    pub(crate) fn flush_minds(&mut self) -> VecDeque<Box<dyn mind::Mind>> {
+    pub(crate) fn flush_minds(&mut self) -> VecDeque<Box<dyn Mind>> {
         std::mem::take(self.mind_waiting_queue.get_mut().unwrap())
     }
-    pub fn join(&mut self, mind: Box<dyn mind::Mind>) {
+    pub fn join(&mut self, mind: Box<dyn Mind>) {
         self.mind_waiting_queue.get_mut().unwrap().push_back(mind)
     }
-    pub fn join_lock(&self, mind: Box<dyn mind::Mind>) {
+    pub fn join_lock(&self, mind: Box<dyn Mind>) {
         self.mind_waiting_queue.lock().unwrap().push_back(mind)
     }
 }

@@ -29,7 +29,6 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
         );
         let alloc_size = Self::calc_alloc_size(size);
         let mut elements = Vec::with_capacity(alloc_size);
-        #[allow(unused_unsafe)]
         unsafe {
             elements.set_len(alloc_size)
         };
@@ -467,16 +466,16 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
 
     #[inline]
     unsafe fn get_by_addr(&self, addr: usize) -> &Element {
-        debug_assert!(addr < self.elements.len());
-        debug_assert!(Self::is_initialized(self.size, addr));
-        self.elements.get_unchecked(addr).assume_init_ref()
+        debug_assert!(addr < self.elements.len(), "addr: {} len:{}", addr, self.elements.len());
+        debug_assert!(Self::is_initialized(self.size, addr), "addr: {} size:{}", addr, self.size);
+        unsafe { self.elements.get_unchecked(addr).assume_init_ref() }
     }
 
     #[inline]
     unsafe fn get_by_addr_mut(&mut self, addr: usize) -> &mut Element {
-        debug_assert!(addr < self.elements.len());
-        debug_assert!(Self::is_initialized(self.size, addr));
-        self.elements.get_unchecked_mut(addr).assume_init_mut()
+        debug_assert!(addr < self.elements.len(), "addr: {} len:{}", addr, self.elements.len());
+        debug_assert!(Self::is_initialized(self.size, addr), "addr: {} size:{}", addr, self.size);
+        unsafe { self.elements.get_unchecked_mut(addr).assume_init_mut() }
     }
 
     #[inline]
@@ -512,6 +511,14 @@ fn test_sub<const CW: usize, const CH: usize>(size: Coord<usize>) {
         assert_eq!(*value, pos.to_string());
     }
     for (pos, value) in matrix.iter() {
+        assert!(Coord(0, 0) <= pos && pos < matrix.size);
+        assert_eq!(*value, pos.to_string());
+    }
+    for (pos, value) in matrix.area((*matrix.size() - Coord(1, 1)) | Coord(0, 0)).scan() {
+        assert!(Coord(0, 0) <= pos && pos < matrix.size);
+        assert_eq!(*value, pos.to_string());
+    }
+    for (pos, value) in matrix.area((*matrix.size() - Coord(1, 1)) | Coord(0, 0)).fast() {
         assert!(Coord(0, 0) <= pos && pos < matrix.size);
         assert_eq!(*value, pos.to_string());
     }

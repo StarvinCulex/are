@@ -120,7 +120,7 @@ impl Ord for SWord {
     }
 }
 
-impl std::iter::Iterator for SWord {
+impl Iterator for SWord {
     type Item = char;
     fn next(&mut self) -> Option<char> {
         let len = self.len();
@@ -136,7 +136,7 @@ impl std::iter::Iterator for SWord {
     }
 }
 
-impl std::iter::ExactSizeIterator for SWord {
+impl ExactSizeIterator for SWord {
     #[inline]
     fn len(&self) -> usize {
         (self.bits & 0xF) as usize

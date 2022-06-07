@@ -1,5 +1,6 @@
 pub struct Fast<const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> {
     addr: usize,
+    max_addr: usize,
     count: usize,
     length: usize,
     area: Coord<Interval<isize>>,
@@ -15,6 +16,10 @@ impl<const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> Fast<CHUNK_WIDTH, CHUN
                 matrix_size,
                 area.from(),
             ),
+            max_addr: Matrix::<(), CHUNK_WIDTH, CHUNK_HEIGHT>::calc_address_unchecked(
+                matrix_size,
+                matrix_size - Coord(1, 1),
+            ),
             count: 0,
             length: (a.0 * a.1) as usize,
             area,
@@ -28,17 +33,24 @@ impl<const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> Accessor<CHUNK_WIDTH, 
 {
     #[inline]
     fn next(&mut self) -> Option<(Coord<isize>, usize)> {
+        // 待优化：最坏情况下可能为了扫四个点而扫过整个矩阵
         while self.count < self.length {
             let p = Matrix::<(), CHUNK_WIDTH, CHUNK_HEIGHT>::pos_at_unchecked(
                 self.matrix_size,
                 self.addr,
             );
             let addr = self.addr;
-            self.addr += 1;
-            if unlikely(self.addr == (self.matrix_size.0 * self.matrix_size.1) as usize) {
-                self.addr = 0;
-            }
-            if likely(p < self.matrix_size && self.area.contains(&p)) {
+            // 由于 Matrix 是个甜甜圈，扫到最后应该回头扫最前面
+            self.addr = if unlikely(addr == self.max_addr) {
+                0
+            } else {
+                addr + 1
+            };
+            // Coord 的 partial_cmp 是先比较前者再比较后者
+            // 所以对于 1x1 矩阵来说 Coord(1, 0) < Coord(1, 1)
+            // 但 Coord(1, 0) 仍然是越界，所以这里分开比较
+            // 但前面比较过 addr < max_addr，所以 p.1 不可能越界，不用比较了
+            if likely(p.0 < self.matrix_size.0 && /* p.1 < self.matrix_size.1 && */ self.area.contains(&p)) {
                 self.count += 1;
                 return Some((p, addr));
             }

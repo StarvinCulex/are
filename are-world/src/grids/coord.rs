@@ -160,7 +160,7 @@ where
     T: PartialOrd<R>,
 {
     #[inline]
-    fn partial_cmp(&self, rhs: &Coord<R>) -> std::option::Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, rhs: &Coord<R>) -> Option<std::cmp::Ordering> {
         match self.0.partial_cmp(&rhs.0) {
             None => None,
             Some(std::cmp::Ordering::Less) => {

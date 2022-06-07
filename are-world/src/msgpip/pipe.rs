@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-pub struct MPipe<K: std::cmp::Eq + std::hash::Hash, V> {
+pub struct MPipe<K: Eq + std::hash::Hash, V> {
     data: HashMap<u64, HashMap<K, Vec<V>>>,
     turn_now: u64,
 }
@@ -9,7 +9,7 @@ pub struct Output<K, V> {
     data: HashMap<K, Vec<V>>,
 }
 
-impl<K: std::cmp::Eq + std::hash::Hash, V> MPipe<K, V> {
+impl<K: Eq + std::hash::Hash, V> MPipe<K, V> {
     pub fn new() -> Self {
         Self {
             data: HashMap::default(),
@@ -48,7 +48,7 @@ impl<K: std::cmp::Eq + std::hash::Hash, V> MPipe<K, V> {
     }
 }
 
-impl<K: std::cmp::Eq + std::hash::Hash, V> Output<K, V> {
+impl<K: Eq + std::hash::Hash, V> Output<K, V> {
     pub fn append(&mut self, key: K, mut values: Vec<V>) {
         self.data
             .entry(key)
@@ -57,9 +57,9 @@ impl<K: std::cmp::Eq + std::hash::Hash, V> Output<K, V> {
     }
 }
 
-impl<K: std::cmp::Eq + std::hash::Hash, V> std::iter::IntoIterator for Output<K, V> {
-    type Item = <HashMap<K, Vec<V>> as std::iter::IntoIterator>::Item;
-    type IntoIter = <HashMap<K, Vec<V>> as std::iter::IntoIterator>::IntoIter;
+impl<K: Eq + std::hash::Hash, V> IntoIterator for Output<K, V> {
+    type Item = <HashMap<K, Vec<V>> as IntoIterator>::Item;
+    type IntoIter = <HashMap<K, Vec<V>> as IntoIterator>::IntoIter;
 
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
@@ -67,7 +67,7 @@ impl<K: std::cmp::Eq + std::hash::Hash, V> std::iter::IntoIterator for Output<K,
     }
 }
 
-impl<K: std::cmp::Eq + std::hash::Hash, V> Default for MPipe<K, V> {
+impl<K: Eq + std::hash::Hash, V> Default for MPipe<K, V> {
     fn default() -> Self {
         MPipe::new()
     }

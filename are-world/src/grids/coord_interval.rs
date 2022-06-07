@@ -71,7 +71,7 @@ impl<T> Coord<Interval<T>>
 where
     T: Ord + std::ops::Add<T> + std::ops::Sub<T> + Clone,
     <T as std::ops::Sub<T>>::Output: Into<<T as std::ops::Add<T>>::Output>,
-    <T as std::ops::Add>::Output: std::cmp::Ord,
+    <T as std::ops::Add>::Output: Ord,
 {
     #[inline]
     pub fn expand(self, rhs: Coord<T>) -> Coord<Interval<<T as std::ops::Add>::Output>> {

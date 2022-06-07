@@ -14,14 +14,12 @@ pub struct CheapMobArc<M: ?Sized>(NonNull<_MobBlock<M>>);
 impl<M: ?Sized> CheapMobArc<M> {
     #[inline]
     pub unsafe fn from_arc(arc: Arc<_MobBlock<M>>) -> Self {
-        Self(NonNull::new_unchecked(Arc::into_raw(arc) as *mut _))
+        Self(unsafe { NonNull::new_unchecked(Arc::into_raw(arc) as *mut _) })
     }
 
     #[inline]
     pub unsafe fn from_arc_ref(arc: &Arc<_MobBlock<M>>) -> Self {
-        Self(NonNull::new_unchecked(
-            Arc::as_ref(arc) as *const _ as *mut _
-        ))
+        Self(unsafe { NonNull::new_unchecked(Arc::as_ref(arc) as *const _ as *mut _) })
     }
 
     #[inline]
@@ -31,22 +29,22 @@ impl<M: ?Sized> CheapMobArc<M> {
 
     #[inline]
     pub unsafe fn as_ref(&self) -> &_MobBlock<M> {
-        self.0.as_ref()
+        unsafe { self.0.as_ref() }
     }
 
     #[inline]
     pub unsafe fn as_mut(&mut self) -> &mut _MobBlock<M> {
-        self.0.as_mut()
+        unsafe { self.0.as_mut() }
     }
 
     #[inline]
     pub unsafe fn into_arc(self) -> Arc<_MobBlock<M>> {
-        Arc::from_raw(self.0.as_ptr())
+        unsafe { Arc::from_raw(self.0.as_ptr()) }
     }
 
     #[inline]
     pub unsafe fn strong_count(self) -> usize {
-        let arc = self.into_arc();
+        let arc = unsafe { self.into_arc() };
         let cnt = Arc::strong_count(&arc);
         std::mem::forget(arc);
         cnt
@@ -54,7 +52,7 @@ impl<M: ?Sized> CheapMobArc<M> {
 
     #[inline]
     pub unsafe fn weak_count(self) -> usize {
-        let arc = self.into_arc();
+        let arc = unsafe { self.into_arc() };
         let cnt = Arc::weak_count(&arc);
         std::mem::forget(arc);
         cnt
@@ -64,7 +62,7 @@ impl<M: ?Sized> CheapMobArc<M> {
 impl<M: Mob + ?Sized + Unsize<dyn Mob>> CheapMobArc<M> {
     #[inline]
     pub unsafe fn make_weak<AccessKey: ?Sized>(self) -> Weak<MobBlock, AccessKey> {
-        let mob: Arc<MobBlock> = self.into_arc();
+        let mob: Arc<MobBlock> = unsafe { self.into_arc() };
         let weak = (&mob).into();
         std::mem::forget(mob);
         weak
@@ -243,7 +241,7 @@ impl<AccessKey: ?Sized> ReadGuard<AccessKey> {
         &'g self,
         weak: &Weak<_MobBlock<M>, AccessKey>,
     ) -> Option<MobRef<'g, M, AccessKey>> {
-        Some(self.wrap(&weak.data.upgrade().unwrap_unchecked()))
+        Some(self.wrap(&unsafe { weak.data.upgrade().unwrap_unchecked() }))
     }
 }
 
@@ -279,7 +277,7 @@ impl<AccessKey: ?Sized> WriteGuard<AccessKey> {
         &'g self,
         p: &Arc<_MobBlock<M>>,
     ) -> MobRefMut<'g, M, AccessKey> {
-        self.wrap_cheap_mut(CheapMobArc::from_arc_ref(p))
+        unsafe { self.wrap_cheap_mut(CheapMobArc::from_arc_ref(p)) }
     }
 
     #[inline]
@@ -287,7 +285,7 @@ impl<AccessKey: ?Sized> WriteGuard<AccessKey> {
         &'g self,
         weak: &Weak<_MobBlock<M>, AccessKey>,
     ) -> Option<MobRefMut<'g, M, AccessKey>> {
-        Some(self.wrap_mut(&weak.data.upgrade()?))
+        Some(unsafe { self.wrap_mut(&weak.data.upgrade()?) })
     }
 }
 

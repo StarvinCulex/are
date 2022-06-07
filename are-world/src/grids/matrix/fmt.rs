@@ -11,10 +11,10 @@ const HEAD_MATRIX: &str = "M";
 impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> std::fmt::Display
     for Matrix<Element, CHUNK_WIDTH, CHUNK_HEIGHT>
 where
-    Element: std::string::ToString,
+    Element: ToString,
 {
     #[inline]
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         self.iter().fmt_with(f, HEAD_MATRIX)
     }
 }
@@ -25,7 +25,7 @@ where
     Element: std::fmt::Debug,
 {
     #[inline]
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         Matrix::<String, CHUNK_WIDTH, CHUNK_HEIGHT>::with_iter(
             Self::calc_chunk_size(self.size.try_into().unwrap()) * Coord(CHUNK_WIDTH, CHUNK_HEIGHT),
             self.elements.iter().enumerate().map(|(i, elem)| (
@@ -43,10 +43,10 @@ where
 impl<'m, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> std::fmt::Display
     for Area<'m, Element, CHUNK_WIDTH, CHUNK_HEIGHT>
 where
-    Element: std::string::ToString,
+    Element: ToString,
 {
     #[inline]
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         self.scan().fmt_with(f, "Area")
     }
 }
@@ -55,10 +55,10 @@ impl<'m, Element, Access, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> s
     for Iterator<'m, Element, Access, CHUNK_WIDTH, CHUNK_HEIGHT>
 where
     Access: Accessor<CHUNK_WIDTH, CHUNK_HEIGHT>,
-    Element: std::string::ToString,
+    Element: ToString,
 {
     #[inline]
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         self.fmt_with(f, self.accessor.r#type())
     }
 }
@@ -67,9 +67,9 @@ impl<'m, Element, Access, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
     Iterator<'m, Element, Access, CHUNK_WIDTH, CHUNK_HEIGHT>
 where
     Access: Accessor<CHUNK_WIDTH, CHUNK_HEIGHT>,
-    Element: std::string::ToString,
+    Element: ToString,
 {
-    fn fmt_with(&self, f: &mut std::fmt::Formatter<'_>, head: &str) -> std::fmt::Result {
+    fn fmt_with(&self, f: &mut Formatter<'_>, head: &str) -> std::fmt::Result {
         let start = self.accessor.super_area().from();
         let size = measure_area(*self.matrix.size(), self.accessor.super_area());
         let sheet_size = Coord(size.0 as usize + 1, size.1 as usize + 1);
@@ -127,7 +127,7 @@ where
 }
 
 #[inline]
-fn print_element<Element: std::string::ToString>(element: &Element) -> String {
+fn print_element<Element: ToString>(element: &Element) -> String {
     const QT: u8 = b'\"';
     const PQT: [u8; 2] = *b"\"\"";
     const CR: u8 = b'\r';
