@@ -23,7 +23,7 @@ impl MetaCosmos {
     }
 
     pub fn step(&mut self) {
-        self.benchmark.clear();
+        self.benchmark.start();
         self.mind_move_tick();
         self.benchmark.end("mind move tick");
         self.mind_set_cosmos();

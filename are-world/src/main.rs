@@ -114,6 +114,7 @@ fn main() {
         let duration = SystemTime::now().duration_since(start).unwrap();
         println!("cost {}ms", duration.as_millis());
         println!("benchmarks\n{}", meta.benchmark);
+        meta.benchmark.clear();
         meta.cosmos.pk(|cosmos, pkey| {
             let area = Coord(0, 0) | (*cosmos.plate.size() - Coord(1, 1));
             ReadGuard::with(pkey, |guard| {
