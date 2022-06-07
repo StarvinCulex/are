@@ -20,12 +20,12 @@ impl<const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> Scan<CHUNK_WIDTH, CHUN
             area,
             matrix_size,
         };
-        let width = if instance.wrap_x() {
+        let width = if unlikely(instance.wrap_x()) {
             matrix_size.0 - area.0.from + area.0.to + 1
         } else {
             area.0.to - area.0.from + 1
         };
-        let height = if instance.wrap_y() {
+        let height = if unlikely(instance.wrap_y()) {
             matrix_size.1 - area.1.from + area.1.to + 1
         } else {
             area.1.to - area.1.from + 1
@@ -50,7 +50,7 @@ impl<const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> Accessor<CHUNK_WIDTH, 
 {
     #[inline]
     fn next(&mut self) -> Option<(Coord<isize>, usize)> {
-        if self.len() == 0 {
+        if unlikely(self.length == 0) {
             None
         } else {
             let at = self.at;
@@ -60,24 +60,22 @@ impl<const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> Accessor<CHUNK_WIDTH, 
             );
 
             self.length -= 1;
-            self.at = {
-                let next_line = at.0 == self.area.0.to;
-                if next_line {
-                    let y = if at.1 + 1 == self.matrix_size.1 {
-                        0
-                    } else {
-                        at.1 + 1
-                    };
-                    Coord(self.area.0.from, y)
+            let next_line = at.0 == self.area.0.to;
+            if unlikely(next_line) {
+                let y = if unlikely(at.1 + 1 == self.matrix_size.1) {
+                    0
                 } else {
-                    let x = if at.0 + 1 == self.matrix_size.0 {
-                        0
-                    } else {
-                        at.0 + 1
-                    };
-                    Coord(x, at.1)
-                }
-            };
+                    at.1 + 1
+                };
+                self.at = Coord(self.area.0.from, y);
+            } else {
+                let x = if unlikely(at.0 + 1 == self.matrix_size.0) {
+                    0
+                } else {
+                    at.0 + 1
+                };
+                self.at.0 = x;
+            }
 
             Some((at, addr))
         }
@@ -88,14 +86,17 @@ impl<const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> Accessor<CHUNK_WIDTH, 
         self.length
     }
 
+    #[inline]
     fn super_area(&self) -> Coord<Interval<isize>> {
         self.area
     }
 
+    #[inline]
     fn contains(&self, pos: Coord<isize>) -> bool {
         self.area.contains(&pos)
     }
 
+    #[inline]
     fn r#type(&self) -> &'static str {
         "MScan"
     }

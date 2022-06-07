@@ -58,6 +58,7 @@ impl<Job> AtomicQueue<Job> {
 }
 
 impl<Job> Drop for AtomicQueue<Job> {
+    #[inline]
     fn drop(&mut self) {
         let ptr = *self.ptr.get_mut();
         if unlikely(ptr < self.data.len()) {

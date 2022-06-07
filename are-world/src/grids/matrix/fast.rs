@@ -7,6 +7,7 @@ pub struct Fast<const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> {
 }
 
 impl<const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> Fast<CHUNK_WIDTH, CHUNK_HEIGHT> {
+    #[inline]
     fn new(area: Coord<Interval<isize>>, matrix_size: Coord<isize>) -> Self {
         let a = measure_area(matrix_size, area);
         Self {
@@ -25,6 +26,7 @@ impl<const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> Fast<CHUNK_WIDTH, CHUN
 impl<const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> Accessor<CHUNK_WIDTH, CHUNK_HEIGHT>
     for Fast<CHUNK_WIDTH, CHUNK_HEIGHT>
 {
+    #[inline]
     fn next(&mut self) -> Option<(Coord<isize>, usize)> {
         while self.count < self.length {
             let p = Matrix::<(), CHUNK_WIDTH, CHUNK_HEIGHT>::pos_at_unchecked(
@@ -44,18 +46,22 @@ impl<const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> Accessor<CHUNK_WIDTH, 
         None
     }
 
+    #[inline]
     fn len(&self) -> usize {
         self.length
     }
 
+    #[inline]
     fn super_area(&self) -> Coord<Interval<isize>> {
         self.area
     }
 
+    #[inline]
     fn contains(&self, pos: Coord<isize>) -> bool {
         self.area.contains(&pos)
     }
 
+    #[inline]
     fn r#type(&self) -> &'static str {
         "MFast"
     }

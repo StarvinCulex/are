@@ -16,6 +16,7 @@ impl<'m, Element, Access, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
 where
     Access: Accessor<CHUNK_WIDTH, CHUNK_HEIGHT>,
 {
+    #[inline]
     fn new(matrix: &'m mut Matrix<Element, CHUNK_WIDTH, CHUNK_HEIGHT>, accessor: Access) -> Self {
         Self { matrix, accessor }
     }
@@ -28,6 +29,7 @@ where
 {
     type Item = (Coord<isize>, &'m mut Element);
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         self.accessor.next().map(|(pos, addr)| {
             // extend the lifetime to 'm (the lifetime of Matrix) while preserving borrow checker working
@@ -50,6 +52,7 @@ impl<'m, Element, Access, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
 where
     Access: Accessor<CHUNK_WIDTH, CHUNK_HEIGHT>,
 {
+    #[inline]
     fn len(&self) -> usize {
         self.accessor.len()
     }
@@ -71,6 +74,7 @@ impl<'m, Element, Access, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
 where
     Access: Accessor<CHUNK_WIDTH, CHUNK_HEIGHT>,
 {
+    #[inline]
     fn new(matrix: &'m Matrix<Element, CHUNK_WIDTH, CHUNK_HEIGHT>, accessor: Access) -> Self {
         Self { matrix, accessor }
     }
@@ -83,6 +87,7 @@ where
 {
     type Item = (Coord<isize>, &'m Element);
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         self.accessor
             .next()
@@ -102,6 +107,7 @@ impl<'m, Element, Access, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
 where
     Access: Accessor<CHUNK_WIDTH, CHUNK_HEIGHT>,
 {
+    #[inline]
     fn len(&self) -> usize {
         self.accessor.len()
     }
@@ -119,6 +125,7 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> std::iter::It
 {
     type Item = (Coord<isize>, Element);
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         if std::intrinsics::unlikely(self.len() == 0) {
             return None;
@@ -138,6 +145,7 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> std::iter::It
 impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> Drop
     for IntoIterator<Element, CHUNK_WIDTH, CHUNK_HEIGHT>
 {
+    #[inline]
     fn drop(&mut self) {
         for _ in self.by_ref() {}
     }
@@ -146,6 +154,7 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> Drop
 impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> std::iter::ExactSizeIterator
     for IntoIterator<Element, CHUNK_WIDTH, CHUNK_HEIGHT>
 {
+    #[inline]
     fn len(&self) -> usize {
         self.size.0 as usize * self.size.1 as usize - self.count
     }
@@ -157,6 +166,7 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> std::iter::In
     type Item = (Coord<isize>, Element);
     type IntoIter = IntoIterator<Element, CHUNK_WIDTH, CHUNK_HEIGHT>;
 
+    #[inline]
     fn into_iter(mut self) -> Self::IntoIter {
         IntoIterator {
             addr: 0,

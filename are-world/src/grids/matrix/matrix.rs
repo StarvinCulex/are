@@ -309,6 +309,7 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> Clone
 where
     Element: Clone,
 {
+    #[inline]
     fn clone(&self) -> Self {
         Self {
             elements: self
@@ -333,13 +334,20 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> PartialEq
 where
     Element: PartialEq,
 {
+    #[inline]
     fn eq(&self, other: &Self) -> bool {
-        if self.size != other.size {
+        if unlikely(self as *const _ == other as *const _) {
+            return true;
+        }
+    
+        if unlikely(self.size != other.size) {
             return false;
         }
 
+        let base = self.elements.as_ptr() as *const Element;
+
         for (pos, element) in self.iter() {
-            if element != &other[pos] {
+            if unlikely(element != unsafe { other.get_by_addr((element as *const Element).offset_from(base) as usize) }) {
                 return false;
             }
         }

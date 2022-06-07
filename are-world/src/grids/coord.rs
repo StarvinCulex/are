@@ -35,7 +35,7 @@
 /// * [`offset`]
 use serde::{Deserialize, Serialize};
 
-#[derive(Hash, Debug, Serialize, Deserialize)]
+#[derive(Hash, Debug, Serialize, Deserialize, Clone, Copy, Eq, Ord, Default)]
 pub struct Coord<T>(pub T, pub T);
 
 #[allow(dead_code)]
@@ -82,6 +82,7 @@ where
     T: std::ops::Sub<R>,
 {
     type Output = Coord<<T as std::ops::Sub<R>>::Output>;
+    #[inline]
     fn sub(self, rhs: Coord<R>) -> Self::Output {
         Coord(self.0 - rhs.0, self.1 - rhs.1)
     }
@@ -144,14 +145,6 @@ impl<T: std::ops::Neg<Output = T>> Coord<T> {
     }
 }
 
-impl<T: Clone> Clone for Coord<T> {
-    fn clone(&self) -> Self {
-        Coord(self.0.clone(), self.1.clone())
-    }
-}
-
-impl<T: Copy> Copy for Coord<T> {}
-
 impl<T, R> PartialEq<Coord<R>> for Coord<T>
 where
     T: PartialEq<R>,
@@ -162,12 +155,11 @@ where
     }
 }
 
-impl<T: PartialEq + Eq> Eq for Coord<T> {}
-
 impl<T, R> PartialOrd<Coord<R>> for Coord<T>
 where
     T: PartialOrd<R>,
 {
+    #[inline]
     fn partial_cmp(&self, rhs: &Coord<R>) -> std::option::Option<std::cmp::Ordering> {
         match self.0.partial_cmp(&rhs.0) {
             None => None,
@@ -193,18 +185,14 @@ where
 pub auto trait NotCoord {}
 impl<T> !NotCoord for Coord<T> {}
 impl<T: Copy + NotCoord> From<T> for Coord<T> {
+    #[inline]
     fn from(t: T) -> Self {
         Coord(t, t)
     }
 }
 
-impl<T: Default> Default for Coord<T> {
-    fn default() -> Self {
-        Coord(T::default(), T::default())
-    }
-}
-
 impl<T: std::fmt::Display> std::fmt::Display for Coord<T> {
+    #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "({0}, {1})", self.0, self.1)
     }
