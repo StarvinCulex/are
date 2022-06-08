@@ -147,6 +147,9 @@ impl Mob for Bio {
                             self.at().from(),
                             self.species.watch_range,
                             |p| {
+                                if self.at().contains(&angelos.major.normalize_pos(p)) {
+                                    return None;
+                                }
                                 let target =
                                     self.species.watching_choice(p, &cosmos.plate[p], guard);
                                 if target.action_weight == i8::MIN
@@ -204,6 +207,7 @@ impl Mob for Bio {
                     attacker,
                     threat,
                 } => {
+                    println!("谁tm打我");
                     self.being_attacked(atk);
                     if let Some(a) = attacker {
                         last_attacker = Some((Some(a), threat));
@@ -295,15 +299,17 @@ impl Mob for Bio {
         let self_mutex = self.target.get_mut().unwrap();
         let target = &mut self_mutex.target;
         if let Some(target_pos) = target.target {
+            debug_assert_eq!(target_pos, deamon.angelos.major.normalize_area(target_pos));
             debug_assert_eq!(at, deamon.angelos.major.normalize_area(at));
             // 是否可以做动作
-            if displacement(deamon.angelos.major.plate_size, at, target_pos).map(Idx::abs)
-                <= target.action_range
-            {
+            let dist = displacement(deamon.angelos.major.plate_size, at, target_pos).map(Idx::abs);
+            // 显然不能用 dist <= target.action_range，因为 Coord(11, 4514) < Coord(1919, 810)
+            if dist.0 <= target.action_range.0 && dist.1 <= target.action_range.1 {
                 // 做动作
                 match target.action {
                     // 吃
                     BioAction::Eat => {
+                        println!("干饭!!!");
                         let mut takes: EnergyT = 0;
                         if let Ok(grounds) = deamon.get_ground_iter_mut(target_pos) {
                             for (p, g) in grounds {
@@ -320,9 +326,11 @@ impl Mob for Bio {
                         }
                     }
                     BioAction::Nothing | BioAction::Stroll => {
+                        println!("摸鱼");
                         *target = BioTarget::new();
                     }
                     BioAction::Flee | BioAction::Chase => {
+                        println!("润");
                         if let Some(enemy) = target.target_mob.clone() {
                             deamon.angelos.order(
                                 enemy,
@@ -339,6 +347,7 @@ impl Mob for Bio {
                     }
                 }
             } else if age % species.move_period == 0 {
+                println!("你给我回来 at={} target_pos={} dist={} action_range={}", at, target_pos, dist, target.action_range);
                 {
                     // 移动
                     let facings = silly_facing(

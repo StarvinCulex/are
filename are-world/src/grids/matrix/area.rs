@@ -91,11 +91,11 @@ impl<'m, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> std::iter
 {
     type Item = (Coord<isize>, &'m mut Element);
     type IntoIter =
-        IteratorMut<'m, Element, Fast<CHUNK_WIDTH, CHUNK_HEIGHT>, CHUNK_WIDTH, CHUNK_HEIGHT>;
+        IteratorMut<'m, Element, Scan<CHUNK_WIDTH, CHUNK_HEIGHT>, CHUNK_WIDTH, CHUNK_HEIGHT>;
 
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
-        todo!()
+        self.scan()
     }
 }
 

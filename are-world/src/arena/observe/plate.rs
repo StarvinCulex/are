@@ -84,7 +84,7 @@ impl MobView {
                         target = target.target.map_or("-".to_string(), |x| x.to_string()),
                         action = target.action,
                         action_range = target.action_range,
-                        target_mob = target.target_mob.clone().map_or(0usize, |x| x.as_ptr() as *const () as usize),
+                        target_mob = target.target_mob.as_ref().map_or(0usize, |x| x.as_ptr() as *const () as usize),
                     )
                 })
                 .unwrap_or_else(|_| "-".to_string()),

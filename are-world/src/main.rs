@@ -194,7 +194,7 @@ fn main() {
                     "{}",
                     observe::plate::PlateView::new(
                         cosmos,
-                        Coord(0isize, 0) | Coord(20isize, 20),
+                        area,
                         guard,
                     )
                 );
