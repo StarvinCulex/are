@@ -346,9 +346,9 @@ impl Mob for Bio {
                         }
                     }
                 }
-            } else if age % species.move_period == 0 {
-                println!("你给我回来 at={} target_pos={} dist={} action_range={}", at, target_pos, dist, target.action_range);
-                {
+            } else {
+                println!("只要……能到达那个地方…… at={} target_pos={} dist={} action_range={}", at, target_pos, dist, target.action_range);
+                if age % species.move_period == 0 {
                     // 移动
                     let facings = silly_facing(
                         at, // 截至2022/05/15，确定self.at()是归一化的
