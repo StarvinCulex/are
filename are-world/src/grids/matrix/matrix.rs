@@ -50,7 +50,7 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
     ) -> Self {
         let size: Coord<usize> = Coord(size.0.into(), size.1.into());
         let mut instance = unsafe { Self::uninit(size) };
-        for (pos, dest) in instance.as_area_mut().iter() {
+        for (pos, dest) in instance.iter_mut() {
             unsafe { std::ptr::write(dest, constructor(pos)) };
         }
         instance
@@ -76,7 +76,7 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
             Coord::with_intervals(Coord(0, 0), Coord(size.0 as isize, size.1 as isize));
         let mut exist = Matrix::<bool, 1, 1>::new(size);
         let drop_with = |mut instance: Self, exist: &Matrix<bool, 1, 1>| {
-            for (p, &b) in exist.as_area().iter() {
+            for (p, &b) in exist.iter() {
                 if b {
                     unsafe {
                         instance
@@ -112,7 +112,7 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
             }
         }
         if unlikely(cnt != size.0 * size.1) {
-            for (p, &b) in exist.as_area().iter() {
+            for (p, &b) in exist.iter() {
                 if !b {
                     drop_with(instance, &exist);
                     return Err(format!("{} not initialized", p));
@@ -163,8 +163,8 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
     #[inline]
     pub fn iter_mut(
         &mut self,
-    ) -> <AreaMut<Element, CHUNK_WIDTH, CHUNK_HEIGHT> as std::iter::IntoIterator>::IntoIter {
-        self.as_area_mut().into_iter()
+    ) -> IteratorMut<Element, FastFull<CHUNK_WIDTH, CHUNK_HEIGHT>, CHUNK_WIDTH, CHUNK_HEIGHT> {
+        IteratorMut::new(self, FastFull::new(self.size))
     }
 }
 
@@ -190,8 +190,8 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
     #[inline]
     pub fn iter(
         &self,
-    ) -> <Area<Element, CHUNK_WIDTH, CHUNK_HEIGHT> as std::iter::IntoIterator>::IntoIter {
-        self.as_area().into_iter()
+    ) -> Iterator<Element, FastFull<CHUNK_WIDTH, CHUNK_HEIGHT>, CHUNK_WIDTH, CHUNK_HEIGHT> {
+        Iterator::new(self, FastFull::new(self.size))
     }
 }
 
@@ -506,7 +506,12 @@ fn test_sub<const CW: usize, const CH: usize>(size: Coord<usize>) {
             assert_eq!(&expected, value);
         }
     }
+    
     for (pos, value) in matrix.as_area().scan() {
+        assert!(Coord(0, 0) <= pos && pos < matrix.size);
+        assert_eq!(*value, pos.to_string());
+    }
+    for (pos, value) in matrix.as_area().fast() {
         assert!(Coord(0, 0) <= pos && pos < matrix.size);
         assert_eq!(*value, pos.to_string());
     }
@@ -514,6 +519,7 @@ fn test_sub<const CW: usize, const CH: usize>(size: Coord<usize>) {
         assert!(Coord(0, 0) <= pos && pos < matrix.size);
         assert_eq!(*value, pos.to_string());
     }
+
     for (pos, value) in matrix.area((*matrix.size() - Coord(1, 1)) | Coord(0, 0)).scan() {
         assert!(Coord(0, 0) <= pos && pos < matrix.size);
         assert_eq!(*value, pos.to_string());
@@ -533,10 +539,16 @@ fn test_with_iter<const CW: usize, const CH: usize>() {
         matrix1.as_area().fast().map(|(a, b)| (a, b.clone())),
     )
     .unwrap();
+    let matrix3 = Matrix::<String, CW, CH>::with_iter(
+        size,
+        matrix1.iter().map(|(a, b)| (a, b.clone())),
+    )
+    .unwrap();
     for j in 0..size.1 {
         for i in 0..size.0 {
             let p = Coord(i as isize, j as isize);
             assert_eq!(matrix1[p], matrix2[p]);
+            assert_eq!(matrix1[p], matrix3[p]);
         }
     }
 }

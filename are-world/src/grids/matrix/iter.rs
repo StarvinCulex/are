@@ -115,7 +115,7 @@ where
 
 pub struct IntoIterator<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> {
     addr: usize,
-    count: usize,
+    length: usize,
     size: Coord<isize>,
     data: Vec<MaybeUninit<Element>>,
 }
@@ -127,17 +127,22 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> std::iter::It
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        if unlikely(self.len() == 0) {
+        if unlikely(self.length == 0) {
             return None;
         }
-        while !Matrix::<Element, CHUNK_WIDTH, CHUNK_HEIGHT>::is_initialized(self.size, self.addr) {
-            self.addr += 1;
+        if unlikely(!Matrix::<Element, CHUNK_WIDTH, CHUNK_HEIGHT>::is_initialized(self.size, self.addr)) {
+            loop {
+                self.addr += 1;
+                if unlikely(Matrix::<Element, CHUNK_WIDTH, CHUNK_HEIGHT>::is_initialized(self.size, self.addr)) {
+                    break;
+                }
+            }
         }
         let value = unsafe { self.data.get_unchecked_mut(self.addr).assume_init_read() };
         let p =
             Matrix::<Element, CHUNK_WIDTH, CHUNK_HEIGHT>::pos_at_unchecked(self.size, self.addr);
         self.addr += 1;
-        self.count += 1;
+        self.length -= 1;
         Some((p, value))
     }
 }
@@ -156,7 +161,7 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> ExactSizeIter
 {
     #[inline]
     fn len(&self) -> usize {
-        self.size.0 as usize * self.size.1 as usize - self.count
+        self.length
     }
 }
 
@@ -170,7 +175,7 @@ impl<Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> std::iter::In
     fn into_iter(mut self) -> Self::IntoIter {
         IntoIterator {
             addr: 0,
-            count: 0,
+            length: self.size.0 as usize * self.size.1 as usize,
             size: self.size,
             data: std::mem::take(&mut self.elements),
         }

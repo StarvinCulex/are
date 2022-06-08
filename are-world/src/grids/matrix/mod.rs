@@ -13,6 +13,7 @@ pub mod mapping;
 include!("iter.rs");
 include!("scan.rs");
 include!("fast.rs");
+include!("fast_full.rs");
 
 pub mod fmt;
 pub mod util;
