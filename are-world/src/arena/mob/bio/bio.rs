@@ -303,8 +303,7 @@ impl Mob for Bio {
             debug_assert_eq!(at, deamon.angelos.major.normalize_area(at));
             // 是否可以做动作
             let dist = displacement(deamon.angelos.major.plate_size, at, target_pos).map(Idx::abs);
-            // 显然不能用 dist <= target.action_range，因为 Coord(11, 4514) < Coord(1919, 810)
-            if dist.0 <= target.action_range.0 && dist.1 <= target.action_range.1 {
+            if dist <= target.action_range {
                 // 做动作
                 match target.action {
                     // 吃

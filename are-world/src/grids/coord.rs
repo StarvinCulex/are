@@ -35,7 +35,7 @@
 /// * [`offset`]
 use serde::{Deserialize, Serialize};
 
-#[derive(Hash, Debug, Serialize, Deserialize, Clone, Copy, Eq, Ord, Default)]
+#[derive(Hash, Debug, Serialize, Deserialize, Clone, Copy, Eq, Default)]
 pub struct Coord<T>(pub T, pub T);
 
 #[allow(dead_code)]
@@ -155,6 +155,7 @@ where
     }
 }
 
+// (coord1 op coord2) <=> ((coord1.0 op coord2.0) && (coord1.1 op coord2.1))
 impl<T, R> PartialOrd<Coord<R>> for Coord<T>
 where
     T: PartialOrd<R>,
@@ -181,6 +182,9 @@ where
         }
     }
 }
+
+// 比较方式参见 PartialOrd，Coord 不应实现 Ord，这里放个反实现防止踩坑
+impl<T> !Ord for Coord<T> {}
 
 pub auto trait NotCoord {}
 impl<T> !NotCoord for Coord<T> {}

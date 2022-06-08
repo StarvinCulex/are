@@ -44,10 +44,7 @@ impl<const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> Accessor<CHUNK_WIDTH, 
             } else {
                 addr + 1
             };
-            // Coord 的 partial_cmp 是先比较前者再比较后者
-            // 所以对于 1x1 矩阵来说 Coord(1, 0) < Coord(1, 1)
-            // 但 Coord(1, 0) 仍然是越界，所以这里分开比较
-            // 但前面比较过 addr < max_addr，所以 p.1 不可能越界，不用比较了
+            // 前面比较过 addr < max_addr，所以 p.1 不可能越界，不用比较了
             if likely(p.0 < self.matrix_size.0 && /* p.1 < self.matrix_size.1 && */ self.area.contains(&p)) {
                 self.length -= 1;
                 return Some((p, addr));
