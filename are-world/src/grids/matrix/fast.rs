@@ -32,7 +32,7 @@ impl<const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> Accessor<CHUNK_WIDTH, 
     #[inline]
     fn next(&mut self) -> Option<(Coord<isize>, usize)> {
         // 待优化：最坏情况下可能为了扫四个点而扫过整个矩阵
-        while self.length >= 0 {
+        while self.length > 0 {
             let p = Matrix::<(), CHUNK_WIDTH, CHUNK_HEIGHT>::pos_at_unchecked(
                 self.matrix_size,
                 self.addr,
@@ -68,7 +68,7 @@ impl<const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> Accessor<CHUNK_WIDTH, 
 
     #[inline]
     fn contains(&self, pos: Coord<isize>) -> bool {
-        self.area.contains(&pos)
+        self.area.contains(&Matrix::<(), CHUNK_WIDTH, CHUNK_HEIGHT>::normalize_pos(self.matrix_size, pos))
     }
 
     #[inline]
