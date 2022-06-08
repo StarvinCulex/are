@@ -1,7 +1,6 @@
 pub struct Fast<const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> {
     addr: usize,
     max_addr: usize,
-    count: usize,
     length: usize,
     area: Coord<Interval<isize>>,
     matrix_size: Coord<isize>,
@@ -20,7 +19,6 @@ impl<const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> Fast<CHUNK_WIDTH, CHUN
                 matrix_size,
                 matrix_size - Coord(1, 1),
             ),
-            count: 0,
             length: (a.0 * a.1) as usize,
             area,
             matrix_size,
@@ -34,7 +32,7 @@ impl<const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> Accessor<CHUNK_WIDTH, 
     #[inline]
     fn next(&mut self) -> Option<(Coord<isize>, usize)> {
         // 待优化：最坏情况下可能为了扫四个点而扫过整个矩阵
-        while self.count < self.length {
+        while self.length >= 0 {
             let p = Matrix::<(), CHUNK_WIDTH, CHUNK_HEIGHT>::pos_at_unchecked(
                 self.matrix_size,
                 self.addr,
@@ -51,7 +49,7 @@ impl<const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> Accessor<CHUNK_WIDTH, 
             // 但 Coord(1, 0) 仍然是越界，所以这里分开比较
             // 但前面比较过 addr < max_addr，所以 p.1 不可能越界，不用比较了
             if likely(p.0 < self.matrix_size.0 && /* p.1 < self.matrix_size.1 && */ self.area.contains(&p)) {
-                self.count += 1;
+                self.length -= 1;
                 return Some((p, addr));
             }
         }
