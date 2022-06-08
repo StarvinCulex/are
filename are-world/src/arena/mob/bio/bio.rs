@@ -146,8 +146,9 @@ impl Mob for Bio {
                         && (manhattan_carpet_bomb_search(
                             self.at().from(),
                             self.species.watch_range,
-                            |p| {
-                                if self.at().contains(&angelos.major.normalize_pos(p)) {
+                            |mut p| {
+                                p = angelos.major.normalize_pos(p);
+                                if self.at().contains(&p) {
                                     return None;
                                 }
                                 let target =
@@ -299,7 +300,7 @@ impl Mob for Bio {
         let self_mutex = self.target.get_mut().unwrap();
         let target = &mut self_mutex.target;
         if let Some(target_pos) = target.target {
-            debug_assert_eq!(target_pos, deamon.angelos.major.normalize_area(target_pos));
+            debug_assert_eq!(target_pos, deamon.angelos.major.normalize_area(target_pos), "{}", target);
             debug_assert_eq!(at, deamon.angelos.major.normalize_area(at));
             // 是否可以做动作
             let dist = displacement(deamon.angelos.major.plate_size, at, target_pos).map(Idx::abs);
@@ -346,7 +347,7 @@ impl Mob for Bio {
                     }
                 }
             } else {
-                println!("只要……能到达那个地方…… at={} target_pos={} dist={} action_range={}", at, target_pos, dist, target.action_range);
+                println!("只要……能到达那个地方…… at={} target={} dist={}", at, target, dist);
                 if age % species.move_period == 0 {
                     // 移动
                     let facings = silly_facing(
