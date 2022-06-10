@@ -154,7 +154,7 @@ fn test_contains() {
     // closed opened
     assert_eq!(Interval::new(114, 514).contains_interval(&Interval::new(116, 115), 1000), false);
     assert_eq!(Interval::new(114, 514).contains_interval(&Interval::new(999, 0), 1000), false);
-    assert_eq!(Interval::new(0, 999).contains_interval(&Interval::new(114, 514), 1000), true);
+    assert_eq!(Interval::new(0, 999).contains_interval(&Interval::new(514, 114), 1000), true);
 
     // opened closed
     assert_eq!(Interval::new(514, 114).contains_interval(&Interval::new(0, 114), 1000), true);
