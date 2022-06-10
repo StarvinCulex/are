@@ -55,17 +55,23 @@ where
     }
 
     /// 判断`interval`是否属于`self`表示的范围
+    /// 要求 self 和 interval 均在范围内
     #[inline]
     pub fn contains_interval(&self, interval: &Self, size: T) -> bool where T: std::ops::Add<T> + From<bool> + Copy, <T as std::ops::Add<T>>::Output: Eq {
+        debug_assert!(self.from >= false.into() && self.from < size);
+        debug_assert!(self.to >= false.into() && self.to < size);
+        debug_assert!(interval.from >= false.into() && interval.from < size);
+        debug_assert!(interval.to >= false.into() && interval.to < size);
+
         let self_closed_interval = self.from <= self.to;
         let other_closed_interval = interval.from <= interval.to;
 
         if likely(self_closed_interval) {
-            other_closed_interval && self.from <= interval.from && interval.to <= self.to || self.from == size && self.to.add(true.into()) == size.add(false.into())
+            other_closed_interval && self.from <= interval.from && interval.to <= self.to || self.from == false.into() && self.to.add(true.into()) == size.add(false.into())
         } else if likely(other_closed_interval) {
-            interval.to <= self.from || self.to <= interval.from || self.to.add(true.into()) == self.from.add(false.into())
+            interval.to <= self.to || self.from <= interval.from || self.to.add(true.into()) == self.from.add(false.into())
         } else {
-            interval.from <= self.from && self.to <= interval.to
+            interval.from >= self.from && self.to >= interval.to
         }
     }
 
@@ -137,4 +143,29 @@ fn test_contains() {
     assert!(Interval::new(10, 0).contains(&11));
     assert!(Interval::new(10, 0).contains(&-1));
     assert!(!Interval::new(10, 0).contains(&5));
+    
+    // closed closed
+    assert_eq!(Interval::new(114, 514).contains_interval(&Interval::new(114, 514), 1000), true);
+    assert_eq!(Interval::new(114, 514).contains_interval(&Interval::new(115, 514), 1000), true);
+    assert_eq!(Interval::new(114, 514).contains_interval(&Interval::new(114, 513), 1000), true);
+    assert_eq!(Interval::new(114, 514).contains_interval(&Interval::new(114, 515), 1000), false);
+    assert_eq!(Interval::new(114, 514).contains_interval(&Interval::new(113, 514), 1000), false);
+
+    // closed opened
+    assert_eq!(Interval::new(114, 514).contains_interval(&Interval::new(116, 115), 1000), false);
+    assert_eq!(Interval::new(114, 514).contains_interval(&Interval::new(999, 0), 1000), false);
+    assert_eq!(Interval::new(0, 999).contains_interval(&Interval::new(114, 514), 1000), true);
+
+    // opened closed
+    assert_eq!(Interval::new(514, 114).contains_interval(&Interval::new(0, 114), 1000), true);
+    assert_eq!(Interval::new(514, 114).contains_interval(&Interval::new(514, 999), 1000), true);
+    assert_eq!(Interval::new(514, 114).contains_interval(&Interval::new(115, 115), 1000), false);
+    assert_eq!(Interval::new(500, 499).contains_interval(&Interval::new(114, 514), 1000), true);
+
+    // opened opened
+    assert_eq!(Interval::new(514, 114).contains_interval(&Interval::new(514, 114), 1000), true);
+    assert_eq!(Interval::new(514, 114).contains_interval(&Interval::new(515, 114), 1000), true);
+    assert_eq!(Interval::new(514, 114).contains_interval(&Interval::new(514, 113), 1000), true);
+    assert_eq!(Interval::new(514, 114).contains_interval(&Interval::new(514, 115), 1000), false);
+    assert_eq!(Interval::new(514, 114).contains_interval(&Interval::new(513, 114), 1000), false);
 }
