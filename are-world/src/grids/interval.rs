@@ -1,7 +1,6 @@
 //! by *StarvinCulex @2021/10/24*
 
-use std::fmt::Formatter;
-
+use crate::o;
 /// 表示一维范围
 ///
 /// 包含字段`from`和`to`两个`<T>`类型的字段
@@ -16,6 +15,7 @@ use std::fmt::Formatter;
 /// - 表示小于等于`from`或大于等于`to`的范围
 /// - 区间表示：**(-∞, from] ∪ [to, +∞)**
 use serde::{Deserialize, Serialize};
+use std::fmt::Formatter;
 use std::intrinsics::likely;
 
 #[derive(Hash, Debug, Serialize, Deserialize, Clone, Copy, Eq, Default)]

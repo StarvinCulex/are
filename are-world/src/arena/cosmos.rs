@@ -13,6 +13,7 @@ use crate::mind::Mind;
 use crate::mob::bio::species::SpeciesPool;
 use crate::msgpip::pipe::Output;
 use crate::msgpip::MPipe;
+use crate::observe::logger::Logger;
 use crate::{if_likely, jobs};
 
 pub use super::*;
@@ -41,6 +42,7 @@ pub struct Block {
 pub struct _MobBlock<M: ?Sized> {
     pub at: CrdI,
     on_plate: bool,
+    pub log: Logger,
     pub mob: M,
 }
 
@@ -51,6 +53,7 @@ impl<M> _MobBlock<M> {
             at,
             on_plate: false,
             mob,
+            log: Logger::default(),
         }
     }
 }
@@ -280,7 +283,7 @@ impl Cosmos {
     #[inline]
     pub(crate) fn order_tick<
         GF: Fn(Crd, &[gnd::Order]) + Send + Sync,
-        MF: Fn(&MobRefMut<dyn Mob>, &[mob::Order]) + Send + Sync,
+        MF: Fn(&mut MobRefMut<dyn Mob>, &[mob::Order]) + Send + Sync,
     >(
         &mut self,
         ground_order_recorder: GF,
@@ -334,8 +337,8 @@ impl Cosmos {
                             bound,
                         };
                         for (mob, orders) in local_mob_orders.into_iter() {
-                            if let Some(mob_ref_mut) = unsafe { guard.wrap_weak_mut(&mob) } {
-                                mob_order_recorder(&mob_ref_mut, &orders);
+                            if let Some(mut mob_ref_mut) = unsafe { guard.wrap_weak_mut(&mob) } {
+                                mob_order_recorder(&mut mob_ref_mut, &orders);
                                 mob_ref_mut.order(&mut deamon, orders);
                             }
                         }

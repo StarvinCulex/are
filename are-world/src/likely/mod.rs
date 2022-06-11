@@ -54,7 +54,7 @@ macro_rules! if_unlikely {
     }};
     (let $value: pat = $cond:expr => $then: block) => {{
         let __cond__ = $cond;
-        if unlikely(if let $v = &__cond__ { true } else { false }) {
+        if unlikely(if let $value = &__cond__ { true } else { false }) {
             if let $value = __cond__ {
                 $then
             } else {
@@ -64,7 +64,7 @@ macro_rules! if_unlikely {
     }};
     (let $value: pat = $cond:expr => $then: block else $else: block) => {{
         let __cond__ = $cond;
-        if unlikely(if let $v = &__cond__ { true } else { false }) {
+        if unlikely(if let $value = &__cond__ { true } else { false }) {
             if let $value = __cond__ {
                 $then
             } else {

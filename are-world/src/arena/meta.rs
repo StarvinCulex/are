@@ -19,7 +19,7 @@ pub struct StepArguments<
     GMR: Fn(Crd, &[gnd::Msg]) + Send + Sync,
     MMR: Fn(&MobRef<dyn Mob>, &[mob::Msg]) + Send + Sync,
     GOR: Fn(Crd, &[gnd::Order]) + Send + Sync,
-    MOR: Fn(&MobRefMut<dyn Mob>, &[mob::Order]) + Send + Sync,
+    MOR: Fn(&mut MobRefMut<dyn Mob>, &[mob::Order]) + Send + Sync,
 > {
     pub ground_message_recorder: GMR,
     pub mob_message_recorder: MMR,
@@ -49,7 +49,7 @@ impl MetaCosmos {
         GMR: Fn(Crd, &[gnd::Msg]) + Send + Sync,
         MMR: Fn(&MobRef<dyn Mob>, &[mob::Msg]) + Send + Sync,
         GOR: Fn(Crd, &[gnd::Order]) + Send + Sync,
-        MOR: Fn(&MobRefMut<dyn Mob>, &[mob::Order]) + Send + Sync,
+        MOR: Fn(&mut MobRefMut<dyn Mob>, &[mob::Order]) + Send + Sync,
     >(
         &mut self,
         args: StepArguments<GMR, MMR, GOR, MOR>,

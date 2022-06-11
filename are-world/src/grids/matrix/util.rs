@@ -81,7 +81,6 @@ where
         Ordering::Less | Ordering::Equal => target.to - origin.from,
         Ordering::Greater => (target.to - origin.from) - size,
     };
-    println!("[DEBUG] right{:?} left{:?}", right, left);
     #[inline]
     fn abs<I>(a: &I) -> I
     where

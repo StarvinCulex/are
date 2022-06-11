@@ -8,6 +8,7 @@ use std::sync::{self, Arc};
 use crate::arena::cosmos::{MobBlock, PKey, _MobBlock};
 use crate::arena::defs::CrdI;
 use crate::arena::mob::Mob;
+use crate::observe::logger::Logger;
 
 #[repr(transparent)]
 pub struct CheapMobArc<M: ?Sized>(NonNull<_MobBlock<M>>);
@@ -311,6 +312,11 @@ impl<'g, M: ?Sized, AccessKey: ?Sized> MobRef<'g, M, AccessKey> {
     }
 
     #[inline]
+    pub fn log(&self) -> &Logger {
+        &unsafe { self.0.as_ref() }.log
+    }
+
+    #[inline]
     pub fn get_inner(&self, _key: &AccessKey) -> CheapMobArc<M> {
         self.0
     }
@@ -330,6 +336,16 @@ impl<'g, M: ?Sized, AccessKey: ?Sized> MobRefMut<'g, M, AccessKey> {
     #[inline]
     pub fn at(&self) -> CrdI {
         unsafe { self.0.as_ref() }.at
+    }
+
+    #[inline]
+    pub fn log(&self) -> &Logger {
+        &unsafe { self.0.as_ref() }.log
+    }
+
+    #[inline]
+    pub fn log_mut(&mut self) -> &mut Logger {
+        &mut unsafe { self.0.as_mut() }.log
     }
 
     #[inline]

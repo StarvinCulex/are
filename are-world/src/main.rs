@@ -39,7 +39,7 @@ use crate::arena::cosmos::*;
 use crate::arena::mind::gods::plant::GodOfPlant;
 use crate::arena::mob::mech::mech::Mech;
 use crate::arena::mob::Mob;
-use crate::arena::r#ref::ReadGuard;
+use crate::arena::r#ref::{ReadGuard, WriteGuard};
 use crate::arena::RuntimeConf;
 use crate::conencode::ConEncoder;
 use crate::conf::Conf;
@@ -49,6 +49,7 @@ use crate::meta::StepArguments;
 use crate::mind::gods::bio::GodOfBio;
 use crate::mob::bio::bio::Bio;
 use crate::mob::bio::species::Species;
+use crate::observe::logger::Logger;
 use crate::observe::plate::PlateView;
 use crate::stats::benchmark::Benchmark;
 use crate::sword::SWord;
@@ -182,7 +183,10 @@ fn main() {
     //benchmark(meta);
 }
 
-fn mob_debugger<F: Fn(&MobRef<dyn Mob>) -> bool + Send + Sync, G: Fn(MobRef<dyn Mob>) -> bool>(
+fn mob_debugger<
+    F: Fn(&MobRefMut<dyn Mob>) -> bool + Send + Sync,
+    G: Fn(MobRef<dyn Mob>) -> bool,
+>(
     mut meta: MetaCosmos,
     selector: F,
     deselector: G,
@@ -194,13 +198,15 @@ fn mob_debugger<F: Fn(&MobRef<dyn Mob>) -> bool + Send + Sync, G: Fn(MobRef<dyn 
             while !found.load(SeqCst) {
                 meta.step_x(StepArguments {
                     ground_message_recorder: |_, _| {},
-                    mob_message_recorder: |m, _| {
+                    mob_order_recorder: |mut m, _| {
                         if !found.load(Relaxed) && selector(m) && !found.swap(true, SeqCst) {
                             *val.lock().unwrap() = Some(m.downgrade());
+                            *m.log_mut() =
+                                Logger::printer(format!["Mob {:p}", m.downgrade().as_ptr()]);
                         }
                     },
                     ground_order_recorder: |_, _| {},
-                    mob_order_recorder: |_, _| {},
+                    mob_message_recorder: |_, _| {},
                 });
             }
             val.get_mut().unwrap().clone().unwrap()
@@ -232,6 +238,15 @@ fn mob_debugger<F: Fn(&MobRef<dyn Mob>) -> bool + Send + Sync, G: Fn(MobRef<dyn 
         } {
             meta.step();
         }
+
+        meta.cosmos.pk(|cosmos, pk| unsafe {
+            WriteGuard::with(pk, |guard| {
+                if let Some(mut mob) = guard.wrap_weak_mut(&mob) {
+                    mob.log().print(|| format!["deselected"]);
+                    *mob.log_mut() = Logger::none();
+                }
+            });
+        });
     }
 }
 

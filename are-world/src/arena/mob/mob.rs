@@ -30,15 +30,9 @@ pub trait Mob: Send + Sync + ToString + Any {
         angelos: &mut Angelos,
         message: Vec<Msg>,
         guard: &ReadGuard<PKey>,
-        log: Option<Box<dyn Fn(String)>>,
     );
 
-    fn order(
-        self: MobRefMut<Self>,
-        deamon: &mut Deamon,
-        order: Vec<Order>,
-        log: Option<Box<dyn Fn(String)>>,
-    );
+    fn order(self: MobRefMut<Self>, deamon: &mut Deamon, order: Vec<Order>);
 
     fn threat(&self) -> ThreatT;
 }

@@ -1,4 +1,4 @@
-use std::fmt::{Display, Formatter};
+use std::fmt::{format, Display, Formatter};
 use std::sync::Arc;
 
 use rand::distributions::Uniform;
@@ -92,6 +92,8 @@ impl Bio {
             g.plant.add_corpse(energy_per_grid);
         }
 
+        self.log().print(|| format!("suicide"));
+
         deamon.take(self);
     }
 }
@@ -114,6 +116,7 @@ impl Mob for Bio {
     ) {
         let mut wake = false;
         for msg in message {
+            self.log().print(|| format!("hear ({:?})", msg));
             match msg {
                 Msg::Wake => wake = true,
             }
@@ -122,6 +125,8 @@ impl Mob for Bio {
         if !wake {
             return;
         }
+        self.log().print(|| format!("wake up"));
+
         // 维持心跳
         angelos.tell(self.downgrade(), Msg::Wake, self.species.wake_period);
         angelos.order(
@@ -136,14 +141,38 @@ impl Mob for Bio {
         if self_target.target.is_none() {
             if let Some(target_mob_weak) = &self_target.target_mob {
                 self_target.target = guard.wrap_weak(target_mob_weak).map(|m| m.at());
-                if self_target.target.is_none() {
+                if let Some(t) = self_target.target {
+                    self.log().print(|| {
+                        format!(
+                            "has no target but target-mob ({tmob:p}) at ({tat})",
+                            tmob = target_mob_weak.as_ptr(),
+                            tat = t
+                        )
+                    });
+                } else {
+                    self.log().print(|| {
+                        format!(
+                            "has no target and target-mob ({tmob:p}) disappeared",
+                            tmob = target_mob_weak.as_ptr(),
+                        )
+                    });
                     self_target.target_mob = None;
                 }
             } else {
+                self.log()
+                    .print(|| format!("has neither target nor target-mob"));
+
                 let _: bool = {
                     // 观察周围方格
-                    self.age % self.species.watch_period == 0
-                        && (manhattan_carpet_bomb_search(
+                    self.age % self.species.watch_period == 0 && {
+                        self.log().print(|| {
+                            format!(
+                                "watching at ({at}) with range({depth})",
+                                at = self.at().from(),
+                                depth = self.species.watch_range
+                            )
+                        });
+                        manhattan_carpet_bomb_search(
                             self.at().from(),
                             self.species.watch_range,
                             |mut p| {
@@ -166,7 +195,14 @@ impl Mob for Bio {
                             },
                         )
                         .is_some()
-                            || self_target.action != BioAction::Nothing)
+                            && {
+                                self.log().print(|| {
+                                    format!("selected target by watching ({t})", t = self_target)
+                                });
+                                true
+                            }
+                            || self_target.action != BioAction::Nothing
+                    }
                 } || {
                     // 这是运算符[`or`]
                     // 闲逛
@@ -188,6 +224,7 @@ impl Mob for Bio {
                             target: Some(target),
                             target_mob: None,
                         };
+                        self.log().print(|| format!("stroll to ({t})", t = target));
                         true
                     }
                 };
@@ -201,6 +238,7 @@ impl Mob for Bio {
         let mut main_tick = false;
         let mut last_attacker = None;
         for odr in orders {
+            self.log().print(|| format!("receive order ({:?})", odr));
             match odr {
                 Order::MobMainTick => main_tick = true,
                 Order::Attack {
@@ -219,17 +257,19 @@ impl Mob for Bio {
         if !main_tick {
             return;
         }
+        self.log().print(|| format!("execute order"));
         self.age = self.age.overflowing_add(1).0;
 
         // 生命值
         {
+            if self.hp == 0 {
+                self.log().print(|| format!("lose all its hp"));
+                self.suicide(deamon);
+                return;
+            }
             if self.hp < self.species.max_hp {
                 self.hp = self.hp.saturating_add(self.species.regeneration);
                 self.energy = self.energy.saturating_sub(self.species.regeneration_cost);
-            }
-            if self.hp == 0 {
-                self.suicide(deamon);
-                return;
             }
         }
 
@@ -239,6 +279,7 @@ impl Mob for Bio {
                 self.energy = remain;
             } else {
                 // 饿死
+                self.log().print(|| format!("starve to death"));
                 let at = self.at();
                 self.suicide(deamon);
                 return;
@@ -247,6 +288,7 @@ impl Mob for Bio {
 
         // 能生崽不？
         if self.age % self.species.breed_period() == 0 && self.species.spawn_when() <= self.energy {
+            self.log().print(|| format!("prepare to breed"));
             if let Some(energy_remain) = self.energy.checked_sub(self.species.spawn_energy_cost()) {
                 let child_species = deamon
                     .angelos
@@ -285,14 +327,19 @@ impl Mob for Bio {
                 }
                 /* then */
                 {
+                    self.log()
+                        .print(|| format!("breed success ({child:p})", child = pchild.as_ptr()));
                     self.energy = energy_remain;
                     deamon
                         .angelos
                         .tell(pchild.clone(), Msg::Wake, self.species.incubation_delay);
+                } else {
+                    self.log().print(|| format!("breed failed"));
                 }
             }
         }
 
+        let log = self.log().clone();
         let at = self.at();
         let species = self.species.clone();
         let age = self.age;
@@ -306,6 +353,8 @@ impl Mob for Bio {
                 target
             );
             debug_assert_eq!(at, deamon.angelos.major.normalize_area(at));
+            log.print(|| format!("be to do action ({t})", t = target));
+
             // 是否可以做动作
             let dist = displacement(deamon.angelos.major.plate_size, at, target_pos).map(Idx::abs);
             if dist <= target.action_range {
@@ -323,16 +372,23 @@ impl Mob for Bio {
                             }
                         }
                         if takes == 0 {
+                            log.print(|| format!("cannot eat more and reset target"));
                             *target = BioTarget::new();
                         } else {
+                            self.log()
+                                .print(|| format!("eat ({energy}) points", energy = takes));
                             self.energy = self.energy.saturating_add(takes);
                         }
                     }
                     BioAction::Nothing | BioAction::Stroll => {
+                        log.print(|| format!("aimless and reset target"));
                         *target = BioTarget::new();
                     }
                     BioAction::Flee | BioAction::Chase => {
                         if let Some(enemy) = target.target_mob.clone() {
+                            self.log()
+                                .print(|| format!("attack ({enemy:p})", enemy = enemy.as_ptr()));
+
                             deamon.angelos.order(
                                 enemy,
                                 Order::Attack {
@@ -343,46 +399,55 @@ impl Mob for Bio {
                                 0,
                             );
                         } else {
+                            log.print(|| format!("aimless due to missing target and reset target"));
                             *target = BioTarget::new();
                         }
                     }
                 }
+            } else if age % species.move_period != 0 {
+                log.print(|| format!("wait until next move period"));
             } else {
-                if age % species.move_period == 0 {
-                    // 移动
-                    let facings = silly_facing(
-                        at, // 截至2022/05/15，确定self.at()是归一化的
-                        deamon.angelos.major.normalize_area(target_pos),
-                        deamon.angelos.major.plate_size,
+                // 移动
+                let facings = silly_facing(
+                    at, // 截至2022/05/15，确定self.at()是归一化的
+                    deamon.angelos.major.normalize_area(target_pos),
+                    deamon.angelos.major.plate_size,
+                );
+                let mut move_success = false;
+                let action_weight = target.action_weight;
+                for facing in facings {
+                    let move_target = at.offset(
+                        facing
+                            * if action_weight < 0 {
+                                Coord(-1, -1)
+                            } else {
+                                Coord(1, 1)
+                            },
                     );
-                    let mut move_success = false;
-                    let action_weight = target.action_weight;
-                    for facing in facings {
-                        let move_target = at.offset(
-                            facing
-                                * if action_weight < 0 {
-                                    Coord(-1, -1)
-                                } else {
-                                    Coord(1, 1)
-                                },
-                        );
-                        if deamon.reset(&mut self, move_target).is_ok() {
-                            move_success = true;
-                            break;
-                        }
+                    if deamon.reset(&mut self, move_target).is_ok() {
+                        move_success = true;
+                        break;
                     }
-                    if move_success {
-                        self.energy = self.energy.saturating_sub(self.species.move_cost);
-                    } else {
-                        // 移动失败就取消目标
-                        self.target.get_mut().unwrap().target = BioTarget::new();
-                    }
+                }
+                if move_success {
+                    log.print(|| format!["move successfully"]);
+                    self.energy = self.energy.saturating_sub(self.species.move_cost);
+                } else {
+                    // 移动失败就取消目标
+                    log.print(|| format!["move failed and reset target"]);
+                    self.target.get_mut().unwrap().target = BioTarget::new();
                 }
             }
         }
 
         if let Some((attacker, threat)) = last_attacker {
             self.target.get_mut().unwrap().target = if threat <= self.species.fight_back_threshold {
+                self.log().print(|| {
+                    format![
+                        "flee last attacker({enemy:?})",
+                        enemy = attacker.as_ref().map(|x| x.as_ptr())
+                    ]
+                });
                 BioTarget {
                     action_weight: i8::MAX,
                     action: BioAction::Flee,
@@ -391,6 +456,12 @@ impl Mob for Bio {
                     target_mob: attacker,
                 }
             } else {
+                self.log().print(|| {
+                    format![
+                        "fight back towards last attacker({enemy:?})",
+                        enemy = attacker.as_ref().map(|x| x.as_ptr())
+                    ]
+                });
                 BioTarget {
                     action_weight: i8::MIN,
                     action: BioAction::Flee,
