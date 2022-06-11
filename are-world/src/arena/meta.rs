@@ -1,9 +1,11 @@
-use std::intrinsics::likely;
+use std::intrinsics::{likely, unlikely};
 use std::sync::Arc;
 use std::time::Instant;
 
 use crate::arena::conf::GameConf;
+use crate::arena::defs::Crd;
 use crate::stats::benchmark::Benchmark;
+use crate::{Mob, MobBlock};
 
 pub use super::*;
 
@@ -11,6 +13,18 @@ pub struct MetaCosmos {
     mind_list: Vec<Box<dyn mind::Mind>>,
     pub cosmos: Cosmos,
     pub benchmark: Benchmark,
+}
+
+pub struct StepArguments<
+    GMR: Fn(Crd, &[gnd::Msg]) + Send + Sync,
+    MMR: Fn(&MobRef<dyn Mob>, &[mob::Msg]) + Send + Sync,
+    GOR: Fn(Crd, &[gnd::Order]) + Send + Sync,
+    MOR: Fn(&MobRefMut<dyn Mob>, &[mob::Order]) + Send + Sync,
+> {
+    pub ground_message_recorder: GMR,
+    pub mob_message_recorder: MMR,
+    pub ground_order_recorder: GOR,
+    pub mob_order_recorder: MOR,
 }
 
 impl MetaCosmos {
@@ -23,6 +37,23 @@ impl MetaCosmos {
     }
 
     pub fn step(&mut self) {
+        self.step_x(StepArguments {
+            ground_message_recorder: |_, _| {},
+            mob_message_recorder: |_, _| {},
+            ground_order_recorder: |_, _| {},
+            mob_order_recorder: |_, _| {},
+        })
+    }
+
+    pub fn step_x<
+        GMR: Fn(Crd, &[gnd::Msg]) + Send + Sync,
+        MMR: Fn(&MobRef<dyn Mob>, &[mob::Msg]) + Send + Sync,
+        GOR: Fn(Crd, &[gnd::Order]) + Send + Sync,
+        MOR: Fn(&MobRefMut<dyn Mob>, &[mob::Order]) + Send + Sync,
+    >(
+        &mut self,
+        args: StepArguments<GMR, MMR, GOR, MOR>,
+    ) {
         self.benchmark.start();
         self.mind_move_tick();
         self.benchmark.end("mind move tick");
@@ -30,14 +61,22 @@ impl MetaCosmos {
         self.benchmark.end("mind set tick");
         self.mind_flush_queue();
         self.benchmark.end("mind flush tick");
-        self.cosmos.message_tick();
+        self.cosmos
+            .message_tick(args.ground_message_recorder, args.mob_message_recorder);
         self.benchmark.end("message tick");
-        self.cosmos.order_tick();
+        self.cosmos
+            .order_tick(args.ground_order_recorder, args.mob_order_recorder);
         self.benchmark.end("order tick");
         self.mind_view_tick();
         self.benchmark.end("mind view tick");
         self.cosmos.add_tick();
         self.benchmark.end("add tick");
+
+        if unlikely(self.cosmos.angelos.conf.runtime.period != 0) {
+            std::thread::sleep(std::time::Duration::from_millis(
+                self.cosmos.angelos.conf.runtime.period,
+            ));
+        }
     }
 }
 

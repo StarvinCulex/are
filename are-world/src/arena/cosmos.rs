@@ -86,7 +86,8 @@ impl Block {
 
     #[inline]
     pub fn mob(&self) -> Option<(CrdI, Weak<MobBlock>)> {
-        self.mob.map(|mob| unsafe { (mob.as_ref().at, mob.make_weak()) })
+        self.mob
+            .map(|mob| unsafe { (mob.as_ref().at, mob.make_weak()) })
     }
 
     #[inline]
@@ -95,7 +96,10 @@ impl Block {
     }
 
     #[inline]
-    pub fn mob_ref_mut<'g>(&'g self, guard: &'g WriteGuard<PKey>) -> Option<MobRefMut<'g, dyn Mob>> {
+    pub fn mob_ref_mut<'g>(
+        &'g self,
+        guard: &'g WriteGuard<PKey>,
+    ) -> Option<MobRefMut<'g, dyn Mob>> {
         self.mob.map(|mob| unsafe { guard.wrap_cheap_mut(mob) })
     }
 }
@@ -143,10 +147,7 @@ impl Cosmos {
     }
 
     #[inline]
-    pub fn take<'g, M: Mob + ?Sized>(
-        &mut self,
-        mob: MobRefMut<'g, M>,
-    ) -> MobBox<M> {
+    pub fn take<'g, M: Mob + ?Sized>(&mut self, mob: MobRefMut<'g, M>) -> MobBox<M> {
         Deamon::take_plate(&mut self.plate, &self.angelos, mob)
     }
 
@@ -231,7 +232,14 @@ impl Cosmos {
     }
 
     #[inline]
-    pub(crate) fn message_tick(&mut self) {
+    pub(crate) fn message_tick<
+        GF: Fn(Crd, &[gnd::Msg]) + Send + Sync,
+        MF: Fn(&MobRef<dyn Mob>, &[mob::Msg]) + Send + Sync,
+    >(
+        &mut self,
+        gnd_message_recorder: GF,
+        mob_message_recorder: MF,
+    ) {
         {
             let thread_count = self.angelos.conf.runtime.thread_count;
             let angelos_data = self.angelos.async_data.get_mut().unwrap();
@@ -247,7 +255,10 @@ impl Cosmos {
             jobs::work(
                 workers.iter_mut(),
                 gnd_messages.into_iter().collect(),
-                |angelos, (pos, msgs)| self.plate[pos].ground.hear(self, angelos, pos, msgs),
+                |angelos, (pos, msgs)| {
+                    gnd_message_recorder(pos, &msgs);
+                    self.plate[pos].ground.hear(self, angelos, pos, msgs)
+                },
             );
 
             self.pos_to_weak_mob(mob_pos_messages, &mut mob_messages);
@@ -257,6 +268,7 @@ impl Cosmos {
                     mob_messages.into_iter().collect(),
                     |angelos, (mob, msgs)| {
                         if_likely!(let Some(mob_ref) = guard.wrap_weak(&mob) => {
+                            mob_message_recorder(&mob_ref, &msgs);
                             mob_ref.hear(self, angelos, msgs, guard);
                         });
                     },
@@ -266,7 +278,14 @@ impl Cosmos {
     }
 
     #[inline]
-    pub(crate) fn order_tick(&mut self) {
+    pub(crate) fn order_tick<
+        GF: Fn(Crd, &[gnd::Order]) + Send + Sync,
+        MF: Fn(&MobRefMut<dyn Mob>, &[mob::Order]) + Send + Sync,
+    >(
+        &mut self,
+        ground_order_recorder: GF,
+        mob_order_recorder: MF,
+    ) {
         let thread_count = self.angelos.conf.runtime.thread_count;
         let angelos_data = self.angelos.async_data.get_mut().unwrap();
         let gnd_orders = angelos_data.gnd_orders.pop_this_turn();
@@ -282,7 +301,9 @@ impl Cosmos {
             workers.iter_mut(),
             gnd_orders.into_iter().collect(),
             |angelos, (pos, orders)| {
-                let mg: &mut Ground = unsafe { &mut *(&self.plate[pos].ground as *const _ as *mut _) };
+                let mg: &mut Ground =
+                    unsafe { &mut *(&self.plate[pos].ground as *const _ as *mut _) };
+                ground_order_recorder(pos, &orders);
                 mg.order(pos, angelos, orders);
             },
         );
@@ -314,6 +335,7 @@ impl Cosmos {
                         };
                         for (mob, orders) in local_mob_orders.into_iter() {
                             if let Some(mob_ref_mut) = unsafe { guard.wrap_weak_mut(&mob) } {
+                                mob_order_recorder(&mob_ref_mut, &orders);
                                 mob_ref_mut.order(&mut deamon, orders);
                             }
                         }

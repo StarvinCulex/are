@@ -24,12 +24,15 @@
 use std::ffi::{OsStr, OsString};
 use std::io::Read;
 use std::iter::Iterator;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering::{Relaxed, SeqCst};
 use std::sync::Arc;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
 use rand::distributions::Uniform;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
+use serde::de::Unexpected::Seq;
 
 use crate::arena::conf::GameConf;
 use crate::arena::cosmos::*;
@@ -42,9 +45,11 @@ use crate::conencode::ConEncoder;
 use crate::conf::Conf;
 use crate::cui::Window;
 use crate::grids::*;
+use crate::meta::StepArguments;
 use crate::mind::gods::bio::GodOfBio;
 use crate::mob::bio::bio::Bio;
 use crate::mob::bio::species::Species;
+use crate::observe::plate::PlateView;
 use crate::stats::benchmark::Benchmark;
 use crate::sword::SWord;
 
@@ -173,32 +178,80 @@ fn main() {
         .angelos
         .join(Box::new(GodOfBio::new(conf.clone())));
 
+    mob_debugger(meta, |_| true, |_| false);
+    //benchmark(meta);
+}
+
+fn mob_debugger<F: Fn(&MobRef<dyn Mob>) -> bool + Send + Sync, G: Fn(MobRef<dyn Mob>) -> bool>(
+    mut meta: MetaCosmos,
+    selector: F,
+    deselector: G,
+) -> ! {
     loop {
-        let start = SystemTime::now();
-        for i in 0..1 {
-            meta.step();
-            if conf.runtime.period != 0 {
-                std::thread::sleep(std::time::Duration::from_millis(conf.runtime.period));
+        let mob = {
+            let found = AtomicBool::new(false);
+            let mut val = Mutex::new(None);
+            while !found.load(SeqCst) {
+                meta.step_x(StepArguments {
+                    ground_message_recorder: |_, _| {},
+                    mob_message_recorder: |m, _| {
+                        if !found.load(Relaxed) && selector(m) && !found.swap(true, SeqCst) {
+                            *val.lock().unwrap() = Some(m.downgrade());
+                        }
+                    },
+                    ground_order_recorder: |_, _| {},
+                    mob_order_recorder: |_, _| {},
+                });
             }
+            val.get_mut().unwrap().clone().unwrap()
+        };
+
+        while {
+            meta.cosmos.pk(|cosmos, pk| {
+                ReadGuard::with(pk, |guard| {
+                    if let Some(mob) = guard.wrap_weak(&mob) {
+                        let at = mob.at();
+                        if deselector(mob) {
+                            false
+                        } else {
+                            println!(
+                                "{}",
+                                PlateView::new(
+                                    cosmos,
+                                    at.map(|x| Interval::new(x.from - 10, x.to + 10)),
+                                    guard
+                                )
+                            );
+                            true
+                        }
+                    } else {
+                        false
+                    }
+                })
+            })
+        } {
+            meta.step();
         }
+    }
+}
+
+fn benchmark(mut meta: MetaCosmos) -> ! {
+    let mut start = SystemTime::now();
+    let mut last_tick = 0;
+    loop {
+        meta.step();
+
         let duration = SystemTime::now().duration_since(start).unwrap();
-        println!("cost {}ms", duration.as_millis());
-        println!("benchmarks\n{}", meta.benchmark);
-        meta.benchmark.clear();
-        meta.cosmos.pk(|cosmos, pkey| {
-            let area = Coord(0, 0) | (*cosmos.plate.size() - Coord(1, 1));
-            ReadGuard::with(pkey, |guard| {
-                // let view = observe::species::SpeciesStats::new(cosmos, guard);
-                // println!("{}", view);
-                println!(
-                    "{}",
-                    observe::plate::PlateView::new(
-                        cosmos,
-                        area,
-                        guard,
-                    )
-                );
-            });
-        });
+        if duration >= Duration::from_secs(5) {
+            println!(
+                "ticks {}, cost {}ms",
+                meta.cosmos.angelos.properties.tick - last_tick,
+                duration.as_millis()
+            );
+            println!("benchmarks\n{}", meta.benchmark);
+            meta.benchmark.clear();
+            start = SystemTime::now();
+            last_tick = meta.cosmos.angelos.properties.tick;
+        }
     }
 }

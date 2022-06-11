@@ -1,28 +1,19 @@
 pub struct Fast<const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> {
-    addr: usize,
-    max_addr: usize,
-    length: usize,
     area: Coord<Interval<isize>>,
     matrix_size: Coord<isize>,
+    len: usize,
+    addr: usize,
+    end: usize,
+    at: Coord<isize>,
+    inner: FastInner,
 }
+
+enum FastInner {}
 
 impl<const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> Fast<CHUNK_WIDTH, CHUNK_HEIGHT> {
     #[inline]
     fn new(area: Coord<Interval<isize>>, matrix_size: Coord<isize>) -> Self {
-        let a = measure_area(matrix_size, area);
-        Self {
-            addr: Matrix::<(), CHUNK_WIDTH, CHUNK_HEIGHT>::calc_address_unchecked(
-                matrix_size,
-                area.from(),
-            ),
-            max_addr: Matrix::<(), CHUNK_WIDTH, CHUNK_HEIGHT>::calc_address_unchecked(
-                matrix_size,
-                matrix_size - Coord(1, 1),
-            ),
-            length: (a.0 * a.1) as usize,
-            area,
-            matrix_size,
-        }
+        todo!()
     }
 }
 
@@ -31,31 +22,32 @@ impl<const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> Accessor<CHUNK_WIDTH, 
 {
     #[inline]
     fn next(&mut self) -> Option<(Coord<isize>, usize)> {
-        // 待优化：最坏情况下可能为了扫四个点而扫过整个矩阵
-        while self.length > 0 {
-            let p = Matrix::<(), CHUNK_WIDTH, CHUNK_HEIGHT>::pos_at_unchecked(
+        if unlikely(self.len == 0) {
+            return None;
+        }
+        self.len -= 1;
+
+        if likely(self.addr != self.end) {
+            let r = (self.at, self.addr);
+            self.addr += 1;
+            self.at = Matrix::<(), CHUNK_WIDTH, CHUNK_HEIGHT>::pos_at_unchecked(
                 self.matrix_size,
                 self.addr,
             );
-            let addr = self.addr;
-            // 由于 Matrix 是个甜甜圈，扫到最后应该回头扫最前面
-            self.addr = if unlikely(addr == self.max_addr) {
-                0
-            } else {
-                addr + 1
-            };
-            // 前面比较过 addr < max_addr，所以 p.1 不可能越界，不用比较了
-            if likely(p.0 < self.matrix_size.0 && /* p.1 < self.matrix_size.1 && */ self.area.contains(&p)) {
-                self.length -= 1;
-                return Some((p, addr));
-            }
+            return Some(r);
         }
-        None
+
+        match self.inner {};
+        self.next_addr_end();
+
+        let r = (self.at, self.addr);
+        self.addr += 1;
+        Some(r)
     }
 
     #[inline]
     fn len(&self) -> usize {
-        self.length
+        self.len
     }
 
     #[inline]
@@ -65,11 +57,22 @@ impl<const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> Accessor<CHUNK_WIDTH, 
 
     #[inline]
     fn contains(&self, pos: Coord<isize>) -> bool {
-        self.area.contains(&Matrix::<(), CHUNK_WIDTH, CHUNK_HEIGHT>::normalize_pos(self.matrix_size, pos))
+        self.area
+            .contains(&Matrix::<(), CHUNK_WIDTH, CHUNK_HEIGHT>::normalize_pos(
+                self.matrix_size,
+                pos,
+            ))
     }
 
     #[inline]
     fn r#type(&self) -> &'static str {
         "MFast"
+    }
+}
+
+impl<const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize> Fast<CHUNK_WIDTH, CHUNK_HEIGHT> {
+    #[inline]
+    fn next_addr_end(&mut self) {
+        match self.inner {}
     }
 }

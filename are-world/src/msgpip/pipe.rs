@@ -1,3 +1,4 @@
+use std::collections::hash_map::Iter;
 use std::collections::HashMap;
 
 pub struct MPipe<K: Eq + std::hash::Hash, V> {

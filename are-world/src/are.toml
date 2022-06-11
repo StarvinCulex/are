@@ -1,7 +1,7 @@
 [game]
-chunk_size = [1, 1]
+chunk_size = [16, 16]
 chunk_count = [9, 9]
-padding = [1, 1]
+padding = [16, 16]
 
 [runtime]
 period = 0

@@ -68,6 +68,7 @@ impl PlateView {
 
 impl MobView {
     fn new(mob: MobRef<dyn Mob>) -> Self {
+        let at = mob.at();
         MobView {
             name: mob.get_name(),
             properties: mob
@@ -76,7 +77,8 @@ impl MobView {
                     let g = m.target.lock().unwrap();
                     let target = &g.target;
                     format!(
-                        "H{hp} A{age} E{energy} S{species} T{{target{target} action{action:?} range{action_range} tmob{target_mob:x}}}",
+                        "{at} H{hp} A{age} E{energy} S{species} T{{target{target} action{action:?} range{action_range} tmob{target_mob:x}}}",
+                        at = at,
                         hp = m.hp,
                         age = m.age,
                         energy = m.energy,
@@ -95,9 +97,9 @@ impl MobView {
 impl Display for BlockView {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         if self.mob == 0 {
-            write!(f, "{}", self.plant_type)
+            write!(f, "{}{}", self.plant_type, self.plant_age)
         } else {
-            write!(f, "[{:x}]", self.mob)
+            write!(f, "[{:x}]({}{})", self.mob, self.plant_type, self.plant_age)
         }
     }
 }

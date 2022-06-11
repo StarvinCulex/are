@@ -208,7 +208,6 @@ impl Mob for Bio {
                     attacker,
                     threat,
                 } => {
-                    println!("谁tm打我");
                     self.being_attacked(atk);
                     if let Some(a) = attacker {
                         last_attacker = Some((Some(a), threat));
@@ -300,7 +299,12 @@ impl Mob for Bio {
         let self_mutex = self.target.get_mut().unwrap();
         let target = &mut self_mutex.target;
         if let Some(target_pos) = target.target {
-            debug_assert_eq!(target_pos, deamon.angelos.major.normalize_area(target_pos), "{}", target);
+            debug_assert_eq!(
+                target_pos,
+                deamon.angelos.major.normalize_area(target_pos),
+                "{}",
+                target
+            );
             debug_assert_eq!(at, deamon.angelos.major.normalize_area(at));
             // 是否可以做动作
             let dist = displacement(deamon.angelos.major.plate_size, at, target_pos).map(Idx::abs);
@@ -309,7 +313,6 @@ impl Mob for Bio {
                 match target.action {
                     // 吃
                     BioAction::Eat => {
-                        println!("干饭!!!");
                         let mut takes: EnergyT = 0;
                         if let Ok(grounds) = deamon.get_ground_iter_mut(target_pos) {
                             for (p, g) in grounds {
@@ -326,11 +329,9 @@ impl Mob for Bio {
                         }
                     }
                     BioAction::Nothing | BioAction::Stroll => {
-                        println!("摸鱼");
                         *target = BioTarget::new();
                     }
                     BioAction::Flee | BioAction::Chase => {
-                        println!("润");
                         if let Some(enemy) = target.target_mob.clone() {
                             deamon.angelos.order(
                                 enemy,
@@ -347,7 +348,6 @@ impl Mob for Bio {
                     }
                 }
             } else {
-                println!("只要……能到达那个地方…… at={} target={} dist={}", at, target, dist);
                 if age % species.move_period == 0 {
                     // 移动
                     let facings = silly_facing(

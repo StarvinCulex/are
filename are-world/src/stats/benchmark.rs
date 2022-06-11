@@ -1,7 +1,7 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
-use std::time::{Instant, Duration};
+use std::time::{Duration, Instant};
 
 pub struct Benchmark {
     records: HashMap<String, u128>,
@@ -48,7 +48,13 @@ impl Display for Benchmark {
         let total: u128 = records.iter().map(|(_, &v)| v).sum();
         writeln!(f, "total: {:?}", Duration::from_nanos(total as u64))?;
         for (s, &v) in records.into_iter() {
-            writeln!(f, "{}: {:?} ({:.2}%)", s, Duration::from_nanos(v as u64), (v * 100) as f64 / total as f64)?;
+            writeln!(
+                f,
+                "{}: {:?} ({:.2}%)",
+                s,
+                Duration::from_nanos(v as u64),
+                (v * 100) as f64 / total as f64
+            )?;
         }
         Ok(())
     }

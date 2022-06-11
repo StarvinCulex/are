@@ -1,4 +1,5 @@
 use std::cmp::Ordering;
+use std::fmt::{Debug, Display};
 use std::ops::{Add, Sub};
 
 use super::super::coord_interval;
@@ -66,7 +67,8 @@ where
         + Ord
         + Sub<Output = I>
         + From<bool>
-        + Add<Output = I>,
+        + Add<Output = I>
+        + Debug,
 {
     if origin.contains_interval(&target, size) || target.contains_interval(&origin, size) {
         return false.into();
@@ -77,8 +79,9 @@ where
     };
     let left = match target.to.cmp(&origin.from) {
         Ordering::Less | Ordering::Equal => target.to - origin.from,
-        Ordering::Greater => size - (target.to - origin.from),
+        Ordering::Greater => (target.to - origin.from) - size,
     };
+    println!("[DEBUG] right{:?} left{:?}", right, left);
     #[inline]
     fn abs<I>(a: &I) -> I
     where
@@ -109,7 +112,8 @@ where
         + Ord
         + Sub<Output = I>
         + From<bool>
-        + Add<Output = I>,
+        + Add<Output = I>
+        + Debug,
 {
     Coord(
         displacement1d(size.0, origin.0, target.0),
@@ -124,23 +128,23 @@ fn test_measure_length() {
     assert_eq!(measure_length(10, Interval::new(7, 5)), 9);
 }
 
-// #[cfg(test)]
-// #[test]
-// fn test_measure_distance() {
-//     assert_eq!(
-//         measure_distance(1000, Interval::new(1, 2), Interval::new(10, 20)),
-//         8
-//     );
-//     assert_eq!(
-//         measure_distance(1000, Interval::new(110, 120), Interval::new(130, 10)),
-//         10
-//     );
-//     assert_eq!(
-//         measure_distance(1000, Interval::new(110, 120), Interval::new(800, 900)),
-//         210
-//     );
-//     assert_eq!(
-//         measure_distance(1000, Interval::new(150, 250), Interval::new(950, 50)),
-//         100
-//     );
-// }
+#[cfg(test)]
+#[test]
+fn test_measure_displacement() {
+    assert_eq!(
+        displacement1d(1000, Interval::new(1, 2), Interval::new(10, 20)),
+        8
+    );
+    assert_eq!(
+        displacement1d(1000, Interval::new(110, 120), Interval::new(130, 10)),
+        10
+    );
+    assert_eq!(
+        displacement1d(1000, Interval::new(110, 120), Interval::new(800, 900)),
+        -210
+    );
+    assert_eq!(
+        displacement1d(1000, Interval::new(150, 250), Interval::new(950, 50)),
+        -100
+    );
+}

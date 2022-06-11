@@ -2,6 +2,7 @@
 
 use std::fmt::Formatter;
 
+use crate::o;
 /// 表示一维范围
 ///
 /// 包含字段`from`和`to`两个`<T>`类型的字段
@@ -56,16 +57,23 @@ where
 
     /// 判断`interval`是否属于`self`表示的范围
     #[inline]
-    pub fn contains_interval(&self, interval: &Self, size: T) -> bool where T: std::ops::Add<T> + From<bool> + Copy, <T as std::ops::Add<T>>::Output: Eq {
+    pub fn contains_interval(&self, interval: &Self, size: T) -> bool
+    where
+        T: std::ops::Add<T> + From<bool> + Copy,
+        <T as std::ops::Add<T>>::Output: Eq,
+    {
         let self_closed_interval = self.from <= self.to;
         let other_closed_interval = interval.from <= interval.to;
 
         if likely(self_closed_interval) {
-            other_closed_interval && self.from <= interval.from && interval.to <= self.to || self.from == size && self.to.add(true.into()) == size.add(false.into())
+            other_closed_interval && self.from <= interval.from && interval.to <= self.to
+                || self.from == size && self.to.add(true.into()) == size.add(false.into())
         } else if likely(other_closed_interval) {
-            interval.to <= self.from || self.to <= interval.from || self.to.add(true.into()) == self.from.add(false.into())
+            self.from <= interval.from
+                || interval.to <= self.to
+                || self.to.add(true.into()) == self.from.add(false.into())
         } else {
-            interval.from <= self.from && self.to <= interval.to
+            self.from <= interval.from && interval.to <= self.to
         }
     }
 
@@ -137,4 +145,23 @@ fn test_contains() {
     assert!(Interval::new(10, 0).contains(&11));
     assert!(Interval::new(10, 0).contains(&-1));
     assert!(!Interval::new(10, 0).contains(&5));
+}
+#[cfg(test)]
+#[test]
+fn test_contains_interval() {
+    assert!(o!(0=>10).contains_interval(&o!(0=>10), 100));
+    assert!(!o!(110=>120).contains_interval(&o!(130=>10), 1000));
+    assert!(!o!(110=>120).contains_interval(&o!(130=>10), 1000));
+    assert!(!o!(110=>120).contains_interval(&o!(10=>109), 1000));
+    assert!(o!(110=>120).contains_interval(&o!(110=>111), 1000));
+    assert!(o!(900=>100).contains_interval(&o!(0=>100), 1000));
+    assert!(o!(900=>100).contains_interval(&o!(0=>10), 1000));
+    assert!(o!(900=>100).contains_interval(&o!(900=>11100), 1000));
+    assert!(o!(900=>100).contains_interval(&o!(910=>90), 1000));
+    assert!(!o!(900=>100).contains_interval(&o!(890=>910), 1000));
+    assert!(!o!(900=>100).contains_interval(&o!(890=>10), 1000));
+    assert!(!o!(900=>100).contains_interval(&o!(0=>110), 1000));
+    assert!(!o!(900=>100).contains_interval(&o!(120=>130), 1000));
+    assert!(!o!(900=>100).contains_interval(&o!(120=>10), 1000));
+    assert!(!o!(0=>1000).contains_interval(&o!(900=>100), 1000));
 }
