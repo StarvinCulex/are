@@ -13,3 +13,7 @@ duplicate = "0.4"
 rand = "0.8"
 # rc-box = "1.2"
 toml = "0.5.9"
+
+[features]
+default = ["log"] # remove "log" to enable optimization
+log = []

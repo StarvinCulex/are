@@ -212,7 +212,7 @@ fn mob_debugger<F: Fn(MobRef<dyn Mob>) -> bool + Send + Sync, G: Fn(MobRef<dyn M
                         {
                             *val.lock().unwrap() = Some(m.downgrade());
                             *m.log_mut() =
-                                Logger::printer(format!["Mob {:p}", m.downgrade().as_ptr()]);
+                                Logger::printer(|| format!["Mob {:p}", m.downgrade().as_ptr()]);
                         }
                     },
                     ground_order_recorder: |_, _| {},
