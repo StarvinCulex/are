@@ -41,10 +41,7 @@ impl<K: Eq + std::hash::Hash, V> MPipe<K, V> {
         let last_turn = self.turn_now;
         self.turn_now += 1;
         Output {
-            data: self
-                .data
-                .remove(&last_turn)
-                .unwrap_or_else(|| HashMap::default()),
+            data: self.data.remove(&last_turn).unwrap_or_default(),
         }
     }
 }

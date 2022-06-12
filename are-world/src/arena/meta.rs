@@ -5,7 +5,7 @@ use std::time::Instant;
 use crate::arena::conf::GameConf;
 use crate::arena::defs::Crd;
 use crate::stats::benchmark::Benchmark;
-use crate::{Mob, MobBlock};
+use crate::{Logger, Mob, MobBlock};
 
 pub use super::*;
 

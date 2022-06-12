@@ -401,6 +401,11 @@ impl<'g, M: Mob + Unsize<dyn Mob> + ?Sized, AccessKey: ?Sized> MobRefMut<'g, M, 
     pub fn downgrade(&self) -> Weak<MobBlock, AccessKey> {
         unsafe { self.0.make_weak() }
     }
+
+    #[inline]
+    pub fn get_const(&self) -> MobRef<M, AccessKey> {
+        MobRef(CheapMobArc(self.0 .0), PhantomData)
+    }
 }
 
 impl<M: Mob + Unsize<dyn Mob> + ?Sized, AccessKey: ?Sized> MobBox<M, AccessKey> {
@@ -535,7 +540,12 @@ impl<AccessKey: ?Sized> !Clone for ReadGuard<AccessKey> {}
 
 impl<AccessKey: ?Sized> !Clone for WriteGuard<AccessKey> {}
 
-impl<'g, M: ?Sized, AccessKey: ?Sized> !Clone for MobRef<'g, M, AccessKey> {}
+impl<'g, M: ?Sized, AccessKey: ?Sized> Clone for MobRef<'g, M, AccessKey> {
+    fn clone(&self) -> Self {
+        MobRef(self.0, PhantomData)
+    }
+}
+impl<'g, M: ?Sized, AccessKey: ?Sized> Copy for MobRef<'g, M, AccessKey> {}
 
 impl<'g, M: ?Sized, AccessKey: ?Sized> !Clone for MobRefMut<'g, M, AccessKey> {}
 

@@ -47,7 +47,7 @@ use crate::cui::Window;
 use crate::grids::*;
 use crate::meta::StepArguments;
 use crate::mind::gods::bio::GodOfBio;
-use crate::mob::bio::bio::Bio;
+use crate::mob::bio::bio::{Bio, BioAction};
 use crate::mob::bio::species::Species;
 use crate::observe::logger::Logger;
 use crate::observe::plate::PlateView;
@@ -179,14 +179,21 @@ fn main() {
         .angelos
         .join(Box::new(GodOfBio::new(conf.clone())));
 
-    mob_debugger(meta, |_| true, |_| false);
+    mob_debugger(
+        meta,
+        |mut m| {
+            if let Ok(m) = m.downcast::<Bio>() {
+                matches!(m.target.lock().unwrap().target.action, BioAction::Eat)
+            } else {
+                false
+            }
+        },
+        |_| false,
+    );
     //benchmark(meta);
 }
 
-fn mob_debugger<
-    F: Fn(&MobRefMut<dyn Mob>) -> bool + Send + Sync,
-    G: Fn(MobRef<dyn Mob>) -> bool,
->(
+fn mob_debugger<F: Fn(MobRef<dyn Mob>) -> bool + Send + Sync, G: Fn(MobRef<dyn Mob>) -> bool>(
     mut meta: MetaCosmos,
     selector: F,
     deselector: G,
@@ -199,7 +206,10 @@ fn mob_debugger<
                 meta.step_x(StepArguments {
                     ground_message_recorder: |_, _| {},
                     mob_order_recorder: |mut m, _| {
-                        if !found.load(Relaxed) && selector(m) && !found.swap(true, SeqCst) {
+                        if !found.load(Relaxed)
+                            && selector(m.get_const())
+                            && !found.swap(true, SeqCst)
+                        {
                             *val.lock().unwrap() = Some(m.downgrade());
                             *m.log_mut() =
                                 Logger::printer(format!["Mob {:p}", m.downgrade().as_ptr()]);
@@ -220,6 +230,7 @@ fn mob_debugger<
                         if deselector(mob) {
                             false
                         } else {
+                            println!("tick {}", cosmos.angelos.properties.tick);
                             println!(
                                 "{}",
                                 PlateView::new(

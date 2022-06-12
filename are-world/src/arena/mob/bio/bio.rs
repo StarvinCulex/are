@@ -125,7 +125,6 @@ impl Mob for Bio {
         if !wake {
             return;
         }
-        self.log().print(|| format!("wake up"));
 
         // 维持心跳
         angelos.tell(self.downgrade(), Msg::Wake, self.species.wake_period);
