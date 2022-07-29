@@ -8,6 +8,10 @@ period = 0
 thread_count = 1
 retry = 4
 
+[gen]
+unit_count = [10, 10]
+mesh_size = 2
+
 [plant]
 aging_possibility = 0.01
 sow_possibility = 0.01

@@ -1,9 +1,13 @@
+use std::fmt::{Debug, Formatter};
+
+use serde::{Deserialize, Serialize};
+
 use crate::arena::types::ThreatT;
 use crate::arena::Weak;
 use crate::mob::bio::atk::ATK;
 use crate::MobBlock;
-use std::fmt::{Debug, Formatter};
 
+#[derive(Serialize, Deserialize)]
 pub enum Order {
     MobMainTick,
     Attack {

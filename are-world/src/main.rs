@@ -43,7 +43,6 @@ use crate::arena::r#ref::{ReadGuard, WriteGuard};
 use crate::arena::RuntimeConf;
 use crate::conencode::ConEncoder;
 use crate::conf::Conf;
-use crate::cui::Window;
 use crate::grids::*;
 use crate::meta::StepArguments;
 use crate::mind::gods::bio::GodOfBio;
@@ -58,15 +57,15 @@ use crate::sword::SWord;
 
 mod arena;
 mod conencode;
-mod cui;
 mod grids;
 mod jobs;
 mod likely;
 mod lock;
+mod math;
 mod msgpip;
 mod stats;
 mod sword;
-
+//
 // #[inline(never)]
 // fn benchmark_sub<const CW: usize, const CH: usize>(size: Coord<usize>) -> Matrix<String, CW, CH> {
 //     Matrix::<_, CW, CH>::with_ctor(size, |p| p.to_string())

@@ -22,8 +22,8 @@ pub struct PlateView {
 #[derive(Serialize)]
 pub struct BlockView {
     pub mob: usize,
-    pub plant_type: &'static str,
-    pub plant_age: EnergyT,
+    pub item: String,
+    pub energy: EnergyT,
 }
 
 #[derive(Serialize)]
@@ -52,8 +52,8 @@ impl PlateView {
                     ptr
                 })
                 .unwrap_or_default(),
-            plant_type: block.ground.plant.kind.as_str(),
-            plant_age: block.ground.plant.age,
+            item: block.ground.item.to_string(),
+            energy: block.ground.energy(),
         });
         PlateView {
             area: Coord(
@@ -97,9 +97,9 @@ impl MobView {
 impl Display for BlockView {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         if self.mob == 0 {
-            write!(f, "{}{}", self.plant_type, self.plant_age)
+            write!(f, "{}{}", self.item, self.energy)
         } else {
-            write!(f, "[{:x}]({}{})", self.mob, self.plant_type, self.plant_age)
+            write!(f, "[{:x}]({}{})", self.mob, self.item, self.energy)
         }
     }
 }

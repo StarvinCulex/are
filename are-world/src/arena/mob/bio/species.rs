@@ -98,7 +98,7 @@ impl Species {
             return x;
         }
 
-        if block.ground.plant.age >= self.eat_threshold {
+        if block.ground.energy() >= self.eat_threshold {
             BioTarget {
                 action_weight: 1,
                 action: BioAction::Eat,

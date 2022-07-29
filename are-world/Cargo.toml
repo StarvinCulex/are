@@ -13,3 +13,5 @@ duplicate = "0.4"
 rand = "0.8"
 # rc-box = "1.2"
 toml = "0.5.9"
+
+plotters = "0.3.1"

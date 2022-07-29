@@ -8,10 +8,13 @@ use crate::arena::gnd::plant;
 use crate::arena::mind::Mind;
 use crate::arena::{gnd, Cosmos, Orderer};
 use crate::meta::gnd::plant::Kind;
+use crate::meta::gnd::Ground;
+use crate::meta::types;
 use crate::{conf, Coord, PKey};
 
 pub struct GodOfPlant {
     pub conf: Arc<conf::Conf>,
+
     rng: StdRng,
 }
 
@@ -47,25 +50,6 @@ impl Mind for GodOfPlant {
                     self.rng.sample(plate_distributes.1),
                 );
                 angelos.order(p, gnd::Order::PlantAging, 0);
-            }
-        }
-
-        let sow_count = self.conf.plant.sow_possibility * area as f64;
-        if sow_count >= 1.0 || {
-            let sow_distributes = Uniform::from(0.0..1.0);
-            let p = self.rng.sample(sow_distributes);
-            p <= sow_count
-        } {
-            for _ in 0..(sow_count.ceil() as usize) {
-                let p = Coord(
-                    self.rng.sample(plate_distributes.0),
-                    self.rng.sample(plate_distributes.1),
-                );
-                angelos.order(
-                    p,
-                    gnd::Order::PlantSowing(Kind::random_new(&self.conf.plant, &mut self.rng)),
-                    0,
-                );
             }
         }
 

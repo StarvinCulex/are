@@ -201,3 +201,14 @@ impl<T: std::fmt::Display> std::fmt::Display for Coord<T> {
         write!(f, "({0}, {1})", self.0, self.1)
     }
 }
+
+impl<T> Coord<T> {
+    #[inline]
+    pub fn dot<U, V>(self, rhs: Coord<U>) -> <V as std::ops::Add>::Output
+    where
+        T: std::ops::Mul<U, Output = V>,
+        V: std::ops::Add,
+    {
+        self.0 * rhs.0 + self.1 * rhs.1
+    }
+}

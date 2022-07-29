@@ -1,9 +1,10 @@
 use core::marker::Unsize;
 use core::ops::{CoerceUnsized, DispatchFromDyn};
+use std::collections::{HashMap, HashSet};
 use std::intrinsics::{likely, unlikely};
 use std::marker::PhantomData;
 use std::ptr::NonNull;
-use std::sync::{self, Arc};
+use std::sync::{self, Arc, RwLock};
 
 use crate::arena::cosmos::{MobBlock, PKey, _MobBlock};
 use crate::arena::defs::CrdI;
@@ -545,8 +546,13 @@ impl<'g, M: ?Sized, AccessKey: ?Sized> Clone for MobRef<'g, M, AccessKey> {
         MobRef(self.0, PhantomData)
     }
 }
+
 impl<'g, M: ?Sized, AccessKey: ?Sized> Copy for MobRef<'g, M, AccessKey> {}
 
 impl<'g, M: ?Sized, AccessKey: ?Sized> !Clone for MobRefMut<'g, M, AccessKey> {}
 
 impl<M: ?Sized, AccessKey: ?Sized> !Clone for MobBox<M, AccessKey> {}
+
+// serialize
+
+const SERIALIZE_POOL: RwLock<HashSet<Weak<MobBlock>>> = Default::default();
