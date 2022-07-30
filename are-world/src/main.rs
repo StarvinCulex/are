@@ -34,21 +34,21 @@ use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use serde::de::Unexpected::Seq;
 
-use crate::arena::conf::GameConf;
 use crate::arena::cosmos::*;
 use crate::arena::mind::gods::plant::GodOfPlant;
 use crate::arena::mob::mech::mech::Mech;
 use crate::arena::mob::Mob;
 use crate::arena::r#ref::{ReadGuard, WriteGuard};
-use crate::arena::RuntimeConf;
 use crate::conencode::ConEncoder;
 use crate::conf::Conf;
 use crate::grids::*;
 use crate::meta::StepArguments;
+use crate::mind::gen;
 use crate::mind::gods::bio::GodOfBio;
 use crate::mob::bio::bio::{Bio, BioAction};
 use crate::mob::bio::species::Species;
 use crate::observe::logger::Logger;
+use crate::observe::pic;
 use crate::observe::plate::PlateView;
 use crate::stats::benchmark::Benchmark;
 use crate::sword::SWord;
@@ -170,13 +170,13 @@ fn main() {
     println!("{:?}", conf);
 
     let mut meta = MetaCosmos::new(conf.clone());
+    meta.cosmos
+        .angelos
+        .join(Box::new(gen::Generator::new(conf.clone())));
+    meta.step();
+    meta.step();
 
-    meta.cosmos
-        .angelos
-        .join(Box::new(GodOfPlant::new(conf.clone())));
-    meta.cosmos
-        .angelos
-        .join(Box::new(GodOfBio::new(conf.clone())));
+    pic::draw(&meta.cosmos, "cosmos.png").unwrap();
 
     mob_debugger(
         meta,

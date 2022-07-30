@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
+use crate::conf;
 use crate::mob::bio::species::SpeciesPool;
-use crate::{conf, GameConf};
 
 pub struct Singletons {
     pub species_pool: SpeciesPool,

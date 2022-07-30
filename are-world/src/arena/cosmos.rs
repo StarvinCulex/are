@@ -4,7 +4,6 @@ use std::intrinsics::likely;
 use std::ptr::NonNull;
 use std::sync::Arc;
 
-use crate::arena::conf::GameConf;
 use crate::arena::cosmos_ripper::CosmosRipper;
 use crate::arena::defs::{Crd, CrdI, Idx, Tick};
 use crate::arena::gnd;
@@ -129,7 +128,11 @@ impl Cosmos {
                 }),
                 mind_waiting_queue: Default::default(),
             },
-            ripper: CosmosRipper::new(plate_size, conf.game.chunk_size, conf.game.padding),
+            ripper: CosmosRipper::new(
+                plate_size,
+                conf.game.chunk_size,
+                conf.game.padding * conf.game.chunk_size,
+            ),
         }
     }
 

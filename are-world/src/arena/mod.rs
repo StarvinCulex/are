@@ -1,7 +1,6 @@
 pub use std::sync::{atomic, Mutex};
 
 //
-pub use conf::RuntimeConf;
 pub use cosmos::Angelos;
 pub use cosmos::Cosmos;
 pub use cosmos::Orderer;

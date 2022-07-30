@@ -2,7 +2,6 @@ use std::intrinsics::{likely, unlikely};
 use std::sync::Arc;
 use std::time::Instant;
 
-use crate::arena::conf::GameConf;
 use crate::arena::defs::Crd;
 use crate::stats::benchmark::Benchmark;
 use crate::{Logger, Mob, MobBlock};

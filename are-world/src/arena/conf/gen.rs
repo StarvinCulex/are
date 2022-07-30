@@ -4,6 +4,6 @@ use crate::Coord;
 
 #[derive(Deserialize, Debug)]
 pub struct Conf {
-    pub unit_size: Coord<usize>,
+    pub unit_count: Coord<usize>,
     pub mesh_size: u8,
 }

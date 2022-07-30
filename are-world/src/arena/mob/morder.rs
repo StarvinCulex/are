@@ -7,7 +7,7 @@ use crate::arena::Weak;
 use crate::mob::bio::atk::ATK;
 use crate::MobBlock;
 
-#[derive(Serialize, Deserialize)]
+// #[derive(Serialize, Deserialize)]
 pub enum Order {
     MobMainTick,
     Attack {

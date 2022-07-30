@@ -8,6 +8,7 @@ use rand::Rng;
 
 use crate::{Coord, Interval, Matrix, SeedableRng};
 
+pub mod functions;
 pub mod matrix;
 pub mod noise;
 

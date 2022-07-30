@@ -1,7 +1,7 @@
 [game]
-chunk_size = [16, 16]
+chunk_size = [48, 48]
 chunk_count = [9, 9]
-padding = [16, 16]
+padding = [1, 1]
 
 [runtime]
 period = 0
@@ -14,23 +14,11 @@ mesh_size = 2
 
 [plant]
 aging_possibility = 0.01
-sow_possibility = 0.01
+aging_energy_weight = 1000
 
-[plant.grass]
-grow = 10000
-sow_weight = 9
-fruit_cost = 20000
-fruit_when = 50000
-
-[plant.tree]
-grow = 10000
-sow_weight = 1
-fruit_cost = 50000
-fruit_when = 500000
-
-[plant.corpse]
+[corpse]
 rot = 1000
-convert_rate = 0.8
+convert_rate = 1.0
 
 [bio]
 create_possibility = 0.01

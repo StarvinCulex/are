@@ -552,7 +552,3 @@ impl<'g, M: ?Sized, AccessKey: ?Sized> Copy for MobRef<'g, M, AccessKey> {}
 impl<'g, M: ?Sized, AccessKey: ?Sized> !Clone for MobRefMut<'g, M, AccessKey> {}
 
 impl<M: ?Sized, AccessKey: ?Sized> !Clone for MobBox<M, AccessKey> {}
-
-// serialize
-
-const SERIALIZE_POOL: RwLock<HashSet<Weak<MobBlock>>> = Default::default();
