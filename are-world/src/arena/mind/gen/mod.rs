@@ -9,6 +9,7 @@ use crate::math::noise::{another_perlin_donut, noise_unify};
 use crate::mind::{gods, Mind};
 use crate::{Conf, Coord, Cosmos, Matrix, PKey, SeedableRng};
 
+mod bio;
 mod terrain;
 
 pub struct Generator {

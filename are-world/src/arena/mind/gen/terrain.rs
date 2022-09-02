@@ -24,7 +24,7 @@ pub fn gen_terrain<RNG: Rng>(cosmos: &mut Cosmos, conf: &'_ Conf, rng: &mut RNG)
             let detail = &gnd::plant::prop::DETAIL[id];
             let id = gnd::plant::Kind::try_from(id).unwrap();
             let p = detail.gen.possibility(&block.ground.env);
-            if p >= 1.0 || p < 0.0 {
+            if !(0.0..1.0).contains(&p) {
                 panic!()
             }
 
