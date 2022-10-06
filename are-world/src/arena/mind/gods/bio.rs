@@ -1,7 +1,6 @@
-use std::sync::Arc;
-
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
+use std::sync::Arc;
 
 use crate::mind::Mind;
 use crate::mob::bio::species::SpeciesPool;
@@ -30,7 +29,13 @@ impl Mind for GodOfBio {
         Ok(())
     }
 
+    fn name(&self) -> String {
+        String::from("god of bio")
+    }
+
     fn set_cosmos(&mut self, cosmos: &mut Cosmos) -> Result<(), ()> {
+        return Ok(());
+
         {
             let p = self.rng.gen_range(0.0..1.0);
             if p < self.conf.bio.create_possibility {

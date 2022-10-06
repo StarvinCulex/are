@@ -1,8 +1,7 @@
-use std::sync::Arc;
-
 use rand::distributions::Uniform;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
+use std::sync::Arc;
 
 use crate::arena::gnd::plant;
 use crate::arena::mind::Mind;
@@ -33,30 +32,14 @@ impl Mind for GodOfPlant {
     }
 
     fn make_move(&mut self, cosmos: &Cosmos, pk: &PKey) -> Result<(), ()> {
-        let mut angelos = cosmos.angelos.make_worker();
-
-        let plate_distributes = cosmos.angelos.plate_size.map(|x| Uniform::from(0..x));
-        let area = cosmos.plate.size().0 * cosmos.plate.size().1;
-
-        let aging_count = self.conf.plant.aging_possibility * area as f64;
-        if aging_count >= 1.0 || {
-            let aging_distributes = Uniform::from(0.0..1.0);
-            let p = self.rng.sample(aging_distributes);
-            p <= aging_count
-        } {
-            for _ in 0..(aging_count.ceil()) as usize {
-                let p = Coord(
-                    self.rng.sample(plate_distributes.0),
-                    self.rng.sample(plate_distributes.1),
-                );
-                angelos.order(p, gnd::Order::PlantAging, 0);
-            }
-        }
-
         Ok(())
     }
 
     fn set_cosmos(&mut self, cosmos: &mut Cosmos) -> Result<(), ()> {
         Ok(())
+    }
+
+    fn name(&self) -> String {
+        String::from("plant of god")
     }
 }

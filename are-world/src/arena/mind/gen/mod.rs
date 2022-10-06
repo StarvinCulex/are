@@ -1,15 +1,19 @@
 use std::ops::Range;
 use std::sync::Arc;
 
+use plotters::style::{RGBColor, BLACK};
 use rand::rngs::StdRng;
 use rand::Rng;
 
+use crate::arena::gnd::Item;
 use crate::arena::types::EnvT;
 use crate::math::noise::{another_perlin_donut, noise_unify};
+use crate::meta::gnd::plant;
 use crate::mind::{gods, Mind};
-use crate::{Conf, Coord, Cosmos, Matrix, PKey, SeedableRng};
+use crate::{math, Block, Conf, Coord, Cosmos, Matrix, PKey, SeedableRng};
 
 mod bio;
+mod structures;
 mod terrain;
 
 pub struct Generator {
@@ -38,13 +42,24 @@ impl Mind for Generator {
     fn set_cosmos(&mut self, cosmos: &mut Cosmos) -> Result<(), ()> {
         terrain::gen_terrain(cosmos, self.conf.as_ref(), &mut self.rng);
 
-        cosmos
-            .angelos
-            .join(Box::new(gods::GodOfPlant::new(self.conf.clone())));
-        cosmos
-            .angelos
-            .join(Box::new(gods::GodOfBio::new(self.conf.clone())));
+        structures::gen_structures(cosmos, self.conf.as_ref(), &mut self.rng);
+
+        if let Err(e) = math::paint(
+            &cosmos.plate,
+            &self.conf.log.snapshot_paths.overview,
+            &BLACK,
+            terrain_painter,
+        ) {
+            //todo
+        }
+
+        bio::gen_bio(cosmos, &*self.conf, &mut self.rng);
+
         Err(())
+    }
+
+    fn name(&self) -> String {
+        String::from("generator")
     }
 }
 
@@ -58,4 +73,10 @@ pub fn gen_noise<RNG: Rng>(
     let noise = another_perlin_donut(rng, size, conf.gen.unit_count, conf.gen.mesh_size);
     let noise = noise_unify(noise, ENV_T_RANGE);
     Matrix::with_iter(size, noise.into_iter().map(|(p, v)| (p, v as EnvT))).unwrap()
+}
+
+fn terrain_painter(grid: &Block) -> RGBColor {
+    let base_color = RGBColor(0, 0, (grid.ground.env.wet as i32 + 128) as u8);
+
+    base_color
 }

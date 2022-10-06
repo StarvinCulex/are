@@ -12,6 +12,8 @@
 #![feature(in_band_lifetimes)]
 #![feature(arbitrary_self_types)]
 #![feature(core_intrinsics)]
+#![feature(int_roundings)]
+#![feature(binary_heap_into_iter_sorted)]
 // code styles
 #![allow(dead_code, unused_imports, unused_variables)]
 #![warn(unsafe_op_in_unsafe_fn)]
@@ -21,6 +23,7 @@
 #![deny(unused_must_use)]
 #![deny(pointer_structural_match)]
 
+use std::borrow::BorrowMut;
 use std::ffi::{OsStr, OsString};
 use std::io::Read;
 use std::iter::Iterator;
@@ -35,7 +38,6 @@ use rand::{Rng, SeedableRng};
 use serde::de::Unexpected::Seq;
 
 use crate::arena::cosmos::*;
-use crate::arena::mind::gods::plant::GodOfPlant;
 use crate::arena::mob::mech::mech::Mech;
 use crate::arena::mob::Mob;
 use crate::arena::r#ref::{ReadGuard, WriteGuard};
@@ -44,13 +46,13 @@ use crate::conf::Conf;
 use crate::grids::*;
 use crate::meta::StepArguments;
 use crate::mind::gen;
-use crate::mind::gods::bio::GodOfBio;
 use crate::mob::bio::bio::{Bio, BioAction};
 use crate::mob::bio::species::Species;
 use crate::observe::logger::Logger;
 use crate::observe::pic;
 use crate::observe::plate::PlateView;
-use crate::stats::benchmark::Benchmark;
+use crate::stat::Stats;
+use crate::stats::bm2::Benchmark;
 use crate::sword::SWord;
 
 // cargo update -p crossbeam-epoch:0.9.8 --precise 0.9.7
@@ -173,23 +175,19 @@ fn main() {
     meta.cosmos
         .angelos
         .join(Box::new(gen::Generator::new(conf.clone())));
-    meta.step();
-    meta.step();
 
-    pic::draw(&meta.cosmos, "cosmos.png").unwrap();
-
-    mob_debugger(
-        meta,
-        |mut m| {
-            if let Ok(m) = m.downcast::<Bio>() {
-                matches!(m.target.lock().unwrap().target.action, BioAction::Eat)
-            } else {
-                false
-            }
-        },
-        |_| false,
-    );
-    //benchmark(meta);
+    // mob_debugger(
+    //     meta,
+    //     |mut m| {
+    //         if let Ok(m) = m.downcast::<Bio>() {
+    //             matches!(m.target.lock().unwrap().target.action, BioAction::Eat)
+    //         } else {
+    //             false
+    //         }
+    //     },
+    //     |_| false,
+    // );
+    benchmark(meta);
 }
 
 fn mob_debugger<F: Fn(MobRef<dyn Mob>) -> bool + Send + Sync, G: Fn(MobRef<dyn Mob>) -> bool>(
@@ -273,8 +271,8 @@ fn benchmark(mut meta: MetaCosmos) -> ! {
                 meta.cosmos.angelos.properties.tick - last_tick,
                 duration.as_millis()
             );
-            println!("benchmarks\n{}", meta.benchmark);
-            meta.benchmark.clear();
+            println!("stats\n{}", meta.cosmos.angelos.stats.get_mut().unwrap());
+            *meta.cosmos.angelos.stats.get_mut().unwrap() = Stats::new();
             start = SystemTime::now();
             last_tick = meta.cosmos.angelos.properties.tick;
         }

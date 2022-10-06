@@ -1,4 +1,5 @@
 use std::fmt::{format, Display, Formatter};
+use std::intrinsics::atomic_max;
 use std::sync::Arc;
 
 use rand::distributions::Uniform;
@@ -13,6 +14,7 @@ use crate::arena::Weak;
 use crate::arena::{Cosmos, MobRef, MobRefMut, ReadGuard};
 use crate::lock::spinlock::SpinLock;
 use crate::mob::bio::atk::ATK;
+use crate::mob::bio::species::stat::SpeciesStat;
 use crate::mob::common::bfs::manhattan_carpet_bomb_search;
 use crate::mob::common::pathfind::silly_facing;
 use crate::{displacement, measure_area, measure_length, mob, Coord, Interval};
@@ -22,8 +24,8 @@ use super::species::Species;
 pub struct Bio {
     pub species: Arc<Species>,
     pub age: AgeT,
-    pub energy: EnergyT,
     pub target: SpinLock<BioMutex>,
+    pub energy: EnergyT,
 
     pub hp: HitPointT,
 }
@@ -63,8 +65,14 @@ impl BioTarget {
 }
 
 impl Bio {
-    pub fn new(species: Arc<Species>, energy: EnergyT) -> Bio {
+    pub fn new(species: Arc<Species>, angelos: &mut dyn AngelosStat, energy: EnergyT) -> Bio {
         let hp = species.max_hp;
+
+        angelos
+            .stats()
+            .bio_energy_store
+            .add(SpeciesStat::from(&species), energy as i64);
+
         Bio {
             species,
             energy,
@@ -91,8 +99,12 @@ impl Bio {
         // for (_, g) in deamon.get_ground_iter_mut(self.at()).unwrap() {
         //     g.plant.add_corpse(energy_per_grid);
         // }
-
         self.log().print(|| format!("suicide"));
+        deamon
+            .angelos
+            .stats()
+            .bio_energy_store
+            .add((&self.species).into(), -(self.energy as i64));
 
         deamon.take(self);
     }
@@ -179,8 +191,12 @@ impl Mob for Bio {
                                 if self.at().contains(&p) {
                                     return None;
                                 }
-                                let target =
-                                    self.species.watching_choice(p, &cosmos.plate[p], guard);
+                                let target = self.species.watching_choice(
+                                    angelos.major,
+                                    p,
+                                    &cosmos.plate[p],
+                                    guard,
+                                );
                                 if target.action_weight == i8::MIN
                                     || target.action_weight == i8::MAX
                                 {
@@ -256,8 +272,19 @@ impl Mob for Bio {
         if !main_tick {
             return;
         }
+
         self.log().print(|| format!("execute order"));
         self.age = self.age.overflowing_add(1).0;
+
+        let last_energy = self.energy;
+        macro_rules! report_energy_change {
+            () => {
+                deamon.angelos.stats().bio_energy_store.add(
+                    (&self.species).into(),
+                    self.energy as i64 - last_energy as i64,
+                );
+            };
+        }
 
         // 生命值
         {
@@ -279,7 +306,7 @@ impl Mob for Bio {
             } else {
                 // 饿死
                 self.log().print(|| format!("starve to death"));
-                let at = self.at();
+                report_energy_change!();
                 self.suicide(deamon);
                 return;
             }
@@ -297,7 +324,7 @@ impl Mob for Bio {
                     .clone_species(self.species.clone(), deamon);
                 let child_energy = self.species.spawn_init_energy;
                 let child_size = Coord(0, 0) | child_species.size;
-                let child = Bio::new(child_species, child_energy);
+                let child = Bio::new(child_species, deamon.angelos, child_energy);
                 let mut pchild = Some(child.into_box());
 
                 // 是否放下了幼崽
@@ -358,15 +385,17 @@ impl Mob for Bio {
             let dist = displacement(deamon.angelos.major.plate_size, at, target_pos).map(Idx::abs);
             if dist <= target.action_range {
                 // 做动作
+                let now = deamon.angelos.major.properties.tick;
                 match target.action {
                     // 吃
                     BioAction::Eat => {
                         let mut takes: EnergyT = 0;
                         if let Ok(grounds) = deamon.get_ground_iter_mut(target_pos) {
                             for (p, g) in grounds {
-                                takes = takes.saturating_add(
-                                    g.mow_threshold(species.eat_takes, species.eat_threshold),
-                                );
+                                // bio会重构的，先这么干吧
+                                takes = takes.saturating_add(unsafe {
+                                    g.raw_mow(&now, species.eat_takes, species.eat_threshold)
+                                });
                             }
                         }
                         if takes == 0 {
@@ -469,6 +498,7 @@ impl Mob for Bio {
                 }
             };
         }
+        report_energy_change!();
     }
 
     fn threat(&self) -> ThreatT {

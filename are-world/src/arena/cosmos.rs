@@ -116,6 +116,7 @@ impl Cosmos {
                 singletons: Singletons::new(conf.clone()),
                 conf: conf.clone(),
                 properties: Properties { tick: 0 },
+                stats: Mutex::new(Stats::new()),
                 plate_size,
                 pkey: PKey::new(),
                 async_data: Mutex::new(MajorAngelosAsyncData {
@@ -246,41 +247,103 @@ impl Cosmos {
         gnd_message_recorder: GF,
         mob_message_recorder: MF,
     ) {
+        self.angelos
+            .stats
+            .get_mut()
+            .unwrap()
+            .benchmark
+            .start_timing("message tick step#prepare")
+            .unwrap();
+
+        let thread_count = self.angelos.conf.runtime.thread_count;
+        let angelos_data = self.angelos.async_data.get_mut().unwrap();
+        let gnd_messages = angelos_data.gnd_messages.pop_this_turn();
+        let mob_pos_messages = angelos_data.mob_pos_messages.pop_this_turn();
+        let mut mob_messages = angelos_data.mob_messages.pop_this_turn();
+
+        let mut workers = Vec::with_capacity(thread_count);
+        for _ in 0..thread_count {
+            workers.push(self.angelos.make_worker());
+        }
+
         {
-            let thread_count = self.angelos.conf.runtime.thread_count;
-            let angelos_data = self.angelos.async_data.get_mut().unwrap();
-            let gnd_messages = angelos_data.gnd_messages.pop_this_turn();
-            let mob_pos_messages = angelos_data.mob_pos_messages.pop_this_turn();
-            let mut mob_messages = angelos_data.mob_messages.pop_this_turn();
+            let mut stats = self.angelos.stats.lock().unwrap();
+            stats
+                .benchmark
+                .stop_timing("message tick step#prepare")
+                .unwrap();
+            stats
+                .benchmark
+                .count("ground message count", gnd_messages.len() as u64)
+                .unwrap();
+            stats
+                .benchmark
+                .count("mob pos message count", mob_pos_messages.len() as u64)
+                .unwrap();
+            stats
+                .benchmark
+                .count("mob ref message count", mob_messages.len() as u64)
+                .unwrap();
 
-            let mut workers = Vec::with_capacity(thread_count);
-            for _ in 0..thread_count {
-                workers.push(self.angelos.make_worker());
-            }
+            stats
+                .benchmark
+                .start_timing("message tick step#ground_hear")
+                .unwrap();
+        }
 
+        jobs::work(
+            workers.iter_mut(),
+            gnd_messages.into_iter().collect(),
+            |angelos, (pos, msgs)| {
+                gnd_message_recorder(pos, &msgs);
+                self.plate[pos].ground.hear(self, angelos, pos, msgs)
+            },
+        );
+        {
+            let mut stats = self.angelos.stats.lock().unwrap();
+            stats
+                .benchmark
+                .stop_timing("message tick step#ground_hear")
+                .unwrap();
+            stats
+                .benchmark
+                .start_timing("message tick step#pos2weakmob")
+                .unwrap();
+        }
+
+        self.pos_to_weak_mob(mob_pos_messages, &mut mob_messages);
+        {
+            let mut stats = self.angelos.stats.lock().unwrap();
+            stats
+                .benchmark
+                .stop_timing("message tick step#pos2weakmob")
+                .unwrap();
+            stats
+                .benchmark
+                .start_timing("message tick step#mobhear")
+                .unwrap();
+        }
+
+        ReadGuard::with(&self.angelos.pkey, |guard| {
             jobs::work(
                 workers.iter_mut(),
-                gnd_messages.into_iter().collect(),
-                |angelos, (pos, msgs)| {
-                    gnd_message_recorder(pos, &msgs);
-                    self.plate[pos].ground.hear(self, angelos, pos, msgs)
+                mob_messages.into_iter().collect(),
+                |angelos, (mob, msgs)| {
+                    if_likely!(let Some(mob_ref) = guard.wrap_weak(&mob) => {
+                        mob_message_recorder(&mob_ref, &msgs);
+                        mob_ref.hear(self, angelos, msgs, guard);
+                    });
                 },
             );
+        });
 
-            self.pos_to_weak_mob(mob_pos_messages, &mut mob_messages);
-            ReadGuard::with(&self.angelos.pkey, |guard| {
-                jobs::work(
-                    workers.iter_mut(),
-                    mob_messages.into_iter().collect(),
-                    |angelos, (mob, msgs)| {
-                        if_likely!(let Some(mob_ref) = guard.wrap_weak(&mob) => {
-                            mob_message_recorder(&mob_ref, &msgs);
-                            mob_ref.hear(self, angelos, msgs, guard);
-                        });
-                    },
-                );
-            })
-        }
+        self.angelos
+            .stats
+            .lock()
+            .unwrap()
+            .benchmark
+            .stop_timing("message tick step#mobhear")
+            .unwrap();
     }
 
     #[inline]
@@ -292,6 +355,14 @@ impl Cosmos {
         ground_order_recorder: GF,
         mob_order_recorder: MF,
     ) {
+        self.angelos
+            .stats
+            .get_mut()
+            .unwrap()
+            .benchmark
+            .start_timing("order tick step#prepare")
+            .unwrap();
+
         let thread_count = self.angelos.conf.runtime.thread_count;
         let angelos_data = self.angelos.async_data.get_mut().unwrap();
         let gnd_orders = angelos_data.gnd_orders.pop_this_turn();
@@ -301,6 +372,31 @@ impl Cosmos {
         let mut workers = Vec::with_capacity(thread_count);
         for _ in 0..thread_count {
             workers.push(self.angelos.make_worker());
+        }
+
+        {
+            let mut stats = self.angelos.stats.lock().unwrap();
+            stats
+                .benchmark
+                .stop_timing("order tick step#prepare")
+                .unwrap();
+            stats
+                .benchmark
+                .count("ground order count", gnd_orders.len() as u64)
+                .unwrap();
+            stats
+                .benchmark
+                .count("mob pos order count", mob_pos_orders.len() as u64)
+                .unwrap();
+            stats
+                .benchmark
+                .count("mob ref order count", mob_orders.len() as u64)
+                .unwrap();
+
+            stats
+                .benchmark
+                .start_timing("order tick step#groundorder")
+                .unwrap();
         }
 
         jobs::work(
@@ -314,9 +410,45 @@ impl Cosmos {
             },
         );
 
+        {
+            let mut stats = self.angelos.stats.lock().unwrap();
+            stats
+                .benchmark
+                .stop_timing("order tick step#groundorder")
+                .unwrap();
+            stats
+                .benchmark
+                .start_timing("order tick step#pos2weakmob")
+                .unwrap();
+        }
+
         self.pos_to_weak_mob(mob_pos_orders, &mut mob_orders);
 
+        {
+            let mut stats = self.angelos.stats.lock().unwrap();
+            stats
+                .benchmark
+                .stop_timing("order tick step#pos2weakmob")
+                .unwrap();
+            stats
+                .benchmark
+                .start_timing("order tick step#weakmob2interval")
+                .unwrap();
+        }
+
         let mut chunked_orders = self.weak_mob_to_interval(mob_orders, self.ripper.chunk_size);
+
+        {
+            let mut stats = self.angelos.stats.lock().unwrap();
+            stats
+                .benchmark
+                .stop_timing("order tick step#weakmob2interval")
+                .unwrap();
+            stats
+                .benchmark
+                .start_timing("order tick step#moborder")
+                .unwrap();
+        }
 
         WriteGuard::with(&self.angelos.pkey, |guard| {
             self.ripper.with(|batch| {
@@ -349,6 +481,14 @@ impl Cosmos {
                 );
             });
         });
+
+        self.angelos
+            .stats
+            .lock()
+            .unwrap()
+            .benchmark
+            .stop_timing("order tick step#moborder")
+            .unwrap();
     }
 
     #[inline]

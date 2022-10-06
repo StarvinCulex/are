@@ -31,4 +31,5 @@ pub mod mob;
 pub mod observe;
 pub mod r#ref;
 pub mod singletons;
+pub mod stat;
 mod types;

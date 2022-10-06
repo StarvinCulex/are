@@ -8,9 +8,9 @@ pub use gorder::Order;
 use plant::Kind;
 pub use plant::Plant;
 
-use crate::arena::defs::Crd;
+use crate::arena::defs::{Crd, Tick};
 use crate::meta::types::EnergyT;
-use crate::{Angelos, Cosmos};
+use crate::{Angelos, Cosmos, MajorAngelos};
 
 pub mod environment;
 pub mod gmsg;
@@ -56,50 +56,57 @@ impl Ground {
         match &mut self.item {
             Item::Air => {}
 
-            Item::Plant(plant) => {
-                for order in orders {
-                    match order {
-                        Order::PlantAging => {
-                            plant.aging(at, &mut self.env, angelos);
-                        }
-                    }
-                }
-            }
+            Item::Plant(plant) => {}
         }
     }
 
     #[inline]
-    pub fn aging(&mut self, at: Crd, angelos: &Angelos) {
-        match &mut self.item {
-            Item::Air => {}
-            Item::Plant(p) => p.aging(at, &mut self.env, angelos),
-        }
-    }
-
-    #[inline]
-    pub fn energy(&self) -> EnergyT {
+    pub fn energy(&self, angelos: &MajorAngelos) -> EnergyT {
         match &self.item {
             Item::Air => 0,
-            Item::Plant(p) => p.energy,
+            Item::Plant(p) => plant::prop::DETAIL[p.kind as usize].energy(
+                &p.birthday,
+                &angelos.properties.tick,
+                &self.env,
+            ),
         }
     }
 
     #[inline]
-    pub fn mow(&mut self, value: EnergyT) -> EnergyT {
-        self.mow_threshold(value, 0)
+    pub fn mow(&mut self, angelos: &MajorAngelos, value: EnergyT) -> EnergyT {
+        self.mow_threshold(angelos, value, 0)
     }
 
     #[inline]
-    pub fn mow_threshold(&mut self, value: EnergyT, threshold: EnergyT) -> EnergyT {
+    pub unsafe fn raw_mow(&mut self, now: &Tick, value: EnergyT, threshold: EnergyT) -> EnergyT {
         match &mut self.item {
             Item::Air => 0,
-            Item::Plant(p) => p.mow_threshold(value, threshold),
+            Item::Plant(p) => plant::prop::DETAIL[p.kind as usize].mow_threshold(
+                value,
+                threshold,
+                &mut p.birthday,
+                now,
+                &self.env,
+            ),
         }
+    }
+
+    #[inline]
+    pub fn mow_threshold(
+        &mut self,
+        angelos: &MajorAngelos,
+        value: EnergyT,
+        threshold: EnergyT,
+    ) -> EnergyT {
+        unsafe { self.raw_mow(&angelos.properties.tick, value, threshold) }
     }
 }
 
-impl Ground {
-    pub fn name(&self) -> String {
-        todo!()
+impl ToString for Ground {
+    fn to_string(&self) -> String {
+        match &self.item {
+            Item::Air => String::from("air"),
+            Item::Plant(p) => p.to_string(),
+        }
     }
 }

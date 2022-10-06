@@ -16,6 +16,8 @@ toml = "0.5.9"
 
 plotters = "0.3.1"
 
+derive_more = "0.99.17"
+
 [features]
 default = ["log"] # remove "log" to enable optimization
 log = []

@@ -1,16 +1,20 @@
 [game]
-chunk_size = [48, 48]
-chunk_count = [9, 9]
+chunk_size = [64, 64]
+chunk_count = [36, 36]
 padding = [1, 1]
 
 [runtime]
 period = 0
-thread_count = 1
+thread_count = 8
 retry = 4
 
 [gen]
 unit_count = [10, 10]
 mesh_size = 2
+
+[log]
+snapshot_paths.overview = ".\\overview.png"
+
 
 [plant]
 aging_possibility = 0.01
@@ -21,7 +25,7 @@ rot = 1000
 convert_rate = 1.0
 
 [bio]
-create_possibility = 0.01
+initial_population = 100000
 mutation.insert = 0.1
 mutation.remove = 0.1
 

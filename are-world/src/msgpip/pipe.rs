@@ -53,6 +53,10 @@ impl<K: Eq + std::hash::Hash, V> Output<K, V> {
             .and_modify(|v| v.append(&mut values))
             .or_insert(values);
     }
+
+    pub fn len(&self) -> usize {
+        self.data.len()
+    }
 }
 
 impl<K: Eq + std::hash::Hash, V> IntoIterator for Output<K, V> {

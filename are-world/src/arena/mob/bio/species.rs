@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::intrinsics::{likely, unlikely};
 use std::ops::Add;
 use std::sync;
+use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, Weak};
 
 use rand::distributions::Uniform;
@@ -16,7 +17,9 @@ use crate::lock::spinlock::{Guard, SpinLock};
 use crate::meta::defs::{Idx, Tick};
 use crate::mob::bio::atk::ATK;
 use crate::mob::bio::bio::{BioAction, BioTarget};
-use crate::{if_likely, if_unlikely, Block, Coord, Deamon, PKey, ReadGuard};
+use crate::{
+    if_likely, if_unlikely, AngelosStat, Block, Coord, Deamon, MajorAngelos, PKey, ReadGuard, Stats,
+};
 
 use super::gene::Gene;
 
@@ -64,7 +67,13 @@ impl Species {
 
     /// 返回值：负数表示逃离，正数表示接近
     #[inline]
-    pub fn watching_choice(&self, at: Crd, block: &Block, guard: &ReadGuard<PKey>) -> BioTarget {
+    pub fn watching_choice(
+        &self,
+        angelos: &MajorAngelos,
+        at: Crd,
+        block: &Block,
+        guard: &ReadGuard<PKey>,
+    ) -> BioTarget {
         let mob_check = || -> Option<BioTarget> {
             let mob = block.mob_ref(guard)?;
             let threat = mob.threat();
@@ -98,7 +107,7 @@ impl Species {
             return x;
         }
 
-        if block.ground.energy() >= self.eat_threshold {
+        if block.ground.energy(angelos) >= self.eat_threshold {
             BioTarget {
                 action_weight: 1,
                 action: BioAction::Eat,
@@ -210,7 +219,7 @@ impl SpeciesPool {
         gene
     }
 
-    pub fn new_species(&self, gene: Gene) -> Arc<Species> {
+    pub fn new_species(&self, gene: Gene, stats: &mut Stats) -> Arc<Species> {
         let mut guard = self.species_list.lock().unwrap();
         let species = match guard.entry(gene) {
             Entry::Occupied(mut x) => {
@@ -252,7 +261,7 @@ impl SpeciesPool {
             return species;
         };
 
-        self.new_species(gene)
+        self.new_species(gene, deamon.angelos.stats())
     }
 }
 
@@ -298,5 +307,56 @@ impl Species {
             .into_iter()
             .reduce(|x, y| x.add(y.as_str()))
             .unwrap_or_default()
+    }
+}
+
+pub mod stat {
+    use std::fmt::{Display, Formatter, Pointer};
+    use std::hash::{Hash, Hasher};
+
+    use super::*;
+
+    pub struct SpeciesStat {
+        p: Weak<Species>,
+    }
+
+    impl PartialEq for SpeciesStat {
+        #[inline]
+        fn eq(&self, other: &Self) -> bool {
+            std::ptr::eq(self.p.as_ptr(), other.p.as_ptr())
+        }
+    }
+
+    impl Eq for SpeciesStat {}
+
+    impl Hash for SpeciesStat {
+        #[inline]
+        fn hash<H: Hasher>(&self, state: &mut H) {
+            self.p.as_ptr().hash(state)
+        }
+    }
+
+    impl Display for SpeciesStat {
+        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+            if let Some(species) = self.p.upgrade() {
+                write!(f, "{}", species.to_string())
+            } else {
+                write!(f, "<extinct>")
+            }
+        }
+    }
+
+    impl From<Weak<Species>> for SpeciesStat {
+        fn from(p: Weak<Species>) -> Self {
+            Self { p }
+        }
+    }
+
+    impl From<&Arc<Species>> for SpeciesStat {
+        fn from(a: &Arc<Species>) -> Self {
+            Self {
+                p: Arc::downgrade(a),
+            }
+        }
     }
 }

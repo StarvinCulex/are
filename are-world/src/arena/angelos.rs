@@ -4,12 +4,15 @@ use rand::rngs::StdRng;
 use rand::SeedableRng;
 
 use crate::singletons::Singletons;
+use crate::stat::Stats;
+use crate::stats::bm2::Benchmark;
 
 pub struct MajorAngelos {
     pub properties: Properties,
     pub conf: Arc<conf::Conf>,
     pub plate_size: Coord<Idx>,
     pub singletons: Singletons,
+    pub stats: Mutex<Stats>,
     pkey: PKey,
 
     async_data: Mutex<MajorAngelosAsyncData>,
@@ -29,6 +32,7 @@ pub struct MajorAngelosAsyncData {
 pub struct Angelos<'m> {
     pub major: &'m MajorAngelos,
     pub random: StdRng,
+    stats: Stats,
 
     gnd_messages_buf: Vec<(Tick, Crd, gnd::Msg)>,
     gnd_orders_buf: Vec<(Tick, Crd, gnd::Order)>,
@@ -44,6 +48,7 @@ impl MajorAngelos {
         Angelos {
             major: self,
             random: StdRng::from_entropy(),
+            stats: Stats::new(),
             gnd_messages_buf: vec![],
             gnd_orders_buf: vec![],
             mob_pos_messages_buf: vec![],
@@ -74,6 +79,8 @@ impl MajorAngelos {
 impl<'m> Drop for Angelos<'m> {
     #[inline]
     fn drop(&mut self) {
+        *self.major.stats.lock().unwrap() += std::mem::take(&mut self.stats);
+
         let mut guard = self.major.async_data.lock().unwrap();
         guard
             .gnd_orders
@@ -96,6 +103,10 @@ impl<'m> Drop for Angelos<'m> {
     }
 }
 
+pub trait AngelosStat {
+    fn stats(&mut self) -> &mut Stats;
+}
+
 pub trait Teller<Index, Letter> {
     fn tell(&mut self, index: Index, letter: Letter, delay: Tick);
 }
@@ -105,6 +116,19 @@ pub trait Orderer<Index, Letter> {
 }
 
 // Angelos
+impl AngelosStat for MajorAngelos {
+    fn stats(&mut self) -> &mut Stats {
+        self.stats.get_mut().unwrap()
+    }
+}
+
+impl<'m> AngelosStat for Angelos<'m> {
+    #[inline]
+    fn stats(&mut self) -> &mut Stats {
+        &mut self.stats
+    }
+}
+
 impl Teller<Crd, gnd::Msg> for Angelos<'_> {
     #[inline]
     fn tell(&mut self, mut k: Crd, v: gnd::Msg, delay: Tick) {

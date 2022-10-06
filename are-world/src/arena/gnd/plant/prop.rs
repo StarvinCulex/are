@@ -1,69 +1,85 @@
-use crate::arena::gnd::Environment;
-use crate::math;
-use crate::meta::types::*;
+use std::intrinsics::unlikely;
 
-pub const DETAIL: [PlantDetail; 2] = [
-    PlantDetail {
-        name: "tree",
-        max_energy: 500000,
-        grow: 2,
-        gen: GenerateDetail::Gauss {
-            humid_deviation: 15.0,
-            humid_center: 128.0,
-            max_possibility: 0.1,
-        },
-    },
-    PlantDetail {
-        max_energy: 50000,
+use crate::arena::defs::Tick;
+use crate::arena::gnd::Environment;
+use crate::meta::types::*;
+use crate::{math, MajorAngelos};
+
+pub const DETAIL: [&'static dyn PlantClass; 2] = [
+    &FirstPlant {
         name: "grass",
-        grow: 1,
-        gen: GenerateDetail::Gauss {
-            humid_deviation: 50.0,
-            humid_center: 50.0,
-            max_possibility: 0.8,
-        },
+        aging_factor: 10,
+        max_energy: 10000,
+    },
+    &FirstPlant {
+        name: "tree",
+        aging_factor: 20,
+        max_energy: 50000,
     },
 ];
 
-pub struct PlantDetail {
-    grow: EnergyT,
-    pub max_energy: EnergyT,
-    pub name: &'static str,
+pub trait PlantClass: ToString {
+    fn energy(&self, birthday: &Tick, now: &Tick, env: &Environment) -> EnergyT;
+    fn mow_threshold(
+        &self,
+        value: EnergyT,
+        threshold: EnergyT,
+        birthday: &mut Tick,
+        now: &Tick,
+        env: &Environment,
+    ) -> EnergyT;
 
-    pub gen: GenerateDetail,
+    fn gen_possibility(&self, env: &Environment) -> f32;
 }
 
-impl PlantDetail {
-    #[inline]
-    pub fn growth(&self, env: &Environment) -> EnergyT {
-        todo!()
+pub struct FirstPlant {
+    pub name: &'static str,
+    pub aging_factor: EnergyT,
+    pub max_energy: EnergyT,
+}
+
+impl ToString for FirstPlant {
+    fn to_string(&self) -> String {
+        self.name.to_string()
     }
 }
 
-pub enum GenerateDetail {
-    Gauss {
-        humid_deviation: f32,
-        humid_center: f32,
-        max_possibility: f32,
-    },
-}
+impl PlantClass for FirstPlant {
+    fn energy(&self, birthday: &Tick, now: &Tick, _: &Environment) -> EnergyT {
+        let age = *now - *birthday;
 
-impl GenerateDetail {
-    #[inline]
-    pub fn possibility(&self, env: &Environment) -> f32 {
-        match self {
-            GenerateDetail::Gauss {
-                humid_deviation,
-                humid_center,
-                max_possibility,
-            } => {
-                let d = math::functions::gauss::density(
-                    env.humid.into(),
-                    *humid_center,
-                    *humid_deviation,
-                ) /*height*/ * 1.0 /*width*/;
-                d / math::functions::gauss::density(0.0, 0.0, *humid_deviation) * max_possibility
-            }
+        let (e, overflow) = age.overflowing_mul(self.aging_factor as Tick);
+        if unlikely(overflow) || e > self.max_energy as Tick {
+            self.max_energy
+        } else {
+            e as EnergyT
         }
+    }
+
+    fn mow_threshold(
+        &self,
+        value: EnergyT,
+        threshold: EnergyT,
+        birthday: &mut Tick,
+        now: &Tick,
+        env: &Environment,
+    ) -> EnergyT {
+        let energy = self.energy(birthday, now, env);
+        let expected_age = if energy >= value && energy - value >= threshold {
+            let expected_energy = energy - value;
+            expected_energy.div_ceil(self.aging_factor)
+        } else if energy <= threshold {
+            return 0;
+        } else {
+            threshold.div_ceil(self.aging_factor)
+        };
+
+        *birthday = *now - expected_age as Tick;
+
+        energy - expected_age * self.aging_factor
+    }
+
+    fn gen_possibility(&self, env: &Environment) -> f32 {
+        0.1
     }
 }

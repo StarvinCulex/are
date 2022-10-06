@@ -11,10 +11,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::arena::cosmos::Deamon;
 use crate::arena::defs::Crd;
+use crate::arena::gnd::plant::prop::PlantClass;
 use crate::arena::types::*;
-use crate::arena::{gnd, Angelos, Cosmos, Orderer};
+use crate::arena::{gnd, Cosmos, Orderer};
 use crate::meta::defs::Tick;
-use crate::{conf, if_likely, if_unlikely, Coord};
+use crate::{conf, if_likely, if_unlikely, Coord, MajorAngelos};
 
 use super::Environment;
 
@@ -30,40 +31,19 @@ pub type Kind = u8;
 
 impl Plant {
     #[inline]
-    pub fn new(kind: Kind, angelos: &Angelos) -> Self {
-        let birthday = angelos.major.properties.tick;
+    pub fn new(kind: Kind, angelos: &MajorAngelos) -> Self {
+        let birthday = angelos.properties.tick;
         Plant { kind, birthday }
     }
-
     #[inline]
-    pub fn energy(&self, angelos: &Angelos) -> EnergyT {
-        let prop = &prop::DETAIL[usize::from(self.kind)];
-    }
-
-    #[inline]
-    pub fn mow(&mut self, value: EnergyT, tick_now: &Tick) -> EnergyT {
-        self.mow_threshold(value, 0, tick_now)
-    }
-
-    #[inline]
-    pub fn mow_threshold(
-        &mut self,
-        value: EnergyT,
-        threshold: EnergyT,
-        tick_now: &Tick,
-    ) -> EnergyT {
-        let mow = self
-            .energy
-            .checked_sub(threshold)
-            .map(|taking| taking.min(value))
-            .unwrap_or_default();
-        self.energy -= mow;
-        mow
+    pub fn kind_detail(&self) -> &'static dyn PlantClass {
+        prop::DETAIL[self.kind as usize]
     }
 }
 
 impl ToString for Plant {
+    #[inline]
     fn to_string(&self) -> String {
-        prop::DETAIL[usize::from(self.kind)].name.to_string()
+        prop::DETAIL[usize::from(self.kind)].to_string()
     }
 }

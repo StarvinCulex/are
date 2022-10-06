@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::time::{Duration, Instant};
 
+#[deprecated]
 pub struct Benchmark {
     records: HashMap<String, u128>,
     last_at: Instant,

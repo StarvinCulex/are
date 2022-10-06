@@ -53,7 +53,7 @@ impl PlateView {
                 })
                 .unwrap_or_default(),
             item: block.ground.item.to_string(),
-            energy: block.ground.energy(),
+            energy: block.ground.energy(&cosmos.angelos),
         });
         PlateView {
             area: Coord(

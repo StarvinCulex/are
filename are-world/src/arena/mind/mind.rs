@@ -7,4 +7,6 @@ pub trait Mind: Send {
     fn make_move(&mut self, cosmos: &Cosmos, pk: &PKey) -> Result<(), ()>;
 
     fn set_cosmos(&mut self, cosmos: &mut Cosmos) -> Result<(), ()>;
+
+    fn name(&self) -> String;
 }

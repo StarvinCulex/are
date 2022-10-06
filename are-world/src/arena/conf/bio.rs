@@ -3,7 +3,7 @@ use crate::arena::types::HitPointT;
 #[derive(super::Deserialize, Debug)]
 pub struct Conf {
     /// [`GodOfBio`]在某一刻触发造生物的概率
-    pub create_possibility: f64,
+    pub initial_population: u32,
     pub mutation: Mutation,
     /// 每个生物的基础数值。  
     /// 其基因提供的数值会累加到基础数值上面，作为游戏中的属性

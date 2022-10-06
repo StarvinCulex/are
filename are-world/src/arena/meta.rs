@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use crate::arena::defs::Crd;
-use crate::stats::benchmark::Benchmark;
+use crate::stats::bm2::Benchmark;
 use crate::{Logger, Mob, MobBlock};
 
 pub use super::*;
@@ -11,7 +11,6 @@ pub use super::*;
 pub struct MetaCosmos {
     mind_list: Vec<Box<dyn mind::Mind>>,
     pub cosmos: Cosmos,
-    pub benchmark: Benchmark,
 }
 
 pub struct StepArguments<
@@ -31,7 +30,6 @@ impl MetaCosmos {
         MetaCosmos {
             mind_list: Vec::new(),
             cosmos: Cosmos::new(conf),
-            benchmark: Benchmark::new(),
         }
     }
 
@@ -53,23 +51,39 @@ impl MetaCosmos {
         &mut self,
         args: StepArguments<GMR, MMR, GOR, MOR>,
     ) {
-        self.benchmark.start();
+        macro_rules! bench {
+            () => {
+                self.cosmos.angelos.stats.get_mut().unwrap().benchmark
+            };
+        }
+
+        bench!().start_timing("mind move tick").unwrap();
         self.mind_move_tick();
-        self.benchmark.end("mind move tick");
+        bench!().stop_timing("mind move tick").unwrap();
+
+        bench!().start_timing("mind set tick").unwrap();
         self.mind_set_cosmos();
-        self.benchmark.end("mind set tick");
+        bench!().stop_timing("mind set tick").unwrap();
+
+        bench!().start_timing("mind flush tick").unwrap();
         self.mind_flush_queue();
-        self.benchmark.end("mind flush tick");
+        bench!().stop_timing("mind flush tick").unwrap();
+
+        bench!().start_timing("message tick").unwrap();
         self.cosmos
             .message_tick(args.ground_message_recorder, args.mob_message_recorder);
-        self.benchmark.end("message tick");
+        bench!().stop_timing("message tick").unwrap();
+
+        bench!().start_timing("order tick").unwrap();
         self.cosmos
             .order_tick(args.ground_order_recorder, args.mob_order_recorder);
-        self.benchmark.end("order tick");
+        bench!().stop_timing("order tick").unwrap();
+
+        bench!().start_timing("mind view tick").unwrap();
         self.mind_view_tick();
-        self.benchmark.end("mind view tick");
+        bench!().stop_timing("mind view tick").unwrap();
+
         self.cosmos.add_tick();
-        self.benchmark.end("add tick");
 
         if unlikely(self.cosmos.angelos.conf.runtime.period != 0) {
             std::thread::sleep(std::time::Duration::from_millis(
