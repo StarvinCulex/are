@@ -45,7 +45,7 @@ impl PlateView {
                 .mob_ref(guard)
                 .map(|m| {
                     // make it shorter
-                    let ptr = &*m as *const dyn Mob as *const () as usize;
+                    let ptr = m.as_ptr() as *const () as usize;
                     if let Entry::Vacant(entry) = mobs.entry(ptr) {
                         entry.insert(MobView::new(m));
                     }

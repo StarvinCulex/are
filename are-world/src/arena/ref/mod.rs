@@ -331,6 +331,11 @@ impl<'g, M: ?Sized, AccessKey: ?Sized> MobRef<'g, M, AccessKey> {
     pub fn weak_count(&self) -> usize {
         unsafe { self.0.weak_count() }
     }
+
+    #[inline]
+    pub fn as_ptr(self) -> *const _MobBlock<M> {
+        self.0.as_ptr()
+    }
 }
 
 impl<'g, M: ?Sized, AccessKey: ?Sized> MobRefMut<'g, M, AccessKey> {
@@ -363,6 +368,11 @@ impl<'g, M: ?Sized, AccessKey: ?Sized> MobRefMut<'g, M, AccessKey> {
     pub fn weak_count(&self) -> usize {
         unsafe { self.0.weak_count() }
     }
+
+    #[inline]
+    pub fn as_ptr(self) -> *const _MobBlock<M> {
+        self.0.as_ptr()
+    }
 }
 
 impl<M: ?Sized, AccessKey: ?Sized> MobBox<M, AccessKey> {
@@ -387,6 +397,11 @@ impl<M: ?Sized, AccessKey: ?Sized> MobBox<M, AccessKey> {
     #[inline]
     pub fn weak_count(&self) -> usize {
         Arc::weak_count(&self.0)
+    }
+
+    #[inline]
+    pub fn as_ptr(self) -> *const _MobBlock<M> {
+        Arc::as_ptr(&self.0)
     }
 }
 
