@@ -1,4 +1,5 @@
 use crate::arena::types::HitPointT;
+use crate::arena::mob::bio::gene::GeneCnt;
 
 #[derive(super::Deserialize, Debug)]
 pub struct Conf {
@@ -11,7 +12,7 @@ pub struct Conf {
     /// [`GodOfBio`]随机制造生物的模板。
     pub creatures: Vec<Creature>,
     /// 生物基因基本单元的词典
-    pub acids: std::collections::HashMap<String, Acid>,
+    pub acids: std::collections::BTreeMap<String, Acid>,
 }
 
 #[derive(super::Deserialize, Debug)]
@@ -22,7 +23,7 @@ pub struct Acid {
     pub prop: Properties,
 }
 
-#[derive(super::Deserialize, Debug, Clone)]
+#[derive(super::Deserialize, Debug, Clone, derive_more::Add, derive_more::Mul)]
 pub struct Properties {
     /// 生物醒来的周期。最小是0  
     /// 每当醒来，年龄增加1
@@ -57,7 +58,7 @@ pub struct Properties {
     pub combat: Combat,
 }
 
-#[derive(super::Deserialize, Debug, Clone)]
+#[derive(super::Deserialize, Debug, Clone, derive_more::Add, derive_more::Mul)]
 pub struct Combat {
     /// 生命值。为0时会死亡。至少是1
     pub hit_point: f64,
@@ -97,38 +98,4 @@ pub struct Creature {
     pub insertions: usize,
     /// 初始的基因
     pub gene: crate::arena::mob::bio::gene::Gene,
-}
-
-impl std::ops::Add<&Properties> for Properties {
-    type Output = Properties;
-    #[inline]
-    fn add(self, rhs: &Self) -> Self::Output {
-        Properties {
-            wake_period: self.wake_period + rhs.wake_period,
-            wake_energy_consume: self.wake_energy_consume + rhs.wake_energy_consume,
-            energy_cost: self.energy_cost + rhs.energy_cost,
-            spawn_loss: self.spawn_loss + rhs.spawn_loss,
-            spawn_init_energy: self.spawn_init_energy + rhs.spawn_init_energy,
-            incubation_delay: self.incubation_delay + rhs.incubation_delay,
-            size: self.size + rhs.size,
-            watch_period: self.watch_period + rhs.watch_period,
-            watch_area: self.watch_area + rhs.watch_area,
-            move_period: self.move_period + rhs.move_period,
-            move_cost: self.move_cost + rhs.move_cost,
-            eat_threshold: self.eat_threshold + rhs.eat_threshold,
-            eat_takes: self.eat_takes + rhs.eat_takes,
-            combat: Combat {
-                hit_point: self.combat.hit_point + rhs.combat.hit_point,
-                regeneration: self.combat.regeneration + rhs.combat.regeneration,
-                regeneration_cost: self.combat.regeneration_cost + rhs.combat.regeneration_cost,
-                atk: self.combat.atk + rhs.combat.atk,
-                atk_cost: self.combat.atk_cost + rhs.combat.atk_cost,
-                threat: self.combat.threat + rhs.combat.threat,
-                flee_threshold: self.combat.flee_threshold + rhs.combat.flee_threshold,
-                fight_back_threshold: self.combat.fight_back_threshold
-                    + rhs.combat.fight_back_threshold,
-                chase_threshold: self.combat.chase_threshold + rhs.combat.chase_threshold,
-            },
-        }
-    }
 }

@@ -172,6 +172,10 @@ impl SpeciesPool {
         }
     }
 
+    pub fn conf(&self) -> &conf::Conf {
+        &*self.conf
+    }
+
     pub fn snapshot(&self) -> Arc<Vec<(Gene, Weak<Species>)>> {
         let mut snapshot_guard = self.snapshot.lock().unwrap();
         if let Some(x) = &*snapshot_guard {
@@ -188,7 +192,6 @@ impl SpeciesPool {
     }
 
     pub fn insert_mutate<R: Rng>(mut gene: Gene, rng: &mut R, conf: &conf::Conf) -> Gene {
-        let insert_at = rng.gen_range(0..gene.len() + 1);
         let insert_value = {
             let total: usize = conf
                 .bio
@@ -198,23 +201,32 @@ impl SpeciesPool {
                 .sum();
             let mut roll = rng.gen_range(0..total);
             let mut chosen_acid = None;
-            for (acid_name, acid) in conf.bio.acids.iter() {
+            for (i, (acid_name, acid)) in conf.bio.acids.iter().enumerate() {
                 if roll < acid.mutate_rate {
-                    chosen_acid = Some(acid_name.clone());
+                    chosen_acid = Some(i);
                     break;
                 }
                 roll -= acid.mutate_rate;
             }
             chosen_acid.unwrap()
         };
-        gene.insert(insert_at, insert_value);
+        gene.resize_with(conf.bio.acids.len(), Default::default);
+        gene[insert_value] = gene[insert_value].saturating_add(1);
         gene
     }
 
     pub fn delete_mutate<R: Rng>(mut gene: Gene, rng: &mut R, conf: &conf::Conf) -> Gene {
-        if !gene.is_empty() {
-            let remove_at = rng.gen_range(0..gene.len());
-            gene.remove(remove_at);
+        let sum = gene.iter().map(|&cnt| cnt as u32).sum();
+        if sum > 0 {
+            let mut remove_at = rng.gen_range(0..sum);
+            for cnt in gene.iter_mut() {
+                if *cnt as u32 > remove_at {
+                    *cnt -= 1;
+                    break;
+                } else {
+                    remove_at -= *cnt as u32;
+                }
+            }
         }
         gene
     }
@@ -268,10 +280,10 @@ impl SpeciesPool {
 impl Species {
     pub fn new(gene: Gene, conf: &conf::Conf) -> Species {
         let mut stats = conf.bio.init.clone();
-        for acid in gene.iter() {
-            stats = stats + &conf.bio.acids[acid].prop;
+        for ((name, acid), cnt) in conf.bio.acids.iter().zip(gene.iter()) {
+            stats = stats + acid.prop.clone() * (*cnt as f64);
         }
-        let name = Species::name(&gene);
+        let name = Species::name(&gene, &conf);
         Species {
             gene,
             name,
@@ -302,11 +314,13 @@ impl Species {
         }
     }
 
-    pub fn name(gene: &Gene) -> String {
-        gene.clone()
-            .into_iter()
-            .reduce(|x, y| x.add(y.as_str()))
-            .unwrap_or_default()
+    pub fn name(gene: &Gene, conf: &conf::Conf) -> String {
+        conf.bio.acids.iter()
+            .zip(gene.iter())
+            .fold(String::new(), |mut acc, ((name, acid), cnt)| {
+                acc += name.repeat(*cnt as usize).as_str();
+                acc
+            })
     }
 }
 

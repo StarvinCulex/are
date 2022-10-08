@@ -99,6 +99,18 @@ where
     }
 }
 
+impl<T, R> std::ops::Mul<R> for Coord<T>
+where
+    T: std::ops::Mul<R>,
+    R: NotCoord + Clone,
+{
+    type Output = Coord<<T as std::ops::Mul<R>>::Output>;
+    #[inline]
+    fn mul(self, rhs: R) -> Self::Output {
+        Coord(self.0 * rhs.clone(), self.1 * rhs)
+    }
+}
+
 impl<T, R> std::ops::Div<Coord<R>> for Coord<T>
 where
     T: std::ops::Div<R>,

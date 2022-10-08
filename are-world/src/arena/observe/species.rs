@@ -20,18 +20,20 @@ pub struct SpeciesView {
 
 impl SpeciesStats {
     pub fn new(cosmos: &Cosmos, guard: &ReadGuard<PKey>) -> Self {
+        let pool = &cosmos
+            .angelos
+            .singletons
+            .species_pool;
+        let conf = pool.conf();
         let species = HashMap::from_iter(
-            cosmos
-                .angelos
-                .singletons
-                .species_pool
+            pool
                 .snapshot()
                 .iter()
                 .map(|(g, s)| {
                     (
                         g.clone(),
                         SpeciesView {
-                            name: Species::name(g),
+                            name: Species::name(g, conf),
                             population: s.strong_count(),
                         },
                     )
