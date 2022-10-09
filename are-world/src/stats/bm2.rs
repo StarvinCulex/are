@@ -20,6 +20,7 @@ pub enum Item {
 
 #[derive(Clone, Default, Serialize)]
 pub struct Benchmark {
+    #[cfg(feature = "benchmark")]
     pub data: BTreeMap<String, Item>,
 }
 
@@ -27,7 +28,10 @@ impl Benchmark {
     pub fn new() -> Self {
         Self::default()
     }
+}
 
+#[cfg(feature = "benchmark")]
+impl Benchmark {
     pub fn count<S: ToString>(&mut self, key: S, add: u64) -> Result<u64, ()> {
         match self.data.entry(key.to_string()).or_insert(Item::Count(0)) {
             Item::Count(c) => {
@@ -75,8 +79,24 @@ impl Benchmark {
     }
 }
 
+#[cfg(not(feature = "benchmark"))]
+impl Benchmark {
+    pub fn count<S: ToString>(&mut self, key: S, add: u64) -> Result<u64, ()> {
+        Ok(0)
+    }
+
+    pub fn start_timing<S: ToString>(&mut self, key: S) -> Result<(), ()> {
+        Ok(())
+    }
+
+    pub fn stop_timing<S: ToString>(&mut self, key: S) -> Result<u128, ()> {
+        Ok(0)
+    }
+}
+
 impl Display for Benchmark {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        #[cfg(feature = "benchmark")]
         for (key, value) in self.data.iter() {
             match *value {
                 Item::Count(count) => {
@@ -115,6 +135,7 @@ impl std::ops::Add for Benchmark {
 
 impl AddAssign for Benchmark {
     fn add_assign(&mut self, rhs: Self) {
+        #[cfg(feature = "benchmark")]
         for (k, rv) in rhs.data {
             match self.data.entry(k.clone()) {
                 Entry::Vacant(e) => {
@@ -145,4 +166,15 @@ impl AddAssign for Benchmark {
             }
         }
     }
+}
+
+#[macro_export]
+macro_rules! benchmark_time {
+    ([$key: expr, $benchmark: expr] $($tts: tt)*) => {
+        #[cfg(feature = "benchmark")]
+        $crate::stats::bm2::Benchmark::start_timing($benchmark, $key).unwrap();
+        $($tts)*
+        #[cfg(feature = "benchmark")]
+        $crate::stats::bm2::Benchmark::stop_timing($benchmark, $key).unwrap();
+    };
 }

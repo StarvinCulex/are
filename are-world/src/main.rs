@@ -202,7 +202,7 @@ fn mob_debugger<F: Fn(MobRef<dyn Mob>) -> bool + Send + Sync, G: Fn(MobRef<dyn M
             while !found.load(SeqCst) {
                 meta.step_x(StepArguments {
                     ground_message_recorder: |_, _| {},
-                    mob_order_recorder: |mut m, _| {
+                    mob_order_recorder: |m, _| {
                         if !found.load(Relaxed)
                             && selector(m.get_const())
                             && !found.swap(true, SeqCst)

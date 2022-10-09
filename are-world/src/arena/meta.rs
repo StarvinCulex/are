@@ -53,35 +53,41 @@ impl MetaCosmos {
     ) {
         macro_rules! bench {
             () => {
-                self.cosmos.angelos.stats.get_mut().unwrap().benchmark
+                &mut self.cosmos.angelos.stats.get_mut().unwrap().benchmark
             };
         }
 
-        bench!().start_timing("mind move tick").unwrap();
-        self.mind_move_tick();
-        bench!().stop_timing("mind move tick").unwrap();
+        crate::benchmark_time!(
+            ["mind move tick", bench!()]
+            self.mind_move_tick();
+        );
 
-        bench!().start_timing("mind set tick").unwrap();
-        self.mind_set_cosmos();
-        bench!().stop_timing("mind set tick").unwrap();
+        crate::benchmark_time!(
+            ["mind set tick", bench!()]
+            self.mind_set_cosmos();
+        );
 
-        bench!().start_timing("mind flush tick").unwrap();
-        self.mind_flush_queue();
-        bench!().stop_timing("mind flush tick").unwrap();
+        crate::benchmark_time!(
+            ["mind flush tick", bench!()]
+            self.mind_flush_queue();
+        );
 
-        bench!().start_timing("message tick").unwrap();
-        self.cosmos
-            .message_tick(args.ground_message_recorder, args.mob_message_recorder);
-        bench!().stop_timing("message tick").unwrap();
+        crate::benchmark_time!(
+            ["message tick", bench!()]
+            self.cosmos
+                .message_tick(args.ground_message_recorder, args.mob_message_recorder);
+        );
 
-        bench!().start_timing("order tick").unwrap();
-        self.cosmos
-            .order_tick(args.ground_order_recorder, args.mob_order_recorder);
-        bench!().stop_timing("order tick").unwrap();
+        crate::benchmark_time!(
+            ["order tick", bench!()]
+            self.cosmos
+                .order_tick(args.ground_order_recorder, args.mob_order_recorder);
+        );
 
-        bench!().start_timing("mind view tick").unwrap();
-        self.mind_view_tick();
-        bench!().stop_timing("mind view tick").unwrap();
+        crate::benchmark_time!(
+            ["mind view tick", bench!()]
+            self.mind_view_tick();
+        );
 
         self.cosmos.add_tick();
 

@@ -20,6 +20,7 @@ impl<'m, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
         Iterator::new(self.matrix, Scan::new(self.matrix.size, self.area))
     }
 
+    #[deprecated]
     #[inline]
     pub fn fast(
         &self,
@@ -68,6 +69,7 @@ impl<'m, Element, const CHUNK_WIDTH: usize, const CHUNK_HEIGHT: usize>
         IteratorMut::new(self.matrix, Scan::new(self.matrix.size, self.area))
     }
 
+    #[deprecated]
     #[inline]
     pub fn fast(
         self,

@@ -41,7 +41,10 @@ where
     K: Display + std::hash::Hash + Eq,
     R: Row,
 {
+    #[cfg(feature = "chart")]
     table: HashMap<K, R>,
+    #[cfg(not(feature = "chart"))]
+    table: PhantomData<(K, R)>
 }
 
 impl<K, R> Chart<K, R>
@@ -52,16 +55,18 @@ where
     #[inline]
     pub fn new() -> Self {
         Self {
-            table: HashMap::new(),
+            table: Default::default()
         }
     }
 
     #[inline]
     pub fn add(&mut self, key: K, value: R::V) {
+        #[cfg(feature = "chart")]
         self.table.entry(key).or_insert_with(R::default).add(value);
     }
 
     pub fn clear(&mut self) {
+        #[cfg(feature = "chart")]
         self.table.clear();
     }
 }
@@ -72,12 +77,13 @@ where
     R: Row,
 {
     fn add_assign(&mut self, rhs: Self) {
+        #[cfg(feature = "chart")]
         for (k, v) in rhs.table {
             match self.table.entry(k) {
                 Entry::Occupied(mut o) => {
                     o.get_mut().merge(v);
                 }
-                Entry::Vacant(mut o) => {
+                Entry::Vacant(o) => {
                     o.insert(v);
                 }
             }
@@ -103,13 +109,16 @@ where
     R: Row,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let heap: BinaryHeap<_> = self
+        #[cfg(feature = "chart")]
+        {
+            let heap: BinaryHeap<_> = self
             .table
             .iter()
             .map(|(k, v)| KR { key: k, row: v })
             .collect();
-        for KR { row, key, .. } in heap.into_iter_sorted() {
-            write!(f, "[{key}]\n{value}", key = key, value = row)?;
+            for KR { row, key, .. } in heap.into_iter_sorted() {
+                write!(f, "[{key}]\n{value}", key = key, value = row)?;
+            }
         }
         Ok(())
     }

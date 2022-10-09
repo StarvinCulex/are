@@ -19,5 +19,8 @@ plotters = "0.3.1"
 derive_more = "0.99.17"
 
 [features]
-default = ["log"] # remove "log" to enable optimization
+default = ["log", "stats"] # remove "log"/"stats" to enable optimization
 log = []
+benchmark = []
+chart = []
+stats = ["benchmark", "chart"]
