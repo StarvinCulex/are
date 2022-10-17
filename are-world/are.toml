@@ -13,16 +13,7 @@ unit_count = [10, 10]
 mesh_size = 2
 
 [log]
-snapshot_paths.overview = ".\\overview.png"
-
-
-[plant]
-aging_possibility = 0.01
-aging_energy_weight = 1000
-
-[corpse]
-rot = 1000
-convert_rate = 1.0
+snapshot_paths.overview = ".\\log\\overview.png"
 
 [bio]
 initial_population = 100000
